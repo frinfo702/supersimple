@@ -41,6 +41,28 @@ final class ThemeManager {
         }
     }
 
+    /// True when the resolved scheme is dark (explicit preference, or system).
+    func isDark(matching colorScheme: ColorScheme) -> Bool {
+        switch preference {
+        case .dark: true
+        case .light: false
+        case .system: colorScheme == .dark
+        }
+    }
+
+    /// Toggles Light ↔ Dark, resolving `.system` from the current effective appearance.
+    func cycle() {
+        preference = currentlyDark ? .light : .dark
+    }
+
+    private var currentlyDark: Bool {
+        switch preference {
+        case .dark: true
+        case .light: false
+        case .system: NSApp.effectiveAppearance.isDark
+        }
+    }
+
     private func apply() {
         let appearance: NSAppearance?
         switch preference {
@@ -48,6 +70,14 @@ final class ThemeManager {
         case .light: appearance = NSAppearance(named: .aqua)
         case .dark: appearance = NSAppearance(named: .darkAqua)
         }
-        NSApp.appearance = appearance
+        // AppKit otherwise fades the titlebar/toolbar a beat after SwiftUI content.
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = 0
+            context.allowsImplicitAnimation = false
+            NSApp.appearance = appearance
+            for window in NSApp.windows {
+                window.appearance = appearance
+            }
+        }
     }
 }

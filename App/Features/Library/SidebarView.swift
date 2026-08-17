@@ -5,6 +5,7 @@ import SwiftUI
 /// field, sidebar toggle, and new-note button live in the top bar.
 struct SidebarView: View {
     @Bindable var model: AppModel
+    @Binding var notePendingDelete: Note?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -54,6 +55,16 @@ struct SidebarView: View {
                     ForEach(model.visibleNotes) { note in
                         NoteRow(note: note, isSelected: model.currentNoteID == note.id) {
                             model.select(note)
+                        }
+                        .contextMenu {
+                            Button("Export…") {
+                                model.select(note)
+                                model.presentExportPanel()
+                            }
+                            Divider()
+                            Button("Delete…", role: .destructive) {
+                                notePendingDelete = note
+                            }
                         }
                     }
                 }

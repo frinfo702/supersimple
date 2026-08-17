@@ -1,7 +1,10 @@
+import AppKit
 import Foundation
+import MarkdownEngine
 import OSLog
 import SupersimpleCore
 import SwiftUI
+import UniformTypeIdentifiers
 
 /// Central application state. Owns the in-memory set of notes, the currently
 /// edited body, the search index, and drives debounced atomic persistence.
@@ -44,6 +47,13 @@ final class AppModel {
         }
     }
 
+    /// Whether the status strip under the editor is shown.
+    var bottomBarVisible: Bool {
+        didSet {
+            userDefaults.set(bottomBarVisible, forKey: "bottomBarVisible")
+        }
+    }
+
     private var isBootstrapLoaded = false
     private var saveTask: Task<Void, Never>?
     private var isDirty = false
@@ -63,6 +73,7 @@ final class AppModel {
     ) {
         self.userDefaults = userDefaults ?? UserDefaults(suiteName: "com.frinfo702.supersimple") ?? .standard
         sidebarVisible = self.userDefaults.object(forKey: "sidebarVisible") as? Bool ?? true
+        bottomBarVisible = self.userDefaults.object(forKey: "bottomBarVisible") as? Bool ?? true
 
         if let override = notesDirectoryOverride {
             notesDirectory = override
@@ -87,7 +98,7 @@ final class AppModel {
     /// Paste handler for the editor: saves a pasted image and returns the `![[name]]`
     /// embed to insert, or `nil` to fall through to the default text paste.
     func pasteImageHandler(_ pasteboard: NSPasteboard) -> String? {
-        guard let png = pasteboard.data(forType: .png) else { return nil }
+        guard let png = PasteboardImageReader.imageData(from: pasteboard) else { return nil }
         guard let name = imageStore.savePastedImage(png, ext: "png") else { return nil }
         return "![[\(name)]]"
     }
@@ -218,6 +229,12 @@ final class AppModel {
             currentBody = ""
         }
         notes.removeAll { $0.id == note.id }
+    }
+
+    /// Deletes the currently selected note, if any.
+    func deleteCurrentNote() {
+        guard let note = currentNote() else { return }
+        deleteNote(note)
     }
 
     // MARK: - Editing
@@ -431,6 +448,82 @@ final class AppModel {
     func closeSearch() {
         searchQuery = ""
         searchResults = []
+    }
+
+    // MARK: - Export / import
+
+    func exportMarkdown(for note: Note) -> String {
+        note.body
+    }
+
+    func exportFilename(for note: Note) -> String {
+        NoteStats.sanitizedFilename(note.title) + ".md"
+    }
+
+    func writeExport(of note: Note, to url: URL) throws {
+        try exportMarkdown(for: note).write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    /// Presents a save panel and writes the current note as a `.md` file.
+    func presentExportPanel() {
+        flushNow()
+        guard let note = currentNote() else { return }
+        let panel = NSSavePanel()
+        panel.canCreateDirectories = true
+        panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText]
+        panel.nameFieldStringValue = exportFilename(for: note)
+        panel.title = "Export Note"
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            Task { @MainActor in
+                do {
+                    try self.writeExport(of: note, to: url)
+                } catch {
+                    Self.log.error("Failed to export note: \(error.localizedDescription, privacy: .public)")
+                }
+            }
+        }
+    }
+
+    /// Presents an open panel and imports each chosen Markdown file as a new note.
+    func presentImportPanel() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = true
+        panel.allowedContentTypes = [UTType(filenameExtension: "md") ?? .plainText, .plainText]
+        panel.title = "Import Notes"
+        panel.begin { response in
+            guard response == .OK else { return }
+            let urls = panel.urls
+            Task { @MainActor in
+                for url in urls {
+                    do {
+                        try self.importNote(from: url)
+                    } catch {
+                        Self.log.error(
+                            "Failed to import \(url.lastPathComponent, privacy: .public): \(error.localizedDescription, privacy: .public)"
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    /// Creates a new note from a Markdown file. Always assigns a fresh id so
+    /// importing a previously-exported file cannot collide with an existing note.
+    @discardableResult
+    func importNote(from url: URL) throws -> Note {
+        flushNow()
+        let text = try String(contentsOf: url, encoding: .utf8)
+        let doc = try FrontmatterCodec.decode(text)
+        var note = Note()
+        note.body = doc.body
+        note.tags = TagNormalizer.extractTags(from: note.body)
+        notes.insert(note, at: 0)
+        select(note)
+        persist(note)
+        return note
     }
 
     /// Called on app termination to guarantee the last edits are on disk.

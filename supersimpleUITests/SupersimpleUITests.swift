@@ -73,6 +73,18 @@ final class SupersimpleUITests: XCTestCase {
         XCTAssertTrue(toggle.isEnabled)
     }
 
+    @MainActor
+    func testToolbarActionsExist() throws {
+        let app = XCUIApplication()
+        app.launch()
+        XCTAssertTrue(app.buttons["theme-light-button"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["theme-dark-button"].exists)
+        XCTAssertTrue(app.buttons["toggle-bottom-bar-button"].exists)
+        XCTAssertTrue(app.buttons["export-note-button"].exists)
+        XCTAssertTrue(app.buttons["new-note-button"].exists)
+        XCTAssertTrue(app.searchFields["search-field"].exists || app.textFields["search-field"].exists)
+    }
+
     // MARK: - Screenshot capture
 
     @MainActor

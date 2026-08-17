@@ -9,6 +9,8 @@
 /* Begin PBXBuildFile section */
 		00D9968516FA9AB4F913A40B /* SVGIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E4E3A695A1A592C185A3819 /* SVGIcons.swift */; };
 		1DFA51B809AEC2578A5B24A0 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 446DDC1536D6EB8106031BC9 /* SidebarView.swift */; };
+		34CFE42F7C3E4BE8C22E2B9F /* BottomBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C93C3653B49C91E32CA9A045 /* BottomBarView.swift */; };
+		3807F6FEA88ADF5648BED01D /* NoteStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8442FD7B2968A92BD6C95C03 /* NoteStats.swift */; };
 		39F2E8A9B7A786AB3D4D6372 /* SupersimpleCore in Frameworks */ = {isa = PBXBuildFile; productRef = 28CE08F4153B4EF6060AC482 /* SupersimpleCore */; };
 		412D8C864C9C1631C52ED3E5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8C3C369BC4DD2868AD5632C0 /* Assets.xcassets */; };
 		43CAD5F67985F9829DEF5FFB /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7F5E8CF87F9CE35E40084A /* ThemeManager.swift */; };
@@ -17,6 +19,7 @@
 		62A6EBB69ADEB23FFD352AF4 /* MarkdownEngineLatex in Frameworks */ = {isa = PBXBuildFile; productRef = 574E0DC4D79106D424F96D2F /* MarkdownEngineLatex */; };
 		8DB20AA1ED612D1DE0B527A1 /* GeistMono.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1A8A5098809F4EF931DED0F4 /* GeistMono.ttf */; };
 		9164CAE29549E33199E4DE8E /* ThemeCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */; };
+		970E53D34EEA43F5A8288D81 /* WindowChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D52CF398C51C27B1282D75C /* WindowChrome.swift */; };
 		9D3307BB19BF5568C5B7F868 /* SupersimpleCore in Frameworks */ = {isa = PBXBuildFile; productRef = AD01F469D880EDEF7D47834E /* SupersimpleCore */; };
 		A7DDEE8CC9C8D519FDAD555A /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637D22A7341BBADF047DF9F6 /* AppModelTests.swift */; };
 		A965689EF507898F3E2EF21B /* SupersimpleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */; };
@@ -50,6 +53,7 @@
 		07908A4E24E57D67ACB88BE5 /* supersimple.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = supersimple.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		08C3404FB831A9B8678E717D /* Supersimple.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Supersimple.entitlements; sourceTree = "<group>"; };
 		1A8A5098809F4EF931DED0F4 /* GeistMono.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = GeistMono.ttf; sourceTree = "<group>"; };
+		2D52CF398C51C27B1282D75C /* WindowChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowChrome.swift; sourceTree = "<group>"; };
 		2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersimpleApp.swift; sourceTree = "<group>"; };
 		36777A37D6601ACFD8813534 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		3FA4917AA8AFCFD7E1E952AD /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -62,15 +66,17 @@
 		637D22A7341BBADF047DF9F6 /* AppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelTests.swift; sourceTree = "<group>"; };
 		63AD7E0126C10688365F9204 /* SupersimpleCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SupersimpleCore; path = Packages/SupersimpleCore; sourceTree = SOURCE_ROOT; };
 		63B37994CE45CDC8551691C0 /* NativeCodeHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCodeHighlighter.swift; sourceTree = "<group>"; };
+		8442FD7B2968A92BD6C95C03 /* NoteStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStats.swift; sourceTree = "<group>"; };
 		8C3B6C8592BA4AB3F51AB499 /* supersimpleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8C3C369BC4DD2868AD5632C0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		906F2D47A23E7FDAA0E1A35E /* ImageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageStore.swift; sourceTree = "<group>"; };
 		B47DE2CE54F87F1D7E7C3DA3 /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
 		C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeCommands.swift; sourceTree = "<group>"; };
+		C93C3653B49C91E32CA9A045 /* BottomBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomBarView.swift; sourceTree = "<group>"; };
 		E44268CB09A660B95EBCA712 /* FaviconService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaviconService.swift; sourceTree = "<group>"; };
 		E52E7AD4D9C61D126880708B /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 		FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		"TEMP_209015B2-CFF7-4D3C-AF49-06C91139DA35" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
+		"TEMP_BA809023-9FB9-4F2D-9523-A96D54512DF7" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -134,6 +140,7 @@
 			isa = PBXGroup;
 			children = (
 				4E4E3A695A1A592C185A3819 /* SVGIcons.swift */,
+				2D52CF398C51C27B1282D75C /* WindowChrome.swift */,
 			);
 			path = Components;
 			sourceTree = "<group>";
@@ -176,6 +183,7 @@
 		9DC95DB0734FF9ABEC1189E6 /* Library */ = {
 			isa = PBXGroup;
 			children = (
+				C93C3653B49C91E32CA9A045 /* BottomBarView.swift */,
 				446DDC1536D6EB8106031BC9 /* SidebarView.swift */,
 			);
 			path = Library;
@@ -188,6 +196,7 @@
 				3FA4917AA8AFCFD7E1E952AD /* ContentView.swift */,
 				E44268CB09A660B95EBCA712 /* FaviconService.swift */,
 				906F2D47A23E7FDAA0E1A35E /* ImageStore.swift */,
+				8442FD7B2968A92BD6C95C03 /* NoteStats.swift */,
 				2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */,
 			);
 			path = App;
@@ -392,16 +401,19 @@
 			files = (
 				C794FA9B0F44F271C5313763 /* AppModel.swift in Sources */,
 				B2ED1BBFE2D902D3D9500E9C /* AppTheme.swift in Sources */,
+				34CFE42F7C3E4BE8C22E2B9F /* BottomBarView.swift in Sources */,
 				4AAB69C0B7C1120587B9150C /* ContentView.swift in Sources */,
 				E836B0648BB415F0B0B67B07 /* EditorView.swift in Sources */,
 				BF31B866A8162104F210E0F5 /* FaviconService.swift in Sources */,
 				EB199922E2AC8A65FCACA04D /* ImageStore.swift in Sources */,
 				F9DC6812742022BD42B5FC71 /* NativeCodeHighlighter.swift in Sources */,
+				3807F6FEA88ADF5648BED01D /* NoteStats.swift in Sources */,
 				00D9968516FA9AB4F913A40B /* SVGIcons.swift in Sources */,
 				1DFA51B809AEC2578A5B24A0 /* SidebarView.swift in Sources */,
 				A965689EF507898F3E2EF21B /* SupersimpleApp.swift in Sources */,
 				9164CAE29549E33199E4DE8E /* ThemeCommands.swift in Sources */,
 				43CAD5F67985F9829DEF5FFB /* ThemeManager.swift in Sources */,
+				970E53D34EEA43F5A8288D81 /* WindowChrome.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

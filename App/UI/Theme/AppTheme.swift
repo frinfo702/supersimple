@@ -65,11 +65,32 @@ enum AppTheme {
         static let controlRadius: CGFloat = 10
         static let editorRadius: CGFloat = 30
         static let editorSurfaceRadius: CGFloat = 23
+        static let bottomBarHeight: CGFloat = 32
+    }
+
+    /// SwiftUI colors resolved for a known scheme. Use these in the toolbar so
+    /// chrome does not wait on AppKit's appearance fade.
+    static func backgroundColor(isDark: Bool) -> SwiftUI.Color {
+        isDark
+            ? SwiftUI.Color(white: 0.025)
+            : SwiftUI.Color(red: 0.95, green: 0.945, blue: 0.92)
+    }
+
+    static func sidebarBackgroundColor(isDark: Bool) -> SwiftUI.Color {
+        isDark
+            ? SwiftUI.Color(red: 0.035, green: 0.036, blue: 0.032)
+            : SwiftUI.Color(red: 0.91, green: 0.905, blue: 0.875)
+    }
+
+    static func mutedColor(isDark: Bool) -> SwiftUI.Color {
+        isDark
+            ? SwiftUI.Color(red: 0.58, green: 0.59, blue: 0.51)
+            : SwiftUI.Color(red: 0.37, green: 0.38, blue: 0.31)
     }
 }
 
 extension NSAppearance {
-    fileprivate var isDark: Bool {
+    var isDark: Bool {
         bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
     }
 }

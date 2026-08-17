@@ -209,4 +209,100 @@ struct AppModelTests {
         model.flushNow()
         #expect(model.currentNote()?.body.contains("#swift") == true)
     }
+
+    @Test("Exports the note body and a sanitized filename")
+    func exportNoteBody() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+
+        model.createNote()
+        model.noteBodyEdited("# Recipes / Ideas\nHow to make apple crumble.", for: model.currentNoteID!)
+        model.flushNow()
+
+        let note = try #require(model.currentNote())
+        #expect(model.exportMarkdown(for: note) == note.body)
+        #expect(model.exportFilename(for: note) == "Recipes - Ideas.md")
+
+        let out = dir.appendingPathComponent("export.md")
+        try model.writeExport(of: note, to: out)
+        #expect(try String(contentsOf: out, encoding: .utf8) == note.body)
+    }
+
+    @Test("Imports a markdown file as a new note")
+    func importMarkdownFile() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+
+        let source = dir.appendingPathComponent("incoming.md")
+        try "# Imported\nHello #inbox".write(to: source, atomically: true, encoding: .utf8)
+
+        let note = try model.importNote(from: source)
+        #expect(note.title == "Imported")
+        #expect(note.body.contains("Hello #inbox"))
+        #expect(note.tags.contains(Tag(name: "inbox")))
+        #expect(model.notes.count == 1)
+        #expect(model.currentNoteID == note.id)
+    }
+
+    @Test("deleteCurrentNote removes the selected note")
+    func deleteCurrentNote() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+
+        model.createNote()
+        #expect(model.notes.count == 1)
+        model.deleteCurrentNote()
+        #expect(model.notes.isEmpty)
+        #expect(model.currentNote() == nil)
+    }
+
+    @Test("Bottom bar visibility can be toggled")
+    func bottomBarVisibilityToggles() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+
+        #expect(model.bottomBarVisible)
+        model.bottomBarVisible = false
+        #expect(!model.bottomBarVisible)
+        model.bottomBarVisible = true
+        #expect(model.bottomBarVisible)
+    }
+}
+
+@Suite("NoteStats")
+struct NoteStatsTests {
+    @Test("Counts words and characters")
+    func counts() {
+        #expect(NoteStats.wordCount("") == 0)
+        #expect(NoteStats.wordCount("  \n  ") == 0)
+        #expect(NoteStats.wordCount("one two three") == 3)
+        #expect(NoteStats.characterCount("hi") == 2)
+    }
+
+    @Test("Sanitizes filenames")
+    func filenames() {
+        #expect(NoteStats.sanitizedFilename("Recipes / Ideas") == "Recipes - Ideas")
+        #expect(NoteStats.sanitizedFilename("   ") == "Untitled")
+        #expect(NoteStats.sanitizedFilename("a:b?c") == "a-b-c")
+    }
 }

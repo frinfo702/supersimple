@@ -14,6 +14,7 @@ struct SupersimpleApp: App {
                 .environment(model)
                 .environment(themeManager)
                 .preferredColorScheme(themeManager.preference.colorScheme)
+                .animation(nil, value: themeManager.preference)
                 .frame(minWidth: 900, minHeight: 560)
                 .task {
                     await model.bootstrap()
@@ -21,6 +22,7 @@ struct SupersimpleApp: App {
                 }
         }
         .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unified)
         .commands {
             AppCommands()
             ThemeCommands(themeManager: themeManager)
