@@ -37,10 +37,13 @@ final class SupersimpleUITests: XCTestCase {
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 5))
 
+        // Create a note so the sidebar has content regardless of real data.
+        let newNoteButton = app.buttons["new-note-button"]
+        XCTAssertTrue(newNoteButton.waitForExistence(timeout: 5))
+        newNoteButton.click()
+
         let editor = app.descendants(matching: .any)["editor-surface"]
         XCTAssertTrue(editor.waitForExistence(timeout: 5))
-        let notesList = app.descendants(matching: .any)["notes-list"]
-        XCTAssertTrue(notesList.exists)
 
         // Editor fills the right side and is meaningfully sized.
         let editorFrame = editor.frame

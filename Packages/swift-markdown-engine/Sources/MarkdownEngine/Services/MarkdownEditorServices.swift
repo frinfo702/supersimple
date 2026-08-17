@@ -184,6 +184,22 @@ public struct NoOpLatexRenderer: LatexRenderer {
     public func render(latex: String, fontSize: CGFloat, theme: MarkdownEditorTheme) -> LatexRenderResult? { nil }
 }
 
+
+// MARK: - Favicons
+
+/// Supplies a small site icon for a hostname so links can render a favicon inline.
+public protocol FaviconProvider: Sendable {
+    /// Returns the cached favicon for `host` (e.g. "github.com"), or `nil` if not yet
+    /// available. Called synchronously during styling; embedders prefetch asynchronously.
+    func favicon(for host: String) -> NSImage?
+}
+
+/// Default provider that returns no favicon.
+public struct NoOpFaviconProvider: FaviconProvider {
+    public init() {}
+    public func favicon(for host: String) -> NSImage? { nil }
+}
+
 // MARK: - Event Bus
 
 /// Optional notification-name bridge that lets the editor communicate with
@@ -319,6 +335,7 @@ public struct MarkdownEditorServices: Sendable {
     public var images: any EmbeddedImageProvider
     public var syntaxHighlighter: any SyntaxHighlighter
     public var latex: any LatexRenderer
+    public var favicons: any FaviconProvider
     public var bus: MarkdownEditorBus
 
     public init(
@@ -326,12 +343,14 @@ public struct MarkdownEditorServices: Sendable {
         images: any EmbeddedImageProvider = NoOpEmbeddedImageProvider(),
         syntaxHighlighter: any SyntaxHighlighter = PlainTextSyntaxHighlighter(),
         latex: any LatexRenderer = NoOpLatexRenderer(),
+        favicons: any FaviconProvider = NoOpFaviconProvider(),
         bus: MarkdownEditorBus = .default
     ) {
         self.wikiLinks = wikiLinks
         self.images = images
         self.syntaxHighlighter = syntaxHighlighter
         self.latex = latex
+        self.favicons = favicons
         self.bus = bus
     }
 

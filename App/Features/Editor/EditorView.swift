@@ -42,11 +42,13 @@ struct EditorView: View {
     private func liveEditor(for note: Note) -> some View {
         NativeTextViewWrapper(
             text: binding(for: note),
-            configuration: EditorConfiguration.build(),
+            configuration: EditorConfiguration.build(
+                imageStore: model.imageStore, faviconService: model.faviconService),
             fontName: "SF Pro",
             fontSize: 16,
             documentId: note.id.uuidString,
-            isEditable: true
+            isEditable: true,
+            onPasteImage: model.pasteImageHandler
         )
         .background(Color(nsColor: AppTheme.Color.editorSurface))
     }
@@ -65,10 +67,10 @@ struct EditorView: View {
         min(max(total * 0.11, 24), 160)
     }
 
-    /// Full-height, square (unrounded) gradient strip filling its frame on the right
-    /// edge. The container has a fixed width so the editor takes the remaining space.
+    /// Full-height gradient strip on the right edge with slightly rounded corners.
+    /// The container has a fixed width so the editor takes the remaining space.
     private func gradientBand(width: CGFloat) -> some View {
-        Rectangle()
+        RoundedRectangle(cornerRadius: 12, style: .continuous)
             .fill(AppTheme.editorGradient)
             .frame(width: width)
             .frame(maxHeight: .infinity)
@@ -92,7 +94,7 @@ struct EditorView: View {
 
 /// Concentrates engine configuration (theme + services + typography).
 enum EditorConfiguration {
-    static func build() -> MarkdownEditorConfiguration {
+    static func build(imageStore: ImageStore, faviconService: FaviconService) -> MarkdownEditorConfiguration {
         var config = MarkdownEditorConfiguration.default
 
         var theme = MarkdownEditorTheme.default
@@ -105,8 +107,10 @@ enum EditorConfiguration {
         config.theme = theme
 
         config.services = MarkdownEditorServices(
+            images: imageStore,
             syntaxHighlighter: NativeCodeHighlighter(),
-            latex: SwiftMathBridge()
+            latex: SwiftMathBridge(),
+            favicons: faviconService
         )
         config.readingWidth = AppTheme.Metric.readingWidth
         config.paragraph.spacingFactor = 0.35

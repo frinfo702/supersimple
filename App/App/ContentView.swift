@@ -18,8 +18,11 @@ struct TopBar: View {
 
             newNoteButton
         }
-        .padding(.horizontal, 14)
-        .frame(height: 48)
+        // Align the controls with the macOS traffic-light buttons (hidden title bar)
+        // and leave room on the left so the toggle doesn't overlap them.
+        .padding(.leading, 70)
+        .padding(.trailing, 14)
+        .frame(height: 40)
         .background(Color(nsColor: AppTheme.Color.background))
     }
 

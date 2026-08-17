@@ -18,6 +18,10 @@ final class AppModel {
     private let notesDirectory: URL
     private let appSupportURL: URL
     private let userDefaults: UserDefaults
+    /// Stores pasted images and serves them to the editor's `![[name]]` embeds.
+    let imageStore: ImageStore
+    /// Fetches and caches site favicons for links.
+    let faviconService = FaviconService()
 
     // MARK: - Observable state
 
@@ -77,6 +81,15 @@ final class AppModel {
                 for: .applicationSupportDirectory, in: .userDomainMask
             )[0].appendingPathComponent("Supersimple", isDirectory: true)
         }
+        imageStore = ImageStore(appSupport: appSupportURL)
+    }
+
+    /// Paste handler for the editor: saves a pasted image and returns the `![[name]]`
+    /// embed to insert, or `nil` to fall through to the default text paste.
+    func pasteImageHandler(_ pasteboard: NSPasteboard) -> String? {
+        guard let png = pasteboard.data(forType: .png) else { return nil }
+        guard let name = imageStore.savePastedImage(png, ext: "png") else { return nil }
+        return "![[\(name)]]"
     }
 
     /// Loads all notes from disk and rebuilds the search index on first use.
@@ -161,6 +174,21 @@ final class AppModel {
         selectedTag = nil
         searchQuery = ""
         userDefaults.set(note.id.uuidString, forKey: "lastNote")
+        prefetchFavicons(in: note.body)
+    }
+
+    /// Extracts hostnames from a body and prefetches their favicons.
+    func prefetchFavicons(in body: String) {
+        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+        var hosts: Set<String> = []
+        detector?.enumerateMatches(
+            in: body, options: [], range: NSRange(location: 0, length: (body as NSString).length)
+        ) { match, _, _ in
+            if let url = match?.url, let host = url.host { hosts.insert(host) }
+        }
+        if !hosts.isEmpty {
+            faviconService.prefetch(hosts: Array(hosts))
+        }
     }
 
     // MARK: - Create / delete

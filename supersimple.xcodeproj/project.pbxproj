@@ -21,8 +21,10 @@
 		A7DDEE8CC9C8D519FDAD555A /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637D22A7341BBADF047DF9F6 /* AppModelTests.swift */; };
 		A965689EF507898F3E2EF21B /* SupersimpleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */; };
 		B2ED1BBFE2D902D3D9500E9C /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62BC1A8D2178CDBFA86142BB /* AppTheme.swift */; };
+		BF31B866A8162104F210E0F5 /* FaviconService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E44268CB09A660B95EBCA712 /* FaviconService.swift */; };
 		C794FA9B0F44F271C5313763 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FF15FA9B631FA47690BF74A /* AppModel.swift */; };
 		E836B0648BB415F0B0B67B07 /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47DE2CE54F87F1D7E7C3DA3 /* EditorView.swift */; };
+		EB199922E2AC8A65FCACA04D /* ImageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 906F2D47A23E7FDAA0E1A35E /* ImageStore.swift */; };
 		F16EFE8330FB90E14D4E0D68 /* SupersimpleUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59245FC4B2E2EF851ECE0F93 /* SupersimpleUITests.swift */; };
 		F9DC6812742022BD42B5FC71 /* NativeCodeHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63B37994CE45CDC8551691C0 /* NativeCodeHighlighter.swift */; };
 /* End PBXBuildFile section */
@@ -62,11 +64,13 @@
 		63B37994CE45CDC8551691C0 /* NativeCodeHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCodeHighlighter.swift; sourceTree = "<group>"; };
 		8C3B6C8592BA4AB3F51AB499 /* supersimpleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8C3C369BC4DD2868AD5632C0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		906F2D47A23E7FDAA0E1A35E /* ImageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageStore.swift; sourceTree = "<group>"; };
 		B47DE2CE54F87F1D7E7C3DA3 /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
 		C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeCommands.swift; sourceTree = "<group>"; };
+		E44268CB09A660B95EBCA712 /* FaviconService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaviconService.swift; sourceTree = "<group>"; };
 		E52E7AD4D9C61D126880708B /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 		FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		"TEMP_FD60D78E-347B-4946-BAF0-B3D876EFAA93" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
+		"TEMP_209015B2-CFF7-4D3C-AF49-06C91139DA35" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -182,6 +186,8 @@
 			children = (
 				3FF15FA9B631FA47690BF74A /* AppModel.swift */,
 				3FA4917AA8AFCFD7E1E952AD /* ContentView.swift */,
+				E44268CB09A660B95EBCA712 /* FaviconService.swift */,
+				906F2D47A23E7FDAA0E1A35E /* ImageStore.swift */,
 				2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */,
 			);
 			path = App;
@@ -388,6 +394,8 @@
 				B2ED1BBFE2D902D3D9500E9C /* AppTheme.swift in Sources */,
 				4AAB69C0B7C1120587B9150C /* ContentView.swift in Sources */,
 				E836B0648BB415F0B0B67B07 /* EditorView.swift in Sources */,
+				BF31B866A8162104F210E0F5 /* FaviconService.swift in Sources */,
+				EB199922E2AC8A65FCACA04D /* ImageStore.swift in Sources */,
 				F9DC6812742022BD42B5FC71 /* NativeCodeHighlighter.swift in Sources */,
 				00D9968516FA9AB4F913A40B /* SVGIcons.swift in Sources */,
 				1DFA51B809AEC2578A5B24A0 /* SidebarView.swift in Sources */,

@@ -25,6 +25,10 @@ no `WKWebView`, no JavaScript runtime.
 - **Plain Markdown files** — each note is a `.md` file in
   `~/Library/Application Support/Supersimple/Notes/`. Atomic writes, autosave debounce,
   sync flush on quit.
+- **Image paste** — pasting an image saves it to the app's storage and embeds it in the
+  note (`![[name]]`).
+- **Link favicons** — URLs render with their site's favicon inline (fetched and cached
+  from Google's favicon service).
 - **Minimal design** — hidden navbar title, standard traffic lights, subtle warm accent,
   near-black theme, and dark/light/system appearance.
 

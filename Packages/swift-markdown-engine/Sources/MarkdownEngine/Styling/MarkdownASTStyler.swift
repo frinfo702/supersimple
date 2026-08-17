@@ -793,8 +793,24 @@ enum MarkdownASTStyler {
                 ]))
             }
         }
+        // Prepend a small favicon before the link text when one is cached. We draw it
+        // on the first (hidden-when-inactive) marker so the source text is untouched.
+        if !isActive, let first = markers.first, let host = faviconHost(urlString),
+           let icon = ctx.config.services.favicons.favicon(for: host) {
+            attrs.append((first, [
+                .latexImage: icon,
+                .latexBounds: NSValue(rect: CGRect(x: 0, y: 0, width: 16, height: 16)),
+                .latexIsBlock: false,
+            ]))
+        }
         for marker in markers { attrs.append((marker, [.foregroundColor: ctx.theme.mutedText])) }
         styleInlines(children, font: font, ctx: ctx, into: &attrs)
+    }
+
+    /// Extracts the hostname from a URL string for favicon lookup.
+    private static func faviconHost(_ urlString: String) -> String? {
+        guard let url = URL(string: urlString), let host = url.host else { return nil }
+        return host
     }
 
     private static func styleWikiLink(
