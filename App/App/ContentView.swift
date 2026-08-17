@@ -1,6 +1,105 @@
 import AppKit
 import SwiftUI
 
+/// Top bar (Apple Notes style): sidebar toggle, search field, and the new-note
+/// button live here, so the sidebar stays a clean list and layout never fights
+/// over the header.
+struct TopBar: View {
+    @Bindable var model: AppModel
+    @FocusState private var searchIsFocused: Bool
+
+    var body: some View {
+        HStack(spacing: 12) {
+            sidebarToggle
+
+            searchField
+
+            Spacer(minLength: 0)
+
+            newNoteButton
+        }
+        .padding(.horizontal, 14)
+        .frame(height: 48)
+        .background(Color(nsColor: AppTheme.Color.background))
+    }
+
+    // MARK: - Sidebar toggle
+
+    private var sidebarToggle: some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.15)) {
+                model.sidebarVisible.toggle()
+            }
+        } label: {
+            SidebarIcon(lineWidth: 1.5)
+                .foregroundStyle(Color.supersimpleMuted)
+                .frame(width: 30, height: 30)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("toggle-sidebar-button")
+        .accessibilityLabel("Toggle sidebar")
+        .accessibilityHint("Shows or hides the sidebar. Keyboard shortcut: Option-Command-S.")
+        .help("Toggle sidebar (⌥⌘S)")
+    }
+
+    // MARK: - Search
+
+    private var searchField: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.supersimpleMuted)
+            TextField("Search notes", text: $model.searchQuery)
+                .textFieldStyle(.plain)
+                .font(.system(size: 14))
+                .focused($searchIsFocused)
+                .accessibilityIdentifier("search-field")
+                .accessibilityLabel("Search notes")
+                .onChange(of: model.searchQuery) { _, _ in
+                    model.performSearch()
+                }
+
+            if !model.searchQuery.isEmpty {
+                Button {
+                    model.closeSearch()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.supersimpleMuted)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: AppTheme.Metric.controlRadius, style: .continuous)
+                .fill(Color(nsColor: AppTheme.Color.sidebarBackground))
+        )
+    }
+
+    // MARK: - New note
+
+    private var newNoteButton: some View {
+        Button {
+            model.createNote()
+        } label: {
+            // The plus glyph is colored directly (no background box).
+            PlusIcon(lineWidth: 1.6)
+                .foregroundStyle(Color.supersimpleAccent)
+                .frame(width: 30, height: 30)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("new-note-button")
+        .accessibilityLabel("New note")
+        .accessibilityHint("Creates a new note. Keyboard shortcut: Command-N.")
+        .help("New note (⌘N)")
+    }
+}
+
 struct ContentView: View {
     @Environment(AppModel.self) private var model
     @State private var appLaunchTask: Task<Void, Never>?
@@ -8,9 +107,12 @@ struct ContentView: View {
     private static let toggleSidebarName = Notification.Name("supersimple.toggleSidebar")
 
     var body: some View {
-        ZStack {
-            Color(nsColor: AppTheme.Color.background)
-                .ignoresSafeArea()
+        VStack(spacing: 0) {
+            TopBar(model: model)
+
+            Rectangle()
+                .fill(AppTheme.hairline)
+                .frame(height: AppTheme.Metric.hairlineWidth)
 
             HStack(spacing: 0) {
                 if model.sidebarVisible {
@@ -32,6 +134,7 @@ struct ContentView: View {
                     .layoutPriority(1)
             }
         }
+        .background(Color(nsColor: AppTheme.Color.background))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .tint(.supersimpleAccent)
         .onAppear {

@@ -21,9 +21,6 @@ struct EditorView: View {
             }
         }
         .background(Color(nsColor: AppTheme.Color.background))
-        .overlay(alignment: .topLeading) {
-            sidebarToggleButton
-        }
         .accessibilityElement(children: .contain)
     }
 
@@ -68,46 +65,13 @@ struct EditorView: View {
         min(max(total * 0.11, 24), 160)
     }
 
-    /// Full-height, slim, rounded gradient strip anchored to the right edge. The
-    /// container has a fixed width so the editor takes the remaining space.
+    /// Full-height, square (unrounded) gradient strip filling its frame on the right
+    /// edge. The container has a fixed width so the editor takes the remaining space.
     private func gradientBand(width: CGFloat) -> some View {
-        ZStack(alignment: .trailing) {
-            Color.clear
-            RoundedRectangle(cornerRadius: width / 2, style: .continuous)
-                .fill(AppTheme.editorGradient)
-                .frame(width: width)
-                .padding(.trailing, 26)
-        }
-        .frame(width: width + 60)
-        .frame(maxHeight: .infinity)
-    }
-
-    // MARK: - Sidebar toggle
-
-    /// Always-reachable sidebar toggle using `sidebar_icon.svg`. When the sidebar is
-    /// hidden the editor occupies the whole window, so the button is nudged clear of
-    /// the traffic-light cluster.
-    private var sidebarToggleButton: some View {
-        Button {
-            withAnimation(.easeOut(duration: 0.15)) {
-                model.sidebarVisible.toggle()
-            }
-        } label: {
-            SidebarIcon(lineWidth: 1.5)
-                .foregroundStyle(Color.supersimpleMuted)
-                .frame(width: 34, height: 34)
-                .background(
-                    Circle().fill(Color(nsColor: AppTheme.Color.sidebarBackground))
-                )
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .padding(.leading, model.sidebarVisible ? 16 : 96)
-        .padding(.top, 12)
-        .accessibilityLabel("Toggle sidebar")
-        .accessibilityHint("Shows or hides the sidebar. Keyboard shortcut: Option-Command-S.")
-        .accessibilityIdentifier("toggle-sidebar-button")
-        .help("Toggle sidebar (⌥⌘S)")
+        Rectangle()
+            .fill(AppTheme.editorGradient)
+            .frame(width: width)
+            .frame(maxHeight: .infinity)
     }
 
     private var emptyState: some View {

@@ -57,8 +57,9 @@ Scripts/                   build.sh, format.sh, generate_icon.swift
 - File I/O and the FTS index live in `SupersimpleCore`, which has **zero** Apple-framework
   dependencies beyond Foundation, so unit tests run headless and fast.
 - The editor is [swift-markdown-engine](https://github.com/nodes-app/swift-markdown-engine)
-  `0.12.0` (pinned via `project.yml` + `Package.resolved`). Its pre-1.0 API is isolated behind
-  `EditorView`.
+  `0.12.0`, **vendored** at `Packages/swift-markdown-engine` with a small patch so the
+  fenced-code ``` markers are always hidden (they previously flipped color with the caret,
+  which looked broken). Its pre-1.0 API is isolated behind `EditorView`.
 - Markdown files are the source of truth; the SQLite DB is rebuildable on demand.
 
 ## Building
@@ -108,6 +109,6 @@ the `.xcresult` and the built `.app` as artifacts.
 
 | Package | Purpose | License |
 | --- | --- | --- |
-| [swift-markdown-engine](https://github.com/nodes-app/swift-markdown-engine) 0.12.0 | TextKit 2 live-preview editor | Apache-2.0 |
+| [swift-markdown-engine](https://github.com/nodes-app/swift-markdown-engine) 0.12.0 (vendored) | TextKit 2 live-preview editor | Apache-2.0 |
 | [SwiftMath](https://github.com/mgriebling/SwiftMath) | Native LaTeX typesetting | 2-Clause BSD |
 | [Geist Mono](https://vercel.com/font) | Code-block monospace font | SIL OFL 1.1 |

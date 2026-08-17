@@ -69,12 +69,10 @@ packages:
   SupersimpleCore:
     path: Packages/SupersimpleCore
   MarkdownEngine:
-    url: https://github.com/nodes-app/swift-markdown-engine
-    exactVersion: 0.12.0
+    path: Packages/swift-markdown-engine
     productName: MarkdownEngine
   MarkdownEngineLatex:
-    url: https://github.com/nodes-app/swift-markdown-engine
-    exactVersion: 0.12.0
+    path: Packages/swift-markdown-engine
     productName: MarkdownEngineLatex
 schemes:
   supersimple:

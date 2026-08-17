@@ -64,7 +64,9 @@
 		8C3C369BC4DD2868AD5632C0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		B47DE2CE54F87F1D7E7C3DA3 /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
 		C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeCommands.swift; sourceTree = "<group>"; };
+		E52E7AD4D9C61D126880708B /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 		FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		"TEMP_FD60D78E-347B-4946-BAF0-B3D876EFAA93" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -208,6 +210,7 @@
 			isa = PBXGroup;
 			children = (
 				63AD7E0126C10688365F9204 /* SupersimpleCore */,
+				E52E7AD4D9C61D126880708B /* swift-markdown-engine */,
 			);
 			path = Packages;
 			sourceTree = "<group>";
@@ -332,8 +335,8 @@
 			mainGroup = 3815FA73802B1F0D77F4955F;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				F34616F6235CA3416BAC71EF /* XCRemoteSwiftPackageReference "swift-markdown-engine" */,
-				5749B1FC3B701C6360EBBBA6 /* XCRemoteSwiftPackageReference "swift-markdown-engine" */,
+				2534CE66A37D7FF7CFC16CB2 /* XCLocalSwiftPackageReference "Packages/swift-markdown-engine" */,
+				82AE72BB421E290672303FDA /* XCLocalSwiftPackageReference "Packages/swift-markdown-engine" */,
 				19AFD8BF545EDA2DB3B7B628 /* XCLocalSwiftPackageReference "Packages/SupersimpleCore" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -685,26 +688,15 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/SupersimpleCore;
 		};
+		2534CE66A37D7FF7CFC16CB2 /* XCLocalSwiftPackageReference "Packages/swift-markdown-engine" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "Packages/swift-markdown-engine";
+		};
+		82AE72BB421E290672303FDA /* XCLocalSwiftPackageReference "Packages/swift-markdown-engine" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "Packages/swift-markdown-engine";
+		};
 /* End XCLocalSwiftPackageReference section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		5749B1FC3B701C6360EBBBA6 /* XCRemoteSwiftPackageReference "swift-markdown-engine" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/nodes-app/swift-markdown-engine";
-			requirement = {
-				kind = exactVersion;
-				version = 0.12.0;
-			};
-		};
-		F34616F6235CA3416BAC71EF /* XCRemoteSwiftPackageReference "swift-markdown-engine" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/nodes-app/swift-markdown-engine";
-			requirement = {
-				kind = exactVersion;
-				version = 0.12.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		28CE08F4153B4EF6060AC482 /* SupersimpleCore */ = {
@@ -713,7 +705,6 @@
 		};
 		574E0DC4D79106D424F96D2F /* MarkdownEngineLatex */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = 5749B1FC3B701C6360EBBBA6 /* XCRemoteSwiftPackageReference "swift-markdown-engine" */;
 			productName = MarkdownEngineLatex;
 		};
 		AD01F469D880EDEF7D47834E /* SupersimpleCore */ = {
@@ -722,7 +713,6 @@
 		};
 		F63F4B23BF2EB69355738DE1 /* MarkdownEngine */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = F34616F6235CA3416BAC71EF /* XCRemoteSwiftPackageReference "swift-markdown-engine" */;
 			productName = MarkdownEngine;
 		};
 /* End XCSwiftPackageProductDependency section */
