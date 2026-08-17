@@ -15,7 +15,10 @@ struct SupersimpleApp: App {
                 .environment(themeManager)
                 .preferredColorScheme(themeManager.preference.colorScheme)
                 .frame(minWidth: 900, minHeight: 560)
-                .task { appDelegate.model = model }
+                .task {
+                    await model.bootstrap()
+                    appDelegate.model = model
+                }
         }
         .windowStyle(.hiddenTitleBar)
         .commands {

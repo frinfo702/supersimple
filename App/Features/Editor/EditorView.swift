@@ -13,6 +13,7 @@ struct EditorView: View {
         GeometryReader { geo in
             HStack(spacing: 0) {
                 editorSurface
+                    .layoutPriority(1)
 
                 // A slim vertical gradient accent on the right of the editor. Its width
                 // scales with the available width; its height matches the window.
@@ -67,17 +68,18 @@ struct EditorView: View {
         min(max(total * 0.11, 24), 160)
     }
 
-    /// Full-height, slim, rounded gradient strip anchored to the right edge.
+    /// Full-height, slim, rounded gradient strip anchored to the right edge. The
+    /// container has a fixed width so the editor takes the remaining space.
     private func gradientBand(width: CGFloat) -> some View {
-        HStack {
-            Spacer(minLength: 0)
+        ZStack(alignment: .trailing) {
+            Color.clear
             RoundedRectangle(cornerRadius: width / 2, style: .continuous)
                 .fill(AppTheme.editorGradient)
                 .frame(width: width)
                 .padding(.trailing, 26)
-                .frame(maxHeight: .infinity)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(width: width + 60)
+        .frame(maxHeight: .infinity)
     }
 
     // MARK: - Sidebar toggle

@@ -84,5 +84,6 @@ schemes:
     test:
       targets:
         - supersimpleTests
+        - supersimpleUITests
     run:
       config: Debug

@@ -73,3 +73,28 @@ jobs:
           path: |
             build/ReleaseDD/Build/Products/Release/supersimple.app
           if-no-files-found: ignore
+
+  ui:
+    name: macOS UI Tests + Snapshots
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Run UI tests (capture screenshots)
+        run: ./Scripts/run-ui-tests.sh
+
+      - name: Compare snapshots against fixtures
+        run: ./Scripts/compare_snapshots.sh
+
+      - name: Upload captured screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ui-screenshots
+          path: |
+            Tests/Snapshots/actual/
+            Tests/Snapshots/diff-*.png
+          if-no-files-found: ignore
