@@ -698,7 +698,9 @@ enum MarkdownASTStyler {
     private static func styleCodeBlock(range: NSRange, ctx: Ctx, into attrs: inout [StyledRange]) {
         let parts = codeBlockParts(range, ctx.ns)
         attrs.append((parts.codeRange, [
-            .font: ctx.codeFont, .backgroundColor: ctx.codeBackground, .paragraphStyle: ctx.codeParagraphStyle,
+            .font: ctx.codeFont,
+            .markdownCodeBlockBackground: ctx.codeBackground,
+            .paragraphStyle: ctx.codeParagraphStyle,
         ]))
         // Suppress spell-check underlines on the whole fenced block — code is not prose.
         attrs.append((parts.codeRange, [.spellingState: 0]))

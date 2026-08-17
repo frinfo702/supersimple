@@ -15,7 +15,7 @@ import AppKit
 
 extension NSAttributedString.Key {
     /// Marks a background this file painted. `.backgroundColor` has other owners
-    /// (extension spans, code fences, table cells), so find has to recognize its
+    /// (extension spans, inline code, table cells), so find has to recognize its
     /// own highlights before removing any.
     static let findHighlight = NSAttributedString.Key("FindHighlight")
 }

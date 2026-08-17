@@ -9,6 +9,8 @@ This is a local copy of [swift-markdown-engine](https://github.com/nodes-app/swi
 - `Sources/MarkdownEngine/Styling/MarkdownASTStyler.swift`: fenced-code ``` markers are
   now **always hidden** (`NSColor.clear`) instead of flipping between `mutedText` and
   clear based on caret position, which rendered the ``` as a jarring, different color.
+- Fenced code blocks use `.markdownCodeBlockBackground` instead of `.backgroundColor`,
+  so AppKit doesn't double-composite the translucent fill on the glyph box / ``` fences.
 - `MarkdownASTStyler.swift`: inactive `[text](url)` links reserve the hidden `[`
   marker for a site favicon (kerned to icon width) so the overlay doesn't collapse.
 - `FaviconProvider` gained `didLoadNotification`; the editor restyles when a

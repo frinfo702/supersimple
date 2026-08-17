@@ -47,6 +47,13 @@ public extension NSAttributedString.Key {
     /// only — table cells rasterize their own text and fall back to
     /// `.backgroundColor` (see `MarkdownStyler+Tables`).
     static let markdownBlockBackground = NSAttributedString.Key("MarkdownBlockBackground")
+
+    /// NSColor — fenced code-block fill, painted full-width by
+    /// `MarkdownTextLayoutFragment`. Distinct from `.backgroundColor` so
+    /// AppKit doesn't composite a second glyph-box fill on top (a
+    /// translucent code background then looks darker on the text line and
+    /// on the short ``` fence glyphs than on the rest of the block).
+    static let markdownCodeBlockBackground = NSAttributedString.Key("MarkdownCodeBlockBackground")
 }
 
 final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
@@ -181,9 +188,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
 
     private var hasCodeBlockBackground: Bool {
         guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return false }
-        let bgColor = ts.attribute(.backgroundColor, at: range.location, effectiveRange: nil) as? NSColor
-        guard let bgColor else { return false }
-        return isCodeBlockBackgroundColor(bgColor)
+        return ts.attribute(.markdownCodeBlockBackground, at: range.location, effectiveRange: nil) is NSColor
     }
 
     private var hasThematicBreak: Bool {
@@ -225,9 +230,8 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
     private func drawCodeBlockBackground(at point: CGPoint, in context: CGContext) {
         guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return }
 
-        // Only fenced code-block fragments get the full-width fill (first char must carry the code background).
-        guard let color = ts.attribute(.backgroundColor, at: range.location, effectiveRange: nil) as? NSColor,
-              isCodeBlockBackgroundColor(color) else { return }
+        // Only fenced code-block fragments get the full-width fill (first char must carry the marker).
+        guard let color = ts.attribute(.markdownCodeBlockBackground, at: range.location, effectiveRange: nil) as? NSColor else { return }
 
         let containerWidth = textLayoutManager?.textContainer?.size.width ?? layoutFragmentFrame.width
 
@@ -307,19 +311,6 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             }
         }
         return rects
-    }
-
-    private func isCodeBlockBackgroundColor(_ color: NSColor) -> Bool {
-        let highlighter = (textLayoutManager?.textContainer?.textView as? NativeTextView)?
-            .configuration.services.syntaxHighlighter
-            ?? PlainTextSyntaxHighlighter()
-        let currentBg = highlighter.backgroundColor()
-        guard let colorRGB = color.usingColorSpace(.deviceRGB),
-              let currentBgRGB = currentBg.usingColorSpace(.deviceRGB) else { return false }
-        let tolerance: CGFloat = 0.03
-        return abs(colorRGB.redComponent - currentBgRGB.redComponent) < tolerance &&
-               abs(colorRGB.greenComponent - currentBgRGB.greenComponent) < tolerance &&
-               abs(colorRGB.blueComponent - currentBgRGB.blueComponent) < tolerance
     }
 
     // MARK: - Line-Box Backgrounds
