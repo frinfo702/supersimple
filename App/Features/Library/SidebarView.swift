@@ -42,10 +42,9 @@ struct SidebarView: View {
             Button {
                 model.createNote()
             } label: {
-                Image(systemName: "plus")
-                    .font(.system(size: 16, weight: .semibold))
-                    .frame(width: 38, height: 38)
+                PlusIcon(lineWidth: 1.5)
                     .foregroundStyle(Color.black.opacity(0.82))
+                    .frame(width: 38, height: 38)
                     .background(
                         RoundedRectangle(cornerRadius: AppTheme.Metric.controlRadius, style: .continuous)
                             .fill(Color.supersimpleAccent)

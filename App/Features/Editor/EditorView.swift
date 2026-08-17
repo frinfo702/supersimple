@@ -10,38 +10,35 @@ struct EditorView: View {
     @Bindable var model: AppModel
 
     var body: some View {
-        ZStack {
-            Color(nsColor: AppTheme.Color.background)
+        GeometryReader { geo in
+            HStack(spacing: 0) {
+                editorSurface
 
-            ZStack {
-                RoundedRectangle(cornerRadius: AppTheme.Metric.editorRadius, style: .continuous)
-                    .fill(AppTheme.editorGradient)
-                    .shadow(color: Color.supersimpleAccent.opacity(0.16), radius: 34, y: 12)
-
-                Group {
-                    if let note = model.currentNote() {
-                        liveEditor(for: note)
-                    } else {
-                        emptyState
-                    }
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(Color(nsColor: AppTheme.Color.editorSurface))
-                .clipShape(
-                    RoundedRectangle(cornerRadius: AppTheme.Metric.editorSurfaceRadius, style: .continuous)
-                )
-                .padding(.top, 8)
-                .padding(.trailing, 8)
-                .padding(.bottom, 8)
-                .padding(.leading, 18)
+                // A slim vertical gradient accent on the right of the editor. Its width
+                // scales with the available width; its height matches the window.
+                gradientBand(width: bandWidth(for: geo.size.width))
             }
-            .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metric.editorRadius, style: .continuous))
-            .accessibilityIdentifier("editor-surface")
-            .padding(.top, 44)
-            .padding(.horizontal, 28)
-            .padding(.bottom, 28)
+        }
+        .background(Color(nsColor: AppTheme.Color.background))
+        .overlay(alignment: .topLeading) {
+            sidebarToggleButton
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    // MARK: - Editor surface
+
+    private var editorSurface: some View {
+        ZStack {
+            Color(nsColor: AppTheme.Color.editorSurface)
+            if let note = model.currentNote() {
+                liveEditor(for: note)
+            } else {
+                emptyState
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityIdentifier("editor-surface")
     }
 
     private func liveEditor(for note: Note) -> some View {
@@ -61,6 +58,54 @@ struct EditorView: View {
             get: { model.currentNoteID == note.id ? model.currentBody : note.body },
             set: { model.noteBodyEdited($0, for: note.id) }
         )
+    }
+
+    // MARK: - Gradient band
+
+    /// Width of the right gradient band, growing with the window but kept slim.
+    private func bandWidth(for total: CGFloat) -> CGFloat {
+        min(max(total * 0.11, 24), 160)
+    }
+
+    /// Full-height, slim, rounded gradient strip anchored to the right edge.
+    private func gradientBand(width: CGFloat) -> some View {
+        HStack {
+            Spacer(minLength: 0)
+            RoundedRectangle(cornerRadius: width / 2, style: .continuous)
+                .fill(AppTheme.editorGradient)
+                .frame(width: width)
+                .padding(.trailing, 26)
+                .frame(maxHeight: .infinity)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: - Sidebar toggle
+
+    /// Always-reachable sidebar toggle using `sidebar_icon.svg`. When the sidebar is
+    /// hidden the editor occupies the whole window, so the button is nudged clear of
+    /// the traffic-light cluster.
+    private var sidebarToggleButton: some View {
+        Button {
+            withAnimation(.easeOut(duration: 0.15)) {
+                model.sidebarVisible.toggle()
+            }
+        } label: {
+            SidebarIcon(lineWidth: 1.5)
+                .foregroundStyle(Color.supersimpleMuted)
+                .frame(width: 34, height: 34)
+                .background(
+                    Circle().fill(Color(nsColor: AppTheme.Color.sidebarBackground))
+                )
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.leading, model.sidebarVisible ? 16 : 96)
+        .padding(.top, 12)
+        .accessibilityLabel("Toggle sidebar")
+        .accessibilityHint("Shows or hides the sidebar. Keyboard shortcut: Option-Command-S.")
+        .accessibilityIdentifier("toggle-sidebar-button")
+        .help("Toggle sidebar (⌥⌘S)")
     }
 
     private var emptyState: some View {

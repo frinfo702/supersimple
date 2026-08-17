@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		00D9968516FA9AB4F913A40B /* SVGIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E4E3A695A1A592C185A3819 /* SVGIcons.swift */; };
 		1DFA51B809AEC2578A5B24A0 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 446DDC1536D6EB8106031BC9 /* SidebarView.swift */; };
 		39F2E8A9B7A786AB3D4D6372 /* SupersimpleCore in Frameworks */ = {isa = PBXBuildFile; productRef = 28CE08F4153B4EF6060AC482 /* SupersimpleCore */; };
 		412D8C864C9C1631C52ED3E5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8C3C369BC4DD2868AD5632C0 /* Assets.xcassets */; };
@@ -52,6 +53,7 @@
 		3FA4917AA8AFCFD7E1E952AD /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		3FF15FA9B631FA47690BF74A /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		446DDC1536D6EB8106031BC9 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		4E4E3A695A1A592C185A3819 /* SVGIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SVGIcons.swift; sourceTree = "<group>"; };
 		59245FC4B2E2EF851ECE0F93 /* SupersimpleUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersimpleUITests.swift; sourceTree = "<group>"; };
 		5A7F5E8CF87F9CE35E40084A /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
 		62BC1A8D2178CDBFA86142BB /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
@@ -122,6 +124,14 @@
 			path = Platform;
 			sourceTree = "<group>";
 		};
+		5F0D93FB680547A883B4F6F7 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				4E4E3A695A1A592C185A3819 /* SVGIcons.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
 		63D2CD3724E94671C8B2BDE3 /* Fonts */ = {
 			isa = PBXGroup;
 			children = (
@@ -143,6 +153,7 @@
 		8AF8FE6BEA1A86D0DAC99FBF /* UI */ = {
 			isa = PBXGroup;
 			children = (
+				5F0D93FB680547A883B4F6F7 /* Components */,
 				7C07ADFE3965687F7EC7930D /* Theme */,
 			);
 			path = UI;
@@ -375,6 +386,7 @@
 				4AAB69C0B7C1120587B9150C /* ContentView.swift in Sources */,
 				E836B0648BB415F0B0B67B07 /* EditorView.swift in Sources */,
 				F9DC6812742022BD42B5FC71 /* NativeCodeHighlighter.swift in Sources */,
+				00D9968516FA9AB4F913A40B /* SVGIcons.swift in Sources */,
 				1DFA51B809AEC2578A5B24A0 /* SidebarView.swift in Sources */,
 				A965689EF507898F3E2EF21B /* SupersimpleApp.swift in Sources */,
 				9164CAE29549E33199E4DE8E /* ThemeCommands.swift in Sources */,
