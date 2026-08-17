@@ -26,7 +26,7 @@ struct PerformanceTests {
         }
 
         let started = DispatchTime.now()
-        let results = index.search("brown fox")
+        let results = try index.search("brown fox")
         let ms = Double(DispatchTime.now().uptimeNanoseconds - started.uptimeNanoseconds) / 1_000_000
         #expect(!results.isEmpty)
         #expect(ms < 500, "Expected search under 500ms, got \(ms) ms for 10k notes")

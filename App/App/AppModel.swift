@@ -16,6 +16,8 @@ final class AppModel {
     private let fileManager = NoteFileManager()
     private var searchIndex: NoteSearchIndex?
     private let notesDirectory: URL
+    private let appSupportURL: URL
+    private let userDefaults: UserDefaults
 
     // MARK: - Observable state
 
@@ -34,7 +36,7 @@ final class AppModel {
     /// Whether the sidebar column is shown.
     var sidebarVisible: Bool {
         didSet {
-            UserDefaults.standard.set(sidebarVisible, forKey: "com.frinfo702.supersimple.sidebarVisible")
+            userDefaults.set(sidebarVisible, forKey: "sidebarVisible")
         }
     }
 
@@ -45,9 +47,19 @@ final class AppModel {
 
     // MARK: - Init / bootstrap
 
-    init(notesDirectoryOverride: URL? = nil) {
-        sidebarVisible =
-            UserDefaults.standard.object(forKey: "com.frinfo702.supersimple.sidebarVisible") as? Bool ?? true
+    /// - Parameters:
+    ///   - notesDirectoryOverride: Redirects the notes directory (used by tests).
+    ///   - appSupportURLOverride: Redirects the search DB location (used by tests).
+    ///   - userDefaults: Isolated defaults. Defaults to a suite scoped to the app so
+    ///     offline/CI runs never touch the environment's real preferences.
+    init(
+        notesDirectoryOverride: URL? = nil,
+        appSupportURLOverride: URL? = nil,
+        userDefaults: UserDefaults? = nil
+    ) {
+        self.userDefaults = userDefaults ?? UserDefaults(suiteName: "com.frinfo702.supersimple") ?? .standard
+        sidebarVisible = self.userDefaults.object(forKey: "sidebarVisible") as? Bool ?? true
+
         if let override = notesDirectoryOverride {
             notesDirectory = override
         } else {
@@ -57,22 +69,30 @@ final class AppModel {
             )[0].appendingPathComponent("Supersimple", isDirectory: true)
             notesDirectory = base.appendingPathComponent("Notes", isDirectory: true)
         }
+
+        if let override = appSupportURLOverride {
+            appSupportURL = override
+        } else {
+            appSupportURL = FileManager.default.urls(
+                for: .applicationSupportDirectory, in: .userDomainMask
+            )[0].appendingPathComponent("Supersimple", isDirectory: true)
+        }
     }
 
     /// Loads all notes from disk and rebuilds the search index on first use.
+    /// Heavy file I/O and index construction are moved off the main actor.
     func bootstrap() async {
         guard !isBootstrapLoaded else { return }
         isBootstrapLoaded = true
 
-        let url = notesDirectory
-        try? FileManager.default.createDirectory(
-            at: url, withIntermediateDirectories: true
-        )
+        let directory = notesDirectory
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let appSupport = appSupportURL
 
         let started = DispatchTime.now()
-        let loaded = loadNotes(from: url)
+        let loaded = await Self.loadNotes(from: directory, fileManager: fileManager)
         notes = loaded
-        await rebuildSearchIndex(notes: loaded)
+        searchIndex = await Self.rebuildIndex(notes: loaded, appSupport: appSupport)
 
         let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started.uptimeNanoseconds) / 1_000_000
         Self.log.info("Bootstrapped \(loaded.count) notes in \(elapsed, format: .fixed(precision: 1)) ms")
@@ -80,44 +100,44 @@ final class AppModel {
         resumeLastSelection()
     }
 
-    private func loadNotes(from directory: URL) -> [Note] {
+    /// Reads and decodes every note file off the main actor.
+    private nonisolated static func loadNotes(
+        from directory: URL,
+        fileManager: NoteFileManager
+    ) async -> [Note] {
         let urls = fileManager.existingNoteURLs(in: directory)
         var loaded: [Note] = []
         for fileURL in urls {
             guard let text = try? fileManager.read(at: fileURL),
                 let doc = try? FrontmatterCodec.decode(text)
             else { continue }
-            loaded.append(note(from: doc))
+            loaded.append(
+                Note(
+                    id: doc.metadata.id,
+                    createdAt: doc.metadata.createdAt,
+                    updatedAt: doc.metadata.updatedAt,
+                    tags: doc.metadata.tags,
+                    body: doc.body,
+                    extraFields: doc.metadata.extraFields
+                )
+            )
         }
         return loaded.sorted { $0.updatedAt > $1.updatedAt }
     }
 
-    private func note(from doc: MarkdownDocument) -> Note {
-        Note(
-            id: doc.metadata.id,
-            createdAt: doc.metadata.createdAt,
-            updatedAt: doc.metadata.updatedAt,
-            tags: doc.metadata.tags,
-            body: doc.body
-        )
-    }
-
-    private func rebuildSearchIndex(notes: [Note]) async {
-        let dbURL = FileManager.default.urls(
-            for: .applicationSupportDirectory, in: .userDomainMask
-        )[0].appendingPathComponent("Supersimple/search.db")
-
-        let index =
-            (try? NoteSearchIndex(databaseURL: dbURL))
-            ?? (try? NoteSearchIndex(
-                databaseURL: FileManager.default.temporaryDirectory.appendingPathComponent(
-                    "supersimple-search-\(UUID().uuidString).db")))
-        searchIndex = index
-        try? index?.rebuild(notes: notes)
+    private nonisolated static func rebuildIndex(
+        notes: [Note],
+        appSupport: URL
+    ) async -> NoteSearchIndex? {
+        try? FileManager.default.createDirectory(at: appSupport, withIntermediateDirectories: true)
+        let dbURL = appSupport.appendingPathComponent("search.db")
+        guard let index = try? NoteSearchIndex(databaseURL: dbURL) else { return nil }
+        try? index.rebuild(notes: notes)
+        return index
     }
 
     private func resumeLastSelection() {
-        if let last = UserDefaults.standard.string(forKey: "com.frinfo702.supersimple.lastNote"),
+        if let last = userDefaults.string(forKey: "lastNote"),
             let id = UUID(uuidString: last),
             let note = notes.first(where: { $0.id == id })
         {
@@ -135,11 +155,12 @@ final class AppModel {
     /// Switches the editor to a note, flushing any pending edits first.
     func select(_ note: Note) {
         flushNow()
+        cancelPendingSave()
         currentNoteID = note.id
         currentBody = note.body
         selectedTag = nil
         searchQuery = ""
-        UserDefaults.standard.set(note.id.uuidString, forKey: "com.frinfo702.supersimple.lastNote")
+        userDefaults.set(note.id.uuidString, forKey: "lastNote")
     }
 
     // MARK: - Create / delete
@@ -147,7 +168,6 @@ final class AppModel {
     func createNote() {
         flushNow()
         var note = Note()
-        // A fresh note starts with the title-markdown so it displays a real name.
         note.body = "# New Note"
         notes.insert(note, at: 0)
         select(note)
@@ -157,7 +177,12 @@ final class AppModel {
     func deleteNote(_ note: Note) {
         flushNow()
         guard let url = fileURL(for: note.id) else { return }
-        fileManager.delete(at: url)
+        do {
+            try fileManager.delete(at: url)
+        } catch {
+            Self.log.error("Failed to delete note \(note.id): \(error.localizedDescription, privacy: .public)")
+            return
+        }
         try? searchIndex?.delete(noteID: note.id)
 
         if currentNoteID == note.id {
@@ -169,83 +194,110 @@ final class AppModel {
 
     // MARK: - Editing
 
-    /// Called by the editor binding on every body change.
-    func noteBodyEdited(_ newBody: String) {
-        guard let id = currentNoteID else { return }
+    /// Applies an edit received from the editor, but only when it belongs to the
+    /// currently selected note. The editor defers its binding sync onto the main
+    /// queue, so an outgoing note's delayed callback must not clobber the new note.
+    func noteBodyEdited(_ newBody: String, for noteID: UUID) {
+        guard currentNoteID == noteID else { return }
         guard newBody != currentBody else { return }
+        replaceCurrentBody(newBody)
+    }
 
+    /// Unconditionally replaces the current body (used by tag editing and the caller
+    /// above). Marks dirty, updates the in-memory thumbnail, and schedules autosave.
+    private func replaceCurrentBody(_ newBody: String) {
+        guard let id = currentNoteID else { return }
         currentBody = newBody
         isDirty = true
 
-        // Update in-memory thumbnail for the sidebar instantly.
         if let idx = notes.firstIndex(where: { $0.id == id }) {
             notes[idx].body = newBody
             notes[idx].updatedAt = Date()
         }
-
         scheduleSave()
     }
 
     private func scheduleSave() {
         saveTask?.cancel()
-        saveTask = Task { [weak self] in
-            try? await Task.sleep(for: self?.autosaveDebounce ?? .milliseconds(350))
+        let task = Task { [weak self, delay = autosaveDebounce] in
+            try? await Task.sleep(for: delay)
             if !Task.isCancelled {
-                self?.saveNow()
+                self?.saveNowPublic()
             }
         }
+        saveTask = task
     }
 
-    func flushNow() {
-        guard isDirty else { return }
-        saveNow()
+    private func cancelPendingSave() {
+        saveTask?.cancel()
+        saveTask = nil
     }
 
-    /// Immediate, unconditional persistence of the current edit.
+    /// Save Now: immediate, unconditional persistence of the current edit.
     func saveNowPublic() {
-        saveNow()
-    }
-
-    private func saveNow() {
-        guard currentNoteID != nil, isDirty else { return }
-        defer { isDirty = false }
+        guard let id = currentNoteID, isDirty else { return }
 
         guard var note = currentNote() else { return }
         note.body = currentBody
         note.updatedAt = Date()
         note.tags = TagNormalizer.extractTags(from: currentBody)
 
-        if let idx = notes.firstIndex(where: { $0.id == note.id }) {
+        if let idx = notes.firstIndex(where: { $0.id == id }) {
             notes[idx] = note
         }
-        persist(note)
+        // Only clear dirty when persistence actually succeeded, so a failed write can
+        // be retried with ⌘S instead of being silently marked clean.
+        if persist(note) {
+            isDirty = false
+        }
     }
 
     /// Applies a tag by editing the note body (append `#tag` when absent).
     func toggleTagForCurrentNote(_ tag: Tag) {
         guard let note = currentNote() else { return }
+
+        var result = currentBody
         if note.tags.contains(tag) {
-            // Remove the #tag token from the body if it exists inline.
-            let tokenToRemove = "#" + tag.name
-            currentBody = currentBody.replacingOccurrences(
-                of: tokenToRemove, with: "", options: [.anchored, .literal]
-            )
-            // Strip late occurrences too, preserving line structure.
-            currentBody =
-                currentBody
-                .split(separator: "\n", omittingEmptySubsequences: false)
-                .map { line -> String in
-                    line.replacingOccurrences(of: tokenToRemove, with: "")
-                }
-                .joined(separator: "\n")
+            // Remove whole-word `#tag` occurrences without damaging `#tagfoo`.
+            result = removeTag(tag.name, from: result)
         } else {
-            if currentBody.isEmpty {
-                currentBody = "# \(tag.name)"
+            if result.isEmpty {
+                result = "# \(tag.name)"
             } else {
-                currentBody += "\n#\(tag.name)"
+                result += "\n#\(tag.name)"
             }
         }
-        noteBodyEdited(currentBody)
+        // `replaceCurrentBody` bypasses the equality guard, so this always persists.
+        replaceCurrentBody(result)
+    }
+
+    private func removeTag(_ name: String, from text: String) -> String {
+        let token = "#" + name
+        var lines: [String] = []
+        for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
+            var line = String(rawLine)
+            let cleaned = removeToken(token, from: line)
+            // Avoid leaving a dangling `#` at the boundary of a longer word/word.
+            line = cleaned.replacingOccurrences(of: " #", with: " ")
+            // Drop now-empty lines that consisted only of the tag.
+            if line.trimmingCharacters(in: .whitespaces).isEmpty {
+                lines.append("")
+            } else {
+                lines.append(line)
+            }
+        }
+        // Remove the whole token when it is the first thing on the line.
+        return lines.joined(separator: "\n")
+    }
+
+    private func removeToken(_ token: String, from line: String) -> String {
+        // Match `#name` preceded by start-of-line, whitespace, or punctuation,
+        // and not followed by another alphanumeric/`_`/`-` (would extend the word).
+        let pattern = "(^|[\\s\\W])" + NSRegularExpression.escapedPattern(for: token) + "(?![\\p{L}\\p{N}_-])"
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return line }
+        let ns = line as NSString
+        let range = NSRange(location: 0, length: ns.length)
+        return regex.stringByReplacingMatches(in: line, range: range, withTemplate: "$1")
     }
 
     // MARK: - Persistence
@@ -254,14 +306,27 @@ final class AppModel {
         fileManager.fileURL(for: id, notesDirectory: notesDirectory)
     }
 
-    private func persist(_ note: Note) {
+    /// Persists a note. Returns `true` only when both the file write and the index
+    /// update succeeded. The empty-case (no file) is treated as success.
+    @discardableResult
+    func persist(_ note: Note) -> Bool {
         let doc = FrontmatterCodec.document(note: note)
-        guard let url = fileURL(for: note.id) else { return }
+        guard let url = fileURL(for: note.id) else { return true }
         do {
             try fileManager.write(doc.fullText, to: url)
             try searchIndex?.upsert(note: note)
+            return true
         } catch {
             Self.log.error("Failed to persist note \(note.id): \(error.localizedDescription, privacy: .public)")
+            return false
+        }
+    }
+
+    /// Immediate, unconditional persistence regardless of dirty flag (used by ⌘S and
+    /// before switching notes).
+    func flushNow() {
+        if isDirty {
+            saveNowPublic()
         }
     }
 
@@ -269,27 +334,49 @@ final class AppModel {
 
     func performSearch() {
         let query = searchQuery.trimmingCharacters(in: .whitespaces)
-        guard let index = searchIndex, !query.isEmpty else {
+        guard !query.isEmpty, let index = searchIndex else {
             searchResults = []
             return
         }
         var tags = Set<Tag>()
         if let selectedTag { tags.insert(selectedTag) }
-        let started = DispatchTime.now()
-        let results = index.search(query, tags: tags)
-        let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started.uptimeNanoseconds) / 1_000_000
-        Self.log.info(
-            "Search '\(query, privacy: .public)' returned \(results.count) in \(elapsed, format: .fixed(precision: 1)) ms"
-        )
-        searchResults = results
+
+        let givenQuery = query
+        let gaveTags = tags
+        Task { @MainActor in
+            // Run the (I/O + SQLite) query off the main actor; the detached closure only
+            // touches Sendable values.
+            let started = DispatchTime.now()
+            let results = await Task.detached(priority: .userInitiated) { [index] in
+                (try? index.search(givenQuery, tags: gaveTags)) ?? []
+            }.value
+            let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started.uptimeNanoseconds) / 1_000_000
+            searchResults = results
+            Self.log.info(
+                "Search '\(givenQuery, privacy: .private)' returned \(results.count) in \(elapsed, format: .fixed(precision: 1)) ms"
+            )
+        }
     }
 
-    /// The ordered list shown in the sidebar: search hits when searching,
-    /// otherwise the tag-filtered set of notes.
+    func selectTag(_ tag: Tag?) {
+        withAnimation(.easeOut(duration: 0.12)) {
+            selectedTag = (self.selectedTag == tag) ? nil : tag
+        }
+        // If a search is active, incorporate the tag filter immediately.
+        if !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
+            performSearch()
+        }
+    }
+
+    /// The ordered list shown in the sidebar: search hits when searching (kept in
+    /// relevance order), otherwise the tag-filtered set of notes.
     var visibleNotes: [Note] {
-        if !searchQuery.isEmpty {
-            let ids = Set(searchResults.map(\.noteID))
-            return notes.filter { ids.contains($0.id) }
+        let query = searchQuery.trimmingCharacters(in: .whitespaces)
+        if !query.isEmpty {
+            // Preserve search-score order rather than library order.
+            let order = searchResults.map(\.noteID)
+            let byID = Dictionary(uniqueKeysWithValues: notes.map { ($0.id, $0) })
+            return order.compactMap { byID[$0] }
         }
         if let selectedTag {
             return notes.filter { $0.tags.contains(selectedTag) }
@@ -319,8 +406,13 @@ final class AppModel {
     }
 
     /// Called on app termination to guarantee the last edits are on disk.
+    /// Runs synchronously on the main actor so pending edits are flushed even when
+    /// no window/view is alive.
     func shutdown() {
-        flushNow()
+        cancelPendingSave()
+        if isDirty {
+            saveNowPublic()
+        }
         searchIndex = nil
     }
 }

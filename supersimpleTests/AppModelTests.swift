@@ -11,8 +11,21 @@ struct AppModelTests {
 
     private func makeModel(in dir: URL) throws -> (model: AppModel, cleanup: () -> Void) {
         let notesDir = dir.appendingPathComponent("Notes")
-        let model = AppModel(notesDirectoryOverride: notesDir)
-        return (model, { try? FileManager.default.removeItem(at: dir) })
+        let appSupport = dir.appendingPathComponent("AppSupport")
+        let suiteName = "supersimple-tests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let model = AppModel(
+            notesDirectoryOverride: notesDir,
+            appSupportURLOverride: appSupport,
+            userDefaults: defaults
+        )
+        return (
+            model,
+            {
+                defaults.removePersistentDomain(forName: suiteName)
+                try? FileManager.default.removeItem(at: dir)
+            }
+        )
     }
 
     private func makeTempDir() throws -> URL {
@@ -34,7 +47,7 @@ struct AppModelTests {
         #expect(model.currentNote() != nil)
         #expect(model.notes.count == 1)
 
-        model.noteBodyEdited("# New Note\nSome body")
+        model.noteBodyEdited("# New Note\nSome body", for: model.currentNoteID!)
         model.flushNow()
 
         // Reload from the SAME directory to confirm persistence.
@@ -52,7 +65,7 @@ struct AppModelTests {
         await model.bootstrap()
 
         model.createNote()
-        model.noteBodyEdited("# Work\nTagged with #swift and #obsidian.")
+        model.noteBodyEdited("# Work\nTagged with #swift and #obsidian.", for: model.currentNoteID!)
         model.flushNow()
 
         #expect(model.notes.first?.tags.contains(Tag(name: "swift")) == true)
@@ -84,11 +97,16 @@ struct AppModelTests {
         await model.bootstrap()
 
         model.createNote()
-        model.noteBodyEdited("# Recipes\nHow to make apple crumble.")
+        model.noteBodyEdited("# Recipes\nHow to make apple crumble.", for: model.currentNoteID!)
         model.flushNow()
 
         model.searchQuery = "crumble"
         model.performSearch()
+        // Search runs off the main actor; wait for the async result.
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while model.searchResults.isEmpty, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
         #expect(model.visibleNotes.count == 1)
     }
 
@@ -101,5 +119,52 @@ struct AppModelTests {
 
         model.createNote()
         #expect(model.currentNote()?.title == "New Note")
+    }
+
+    @Test("A stale editor callback does not overwrite the newly selected note")
+    func staleCallbackIgnored() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer { cleanup() }
+        await model.bootstrap()
+
+        model.createNote()
+        let firstID = model.currentNoteID!
+        model.noteBodyEdited("body of A", for: firstID)
+        model.flushNow()
+
+        // Switch to a second note.
+        model.createNote()
+        let secondID = model.currentNoteID!
+
+        // A delayed callback belonging to the OLD note must be ignored.
+        model.noteBodyEdited("body of A (stale)", for: firstID)
+        #expect(model.currentBody == "# New Note")
+        #expect(model.visibleNotes.first { $0.id == secondID }?.body == "# New Note")
+        // The first note's persisted body is untouched.
+        #expect(model.notes.first { $0.id == firstID }?.body == "body of A")
+    }
+
+    @Test("Toggling a tag edits the body and persists it")
+    func toggleTagPersists() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer { cleanup() }
+        await model.bootstrap()
+
+        model.createNote()
+        model.noteBodyEdited("# Work\nTagged with #swift.", for: model.currentNoteID!)
+        model.flushNow()
+
+        // Removing should be reflected and persisted.
+        model.toggleTagForCurrentNote(Tag(name: "swift"))
+        model.flushNow()
+        let editedBody = model.currentNote()?.body ?? ""
+        #expect(!editedBody.contains("#swift"))
+
+        // Re-add it.
+        model.toggleTagForCurrentNote(Tag(name: "swift"))
+        model.flushNow()
+        #expect(model.currentNote()?.body.contains("#swift") == true)
     }
 }

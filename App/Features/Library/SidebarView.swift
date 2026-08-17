@@ -68,12 +68,9 @@ struct SidebarView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 2) {
                 ForEach(model.allTags, id: \.tag) { entry in
-                    TagRow(tag: entry.tag, count: entry.count, isSelected: model.selectedTag == entry.tag)
-                        .onTapGesture {
-                            withAnimation(.easeOut(duration: 0.12)) {
-                                model.selectedTag = (model.selectedTag == entry.tag) ? nil : entry.tag
-                            }
-                        }
+                    TagRow(tag: entry.tag, count: entry.count, isSelected: model.selectedTag == entry.tag) {
+                        model.selectTag(entry.tag)
+                    }
                 }
             }
             .padding(.vertical, 6)
@@ -117,24 +114,31 @@ private struct TagRow: View {
     let tag: Tag
     let count: Int
     let isSelected: Bool
+    var action: () -> Void
 
     var body: some View {
-        HStack(spacing: 6) {
-            Text("#\(tag.name)")
-                .font(.system(size: 12))
-                .lineLimit(1)
-            Spacer(minLength: 0)
-            Text("\(count)")
-                .font(.system(size: 10, weight: .medium))
-                .foregroundStyle(.secondary)
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Text("#\(tag.name)")
+                    .font(.system(size: 12))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Text("\(count)")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 3)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: AppTheme.Metric.cornerRadius, style: .continuous)
+                    .fill(isSelected ? Color(nsColor: AppTheme.Color.selectionFill) : .clear)
+            )
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(
-            RoundedRectangle(cornerRadius: AppTheme.Metric.cornerRadius, style: .continuous)
-                .fill(isSelected ? Color(nsColor: AppTheme.Color.selectionFill) : .clear)
-        )
-        .contentShape(Rectangle())
+        .buttonStyle(.plain)
+        .accessibilityLabel("Tag #\(tag.name)")
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
 

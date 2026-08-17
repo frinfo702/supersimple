@@ -38,10 +38,10 @@ struct NoteSearchIndexTests {
         try index.upsert(note: b)
         try index.upsert(note: c)
 
-        let brown = index.search("brown")
+        let brown = try index.search("brown")
         #expect(brown.count == 2)
 
-        let swift = index.search("swift")
+        let swift = try index.search("swift")
         #expect(swift.count >= 1)
         #expect(swift.contains { $0.noteID == a.id })
     }
@@ -56,7 +56,7 @@ struct NoteSearchIndexTests {
         try index.upsert(note: a)
         try index.upsert(note: b)
 
-        let result = index.search("", tags: [Tag(name: "swift")])
+        let result = try index.search("", tags: [Tag(name: "swift")])
         #expect(result.contains { $0.noteID == a.id })
         #expect(!result.contains { $0.noteID == b.id })
     }
@@ -68,10 +68,12 @@ struct NoteSearchIndexTests {
 
         let a = note(UUID(), body: "delete me please")
         try index.upsert(note: a)
-        #expect(!index.search("delete").isEmpty)
+        let before = try index.search("delete")
+        #expect(!before.isEmpty)
 
         try index.delete(noteID: a.id)
-        #expect(index.search("delete").isEmpty)
+        let after = try index.search("delete")
+        #expect(after.isEmpty)
     }
 
     @Test("Rebuilds the index from a list of notes")
@@ -86,8 +88,8 @@ struct NoteSearchIndexTests {
 
         let c = note(UUID(), body: "gamma content")
         try index.rebuild(notes: [a, b, c])
-        #expect(index.search("gamma").count == 1)
-        #expect(index.search("alpha").count == 1)
+        #expect(try index.search("gamma").count == 1)
+        #expect(try index.search("alpha").count == 1)
     }
 
     @Test("Empty query returns no results")
@@ -95,7 +97,37 @@ struct NoteSearchIndexTests {
         let (index, cleanup) = try makeIndex()
         defer { cleanup() }
         try index.upsert(note: note(UUID(), body: "anything"))
-        #expect(index.search("   ").isEmpty)
-        #expect(index.search("").isEmpty)
+        #expect(try index.search("   ").isEmpty)
+        #expect(try index.search("").isEmpty)
+    }
+
+    @Test("Tag filtering is exact, not substring")
+    func exactTag() throws {
+        let (index, cleanup) = try makeIndex()
+        defer { cleanup() }
+
+        let a = note(UUID(), body: "content", tags: ["swift-ui"])
+        let b = note(UUID(), body: "content", tags: ["swift"])
+        try index.upsert(note: a)
+        try index.upsert(note: b)
+
+        // Filtering for `swift` must not match `swift-ui`.
+        let onlySwift = try index.search("", tags: [Tag(name: "swift")])
+        #expect(onlySwift.contains { $0.noteID == b.id })
+        #expect(!onlySwift.contains { $0.noteID == a.id })
+
+        let onlyFramework = try index.search("", tags: [Tag(name: "swift-ui")])
+        #expect(onlyFramework.contains { $0.noteID == a.id })
+    }
+
+    @Test("Deleted notes are excluded from the index")
+    func deletedExcluded() throws {
+        let (index, cleanup) = try makeIndex()
+        defer { cleanup() }
+
+        var deleted = note(UUID(), body: "private secret")
+        deleted.isDeleted = true
+        try index.upsert(note: deleted)
+        #expect(try index.search("secret").isEmpty)
     }
 }

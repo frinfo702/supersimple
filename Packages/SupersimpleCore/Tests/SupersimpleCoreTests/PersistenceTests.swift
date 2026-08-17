@@ -30,10 +30,10 @@ struct PersistenceTests {
         let manager = NoteFileManager()
         let url = dir.appendingPathComponent("note.md")
         try manager.write("content", to: url)
-        manager.delete(at: url)
+        try manager.delete(at: url)
         #expect(!manager.fileExists(at: url))
         // Deleting a non-existent file should not throw.
-        manager.delete(at: url)
+        try manager.delete(at: url)
     }
 
     @Test("Lists only markdown files")

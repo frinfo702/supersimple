@@ -20,43 +20,52 @@ final class NativeCodeHighlighter: SyntaxHighlighter {
         "sql", "json", "yaml", "yml", "html", "css", "xml",
     ]
 
+    /// Returns a dynamic `NSColor` resolving to a dark-palette token in dark mode and an
+    /// accessible, higher-contrast token in light mode.
+    private static func tokenColor(dark: UInt32, light: UInt32) -> NSColor {
+        NSColor(name: nil) { appearance in
+            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            let rgb = isDark ? dark : light
+            return NSColor(
+                calibratedRed: CGFloat((rgb >> 16) & 0xFF) / 255,
+                green: CGFloat((rgb >> 8) & 0xFF) / 255,
+                blue: CGFloat(rgb & 0xFF) / 255,
+                alpha: 1.0
+            )
+        }
+    }
+
     private func rules() -> [TokenRule] {
-        let keywordRules: [(String, Int)] = [
+        let keywordRules: [(String, UInt32, UInt32)] = [
             (
                 "\\b(?:func|class|struct|enum|let|var|if|else|guard|return|import|public|private|internal|init|self|switch|case|default|where|in|throws)\\b",
-                0x58A6FF
+                0x58A6FF, 0x0550AE
             ),
             (
                 "\\b(?:def|class|import|return|from|as|if|elif|else|for|while|try|except|lambda|None|True|False)\\b",
-                0x58A6FF
+                0x58A6FF, 0x0550AE
             ),
             (
                 "\\b(?:function|const|let|var|return|import|export|default|if|else|for|while|typeof|new|this)\\b",
-                0x58A6FF
+                0x58A6FF, 0x0550AE
             ),
-            ("\\b(?:fn|let|mut|const|pub|struct|enum|impl|trait|return|if|else|match|for|while|use|mod)\\b", 0x58A6FF),
-            ("\\b(?:func|var|const|package|import|return|if|else|for|range|map|defer|go)\\b", 0x58A6FF),
-            ("\\\"(?:\\\\.|[^\\\"\\\\])*\\\"|'(?:\\\\.|[^'\\\\])*'", 0xA5D6FF),
-            ("\\b(?:0x[0-9a-fA-F]+|[0-9]+(?:\\.[0-9]+)?)\\b", 0xF0883E),
-            ("(?m)^\\s*(?://|#|--|;;|//!|///)[^\\n]*$", 0x6E7681),
-            ("/\\*[\\s\\S]*?\\*/|/\\*|\\*/", 0x6E7681),
+            (
+                "\\b(?:fn|let|mut|const|pub|struct|enum|impl|trait|return|if|else|match|for|while|use|mod)\\b",
+                0x58A6FF, 0x0550AE
+            ),
+            ("\\b(?:func|var|const|package|import|return|if|else|for|range|map|defer|go)\\b", 0x58A6FF, 0x0550AE),
+            ("\\\"(?:\\\\.|[^\\\"\\\\])*\\\"|'(?:\\\\.|[^'\\\\])*'", 0xA5D6FF, 0x8B2C31),
+            ("\\b(?:0x[0-9a-fA-F]+|[0-9]+(?:\\.[0-9]+)?)\\b", 0xF0883E, 0x9A4D00),
+            ("(?m)^\\s*(?://|#|--|;;|//!|///)[^\\n]*$", 0x6E7681, 0x57606A),
+            ("/\\*[\\s\\S]*?\\*/|/\\*|\\*/", 0x6E7681, 0x57606A),
         ]
-        return keywordRules.map { rule($0.0, color: $0.1) }
+        return keywordRules.map { rule($0.0, dark: $0.1, light: $0.2) }
     }
 
-    private func rule(_ pattern: String, color: Int) -> TokenRule {
+    private func rule(_ pattern: String, dark: UInt32, light: UInt32) -> TokenRule {
         TokenRule(
             pattern: (try? NSRegularExpression(pattern: pattern)) ?? NSRegularExpression(),
-            color: Self.color(from: color)
-        )
-    }
-
-    private static func color(from hex: Int) -> NSColor {
-        NSColor(
-            calibratedRed: CGFloat((hex >> 16) & 0xFF) / 255,
-            green: CGFloat((hex >> 8) & 0xFF) / 255,
-            blue: CGFloat(hex & 0xFF) / 255,
-            alpha: 1.0
+            color: Self.tokenColor(dark: dark, light: light)
         )
     }
 

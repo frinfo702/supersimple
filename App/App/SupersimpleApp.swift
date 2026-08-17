@@ -7,12 +7,15 @@ struct SupersimpleApp: App {
     @State private var themeManager = ThemeManager()
 
     var body: some Scene {
-        WindowGroup {
+        // A single window app: avoids per-window command fan-out and the
+        // ⌘N/New-Window conflict, and keeps one editor state in focus.
+        Window("supersimple", id: "main") {
             ContentView()
                 .environment(model)
                 .environment(themeManager)
                 .preferredColorScheme(themeManager.preference.colorScheme)
                 .frame(minWidth: 720, minHeight: 480)
+                .task { appDelegate.model = model }
         }
         .windowStyle(.hiddenTitleBar)
         .commands {
@@ -24,8 +27,16 @@ struct SupersimpleApp: App {
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
+    /// Weak reference set by the app so termination can flush edits even when no
+    /// window/view is alive anymore.
+    weak var model: AppModel?
+
     func applicationWillTerminate(_ notification: Notification) {
-        // Best-effort flush; AppModel.shutdown() is also a safety net.
-        NotificationCenter.default.post(name: Notification.Name("supersimple.saveNow"), object: nil)
+        model?.shutdown()
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        model?.shutdown()
+        return .terminateNow
     }
 }

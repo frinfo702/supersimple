@@ -35,7 +35,7 @@ struct EditorView: View {
     private func binding(for note: Note) -> Binding<String> {
         Binding(
             get: { model.currentNoteID == note.id ? model.currentBody : note.body },
-            set: { model.noteBodyEdited($0) }
+            set: { model.noteBodyEdited($0, for: note.id) }
         )
     }
 

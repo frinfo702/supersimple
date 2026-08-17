@@ -55,7 +55,7 @@ public final class NoteFileManager: @unchecked Sendable {
         }
     }
 
-    /// Writes `text` to `url` atomically, flushing to disk before returning.
+    /// Writes `text` to `url` atomically and synchronizes the result to stable storage.
     public func write(_ text: String, to url: URL) throws {
         createDirectoryIfNeeded(at: url.deletingLastPathComponent())
         do {
@@ -65,17 +65,35 @@ public final class NoteFileManager: @unchecked Sendable {
             var resourceValues = URLResourceValues()
             resourceValues.isExcludedFromBackup = true
             try? mutable.setResourceValues(resourceValues)
+            synchronizeFile(at: url)
         } catch {
             throw NoteFileError.writeFailed(underlying: String(describing: error))
         }
     }
 
-    /// Deletes the file at `url`, ignoring a missing file.
-    public func delete(at url: URL) {
+    /// Opens the file for writing and calls `synchronizeFile()` to flush dirty pages.
+    /// A directory entry syncing (rename durability) is best-effort on this platform.
+    private func synchronizeFile(at url: URL) {
+        do {
+            let handle = try FileHandle(forWritingTo: url)
+            defer { try? handle.close() }
+            try handle.synchronize()
+        } catch {
+            // Non-fatal: atomic rename already prevents partial file contents.
+        }
+    }
+
+    /// Deletes the file at `url`. Throws for non-"not found" failures so callers
+    /// can distinguish a successful delete from an I/O error.
+    public func delete(at url: URL) throws {
         lock.lock()
         defer { lock.unlock() }
-        if fileManager.fileExists(atPath: url.path) {
-            try? fileManager.removeItem(at: url)
+        do {
+            if fileManager.fileExists(atPath: url.path) {
+                try fileManager.removeItem(at: url)
+            }
+        } catch {
+            throw NoteFileError.writeFailed(underlying: String(describing: error))
         }
     }
 

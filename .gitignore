@@ -11,13 +11,12 @@ xcuserdata/
 *.xcodeproj/project.xcworkspace/xcuserdata/
 *.xcodeproj/xcshareddata/xcschemes/*.xcscheme
 !*.xcodeproj/xcshareddata/xcschemes/
-Package.resolved
 
 # Swift Package Manager
 .build/
 .swiftpm/
 
-# Note: Package.resolved is committed to pin transitive dependency commits.
+# Package.resolved IS committed to pin transitive dependency commits.
 
 # Logs
 *.log

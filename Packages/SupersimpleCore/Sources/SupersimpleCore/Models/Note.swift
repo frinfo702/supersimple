@@ -8,6 +8,9 @@ public struct Note: Identifiable, Hashable, Sendable {
     /// The markdown body, excluding any YAML frontmatter.
     public var body: String
     public var isDeleted: Bool
+    /// Raw non-managed frontmatter lines (Obsidian fields etc.), preserved verbatim
+    /// so editing a note does not destroy metadata this app does not understand.
+    public var extraFields: [String]
 
     public init(
         id: UUID = UUID(),
@@ -15,7 +18,8 @@ public struct Note: Identifiable, Hashable, Sendable {
         updatedAt: Date = Date(),
         tags: Set<Tag> = [],
         body: String = "",
-        isDeleted: Bool = false
+        isDeleted: Bool = false,
+        extraFields: [String] = []
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -23,6 +27,7 @@ public struct Note: Identifiable, Hashable, Sendable {
         self.tags = tags
         self.body = body
         self.isDeleted = isDeleted
+        self.extraFields = extraFields
     }
 
     /// Derives the display title from the first Markdown heading, falling back to a placeholder.
