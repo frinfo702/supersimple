@@ -1,0 +1,719 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1DFA51B809AEC2578A5B24A0 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 446DDC1536D6EB8106031BC9 /* SidebarView.swift */; };
+		39F2E8A9B7A786AB3D4D6372 /* SupersimpleCore in Frameworks */ = {isa = PBXBuildFile; productRef = 28CE08F4153B4EF6060AC482 /* SupersimpleCore */; };
+		412D8C864C9C1631C52ED3E5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8C3C369BC4DD2868AD5632C0 /* Assets.xcassets */; };
+		43CAD5F67985F9829DEF5FFB /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7F5E8CF87F9CE35E40084A /* ThemeManager.swift */; };
+		4AAB69C0B7C1120587B9150C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA4917AA8AFCFD7E1E952AD /* ContentView.swift */; };
+		56CE689B1FBE96551A47030B /* MarkdownEngine in Frameworks */ = {isa = PBXBuildFile; productRef = F63F4B23BF2EB69355738DE1 /* MarkdownEngine */; };
+		62A6EBB69ADEB23FFD352AF4 /* MarkdownEngineLatex in Frameworks */ = {isa = PBXBuildFile; productRef = 574E0DC4D79106D424F96D2F /* MarkdownEngineLatex */; };
+		8DB20AA1ED612D1DE0B527A1 /* GeistMono.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1A8A5098809F4EF931DED0F4 /* GeistMono.ttf */; };
+		9164CAE29549E33199E4DE8E /* ThemeCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */; };
+		9D3307BB19BF5568C5B7F868 /* SupersimpleCore in Frameworks */ = {isa = PBXBuildFile; productRef = AD01F469D880EDEF7D47834E /* SupersimpleCore */; };
+		A7DDEE8CC9C8D519FDAD555A /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637D22A7341BBADF047DF9F6 /* AppModelTests.swift */; };
+		A965689EF507898F3E2EF21B /* SupersimpleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */; };
+		B2ED1BBFE2D902D3D9500E9C /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62BC1A8D2178CDBFA86142BB /* AppTheme.swift */; };
+		C794FA9B0F44F271C5313763 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FF15FA9B631FA47690BF74A /* AppModel.swift */; };
+		E836B0648BB415F0B0B67B07 /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47DE2CE54F87F1D7E7C3DA3 /* EditorView.swift */; };
+		F16EFE8330FB90E14D4E0D68 /* SupersimpleUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59245FC4B2E2EF851ECE0F93 /* SupersimpleUITests.swift */; };
+		F9DC6812742022BD42B5FC71 /* NativeCodeHighlighter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 63B37994CE45CDC8551691C0 /* NativeCodeHighlighter.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		27BD5137C941DD53C6719E66 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2ADA5AA47968FEA21125CD27 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A8314F48305C160A10D0B585;
+			remoteInfo = supersimple;
+		};
+		8B7101DD345A391C4E522B71 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2ADA5AA47968FEA21125CD27 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = A8314F48305C160A10D0B585;
+			remoteInfo = supersimple;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		07908A4E24E57D67ACB88BE5 /* supersimple.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = supersimple.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		08C3404FB831A9B8678E717D /* Supersimple.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Supersimple.entitlements; sourceTree = "<group>"; };
+		1A8A5098809F4EF931DED0F4 /* GeistMono.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = GeistMono.ttf; sourceTree = "<group>"; };
+		2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersimpleApp.swift; sourceTree = "<group>"; };
+		36777A37D6601ACFD8813534 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		3FA4917AA8AFCFD7E1E952AD /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		3FF15FA9B631FA47690BF74A /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
+		446DDC1536D6EB8106031BC9 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
+		59245FC4B2E2EF851ECE0F93 /* SupersimpleUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersimpleUITests.swift; sourceTree = "<group>"; };
+		5A7F5E8CF87F9CE35E40084A /* ThemeManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeManager.swift; sourceTree = "<group>"; };
+		62BC1A8D2178CDBFA86142BB /* AppTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppTheme.swift; sourceTree = "<group>"; };
+		637D22A7341BBADF047DF9F6 /* AppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelTests.swift; sourceTree = "<group>"; };
+		63AD7E0126C10688365F9204 /* SupersimpleCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SupersimpleCore; path = Packages/SupersimpleCore; sourceTree = SOURCE_ROOT; };
+		63B37994CE45CDC8551691C0 /* NativeCodeHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCodeHighlighter.swift; sourceTree = "<group>"; };
+		8C3B6C8592BA4AB3F51AB499 /* supersimpleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		8C3C369BC4DD2868AD5632C0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B47DE2CE54F87F1D7E7C3DA3 /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
+		C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeCommands.swift; sourceTree = "<group>"; };
+		FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		BA1CF05D0A646E0F65E71518 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				39F2E8A9B7A786AB3D4D6372 /* SupersimpleCore in Frameworks */,
+				56CE689B1FBE96551A47030B /* MarkdownEngine in Frameworks */,
+				62A6EBB69ADEB23FFD352AF4 /* MarkdownEngineLatex in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EED330F4DF9F686AE2205E38 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9D3307BB19BF5568C5B7F868 /* SupersimpleCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		1C3A3F8E1EA7085FECFAE595 /* supersimpleUITests */ = {
+			isa = PBXGroup;
+			children = (
+				59245FC4B2E2EF851ECE0F93 /* SupersimpleUITests.swift */,
+			);
+			path = supersimpleUITests;
+			sourceTree = "<group>";
+		};
+		26E8613C9252152652950B6C /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				A315A49DBBE60BFDBA267123 /* Editor */,
+				9DC95DB0734FF9ABEC1189E6 /* Library */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+		3815FA73802B1F0D77F4955F = {
+			isa = PBXGroup;
+			children = (
+				CE90F7F9A6F4BB3A2AC3D206 /* App */,
+				B2FD5E95FD6D7E22DE5D3E7E /* Packages */,
+				92715D2A3F7BF3A49EDFB448 /* supersimpleTests */,
+				1C3A3F8E1EA7085FECFAE595 /* supersimpleUITests */,
+				A90DC1E63A385BE99EBD0880 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5CDDEC7F4C4A9687C7E28D59 /* Platform */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			path = Platform;
+			sourceTree = "<group>";
+		};
+		63D2CD3724E94671C8B2BDE3 /* Fonts */ = {
+			isa = PBXGroup;
+			children = (
+				1A8A5098809F4EF931DED0F4 /* GeistMono.ttf */,
+			);
+			path = Fonts;
+			sourceTree = "<group>";
+		};
+		7C07ADFE3965687F7EC7930D /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				62BC1A8D2178CDBFA86142BB /* AppTheme.swift */,
+				C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */,
+				5A7F5E8CF87F9CE35E40084A /* ThemeManager.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		8AF8FE6BEA1A86D0DAC99FBF /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				7C07ADFE3965687F7EC7930D /* Theme */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		92715D2A3F7BF3A49EDFB448 /* supersimpleTests */ = {
+			isa = PBXGroup;
+			children = (
+				637D22A7341BBADF047DF9F6 /* AppModelTests.swift */,
+			);
+			path = supersimpleTests;
+			sourceTree = "<group>";
+		};
+		9DC95DB0734FF9ABEC1189E6 /* Library */ = {
+			isa = PBXGroup;
+			children = (
+				446DDC1536D6EB8106031BC9 /* SidebarView.swift */,
+			);
+			path = Library;
+			sourceTree = "<group>";
+		};
+		9DF80DE537A2969105DB7346 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				3FF15FA9B631FA47690BF74A /* AppModel.swift */,
+				3FA4917AA8AFCFD7E1E952AD /* ContentView.swift */,
+				2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		A315A49DBBE60BFDBA267123 /* Editor */ = {
+			isa = PBXGroup;
+			children = (
+				B47DE2CE54F87F1D7E7C3DA3 /* EditorView.swift */,
+				63B37994CE45CDC8551691C0 /* NativeCodeHighlighter.swift */,
+			);
+			path = Editor;
+			sourceTree = "<group>";
+		};
+		A90DC1E63A385BE99EBD0880 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				07908A4E24E57D67ACB88BE5 /* supersimple.app */,
+				FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */,
+				8C3B6C8592BA4AB3F51AB499 /* supersimpleUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		B2FD5E95FD6D7E22DE5D3E7E /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				63AD7E0126C10688365F9204 /* SupersimpleCore */,
+			);
+			path = Packages;
+			sourceTree = "<group>";
+		};
+		CE90F7F9A6F4BB3A2AC3D206 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				9DF80DE537A2969105DB7346 /* App */,
+				26E8613C9252152652950B6C /* Features */,
+				5CDDEC7F4C4A9687C7E28D59 /* Platform */,
+				DCAC6B36C9F2C235240BF346 /* Resources */,
+				8AF8FE6BEA1A86D0DAC99FBF /* UI */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		DCAC6B36C9F2C235240BF346 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				8C3C369BC4DD2868AD5632C0 /* Assets.xcassets */,
+				36777A37D6601ACFD8813534 /* Info.plist */,
+				08C3404FB831A9B8678E717D /* Supersimple.entitlements */,
+				63D2CD3724E94671C8B2BDE3 /* Fonts */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		A8314F48305C160A10D0B585 /* supersimple */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3A810BF3EE4967F8719DF5BD /* Build configuration list for PBXNativeTarget "supersimple" */;
+			buildPhases = (
+				EF3D82A651AB8F6D16539EDE /* Sources */,
+				61383E6418B8381D17C1B946 /* Resources */,
+				BA1CF05D0A646E0F65E71518 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = supersimple;
+			packageProductDependencies = (
+				28CE08F4153B4EF6060AC482 /* SupersimpleCore */,
+				F63F4B23BF2EB69355738DE1 /* MarkdownEngine */,
+				574E0DC4D79106D424F96D2F /* MarkdownEngineLatex */,
+			);
+			productName = supersimple;
+			productReference = 07908A4E24E57D67ACB88BE5 /* supersimple.app */;
+			productType = "com.apple.product-type.application";
+		};
+		EB7ED5609E382D3600302ADE /* supersimpleUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 156FD2C788A6172EE183C585 /* Build configuration list for PBXNativeTarget "supersimpleUITests" */;
+			buildPhases = (
+				899EFCB0294FB258548579D5 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				C5AFDDF802DB5E15452B4DF6 /* PBXTargetDependency */,
+			);
+			name = supersimpleUITests;
+			packageProductDependencies = (
+			);
+			productName = supersimpleUITests;
+			productReference = 8C3B6C8592BA4AB3F51AB499 /* supersimpleUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		EC73FD558A6A652EFD7DFC85 /* supersimpleTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FEDAD26821474853CA52514C /* Build configuration list for PBXNativeTarget "supersimpleTests" */;
+			buildPhases = (
+				2FF110ADE4D3E9E2E19F1977 /* Sources */,
+				EED330F4DF9F686AE2205E38 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				34153D2A9673A91CCA678D88 /* PBXTargetDependency */,
+			);
+			name = supersimpleTests;
+			packageProductDependencies = (
+				AD01F469D880EDEF7D47834E /* SupersimpleCore */,
+			);
+			productName = supersimpleTests;
+			productReference = FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		2ADA5AA47968FEA21125CD27 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					A8314F48305C160A10D0B585 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+					EB7ED5609E382D3600302ADE = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+						TestTargetID = A8314F48305C160A10D0B585;
+					};
+					EC73FD558A6A652EFD7DFC85 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = E63814BFD8E7F2B7A8308402 /* Build configuration list for PBXProject "supersimple" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 3815FA73802B1F0D77F4955F;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				F34616F6235CA3416BAC71EF /* XCRemoteSwiftPackageReference "swift-markdown-engine" */,
+				5749B1FC3B701C6360EBBBA6 /* XCRemoteSwiftPackageReference "swift-markdown-engine" */,
+				19AFD8BF545EDA2DB3B7B628 /* XCLocalSwiftPackageReference "Packages/SupersimpleCore" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = A90DC1E63A385BE99EBD0880 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				A8314F48305C160A10D0B585 /* supersimple */,
+				EC73FD558A6A652EFD7DFC85 /* supersimpleTests */,
+				EB7ED5609E382D3600302ADE /* supersimpleUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		61383E6418B8381D17C1B946 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				412D8C864C9C1631C52ED3E5 /* Assets.xcassets in Resources */,
+				8DB20AA1ED612D1DE0B527A1 /* GeistMono.ttf in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		2FF110ADE4D3E9E2E19F1977 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A7DDEE8CC9C8D519FDAD555A /* AppModelTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		899EFCB0294FB258548579D5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F16EFE8330FB90E14D4E0D68 /* SupersimpleUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EF3D82A651AB8F6D16539EDE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				C794FA9B0F44F271C5313763 /* AppModel.swift in Sources */,
+				B2ED1BBFE2D902D3D9500E9C /* AppTheme.swift in Sources */,
+				4AAB69C0B7C1120587B9150C /* ContentView.swift in Sources */,
+				E836B0648BB415F0B0B67B07 /* EditorView.swift in Sources */,
+				F9DC6812742022BD42B5FC71 /* NativeCodeHighlighter.swift in Sources */,
+				1DFA51B809AEC2578A5B24A0 /* SidebarView.swift in Sources */,
+				A965689EF507898F3E2EF21B /* SupersimpleApp.swift in Sources */,
+				9164CAE29549E33199E4DE8E /* ThemeCommands.swift in Sources */,
+				43CAD5F67985F9829DEF5FFB /* ThemeManager.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		34153D2A9673A91CCA678D88 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A8314F48305C160A10D0B585 /* supersimple */;
+			targetProxy = 27BD5137C941DD53C6719E66 /* PBXContainerItemProxy */;
+		};
+		C5AFDDF802DB5E15452B4DF6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = A8314F48305C160A10D0B585 /* supersimple */;
+			targetProxy = 8B7101DD345A391C4E522B71 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0757F0903E5C5C81D288B6CB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/Resources/Supersimple.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = App/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.frinfo702.supersimple;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		0CD1A1194C30EE147FEF3DE8 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.frinfo702.supersimpleTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/supersimple.app/Contents/MacOS/supersimple";
+			};
+			name = Release;
+		};
+		15DDCB196C8A752C82BBBAF9 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.frinfo702.supersimpleUITests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = supersimple;
+			};
+			name = Release;
+		};
+		3E3CB88C6B458E4A71140364 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		4A2155D2748DE2D4C7CBFF70 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		909E19631FB3B07F4953AAFD /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.frinfo702.supersimpleTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/supersimple.app/Contents/MacOS/supersimple";
+			};
+			name = Debug;
+		};
+		A5F3DB2C050DC1766DD1F32C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = App/Resources/Supersimple.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = App/Resources/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.frinfo702.supersimple;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		E7BBFA065B6BED7F68310BCB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.frinfo702.supersimpleUITests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = supersimple;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		156FD2C788A6172EE183C585 /* Build configuration list for PBXNativeTarget "supersimpleUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E7BBFA065B6BED7F68310BCB /* Debug */,
+				15DDCB196C8A752C82BBBAF9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		3A810BF3EE4967F8719DF5BD /* Build configuration list for PBXNativeTarget "supersimple" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0757F0903E5C5C81D288B6CB /* Debug */,
+				A5F3DB2C050DC1766DD1F32C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		E63814BFD8E7F2B7A8308402 /* Build configuration list for PBXProject "supersimple" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3E3CB88C6B458E4A71140364 /* Debug */,
+				4A2155D2748DE2D4C7CBFF70 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		FEDAD26821474853CA52514C /* Build configuration list for PBXNativeTarget "supersimpleTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				909E19631FB3B07F4953AAFD /* Debug */,
+				0CD1A1194C30EE147FEF3DE8 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		19AFD8BF545EDA2DB3B7B628 /* XCLocalSwiftPackageReference "Packages/SupersimpleCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = Packages/SupersimpleCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		5749B1FC3B701C6360EBBBA6 /* XCRemoteSwiftPackageReference "swift-markdown-engine" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/nodes-app/swift-markdown-engine";
+			requirement = {
+				kind = exactVersion;
+				version = 0.12.0;
+			};
+		};
+		F34616F6235CA3416BAC71EF /* XCRemoteSwiftPackageReference "swift-markdown-engine" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/nodes-app/swift-markdown-engine";
+			requirement = {
+				kind = exactVersion;
+				version = 0.12.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		28CE08F4153B4EF6060AC482 /* SupersimpleCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SupersimpleCore;
+		};
+		574E0DC4D79106D424F96D2F /* MarkdownEngineLatex */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5749B1FC3B701C6360EBBBA6 /* XCRemoteSwiftPackageReference "swift-markdown-engine" */;
+			productName = MarkdownEngineLatex;
+		};
+		AD01F469D880EDEF7D47834E /* SupersimpleCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SupersimpleCore;
+		};
+		F63F4B23BF2EB69355738DE1 /* MarkdownEngine */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F34616F6235CA3416BAC71EF /* XCRemoteSwiftPackageReference "swift-markdown-engine" */;
+			productName = MarkdownEngine;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 2ADA5AA47968FEA21125CD27 /* Project object */;
+}

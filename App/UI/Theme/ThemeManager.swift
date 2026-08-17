@@ -1,0 +1,53 @@
+import AppKit
+import SwiftUI
+
+/// Controls the app-level color scheme preference (System / Light / Dark),
+/// persisted in `UserDefaults` and exposed to SwiftUI via `preferredColorScheme`.
+@MainActor
+@Observable
+final class ThemeManager {
+    enum Preference: String, CaseIterable, Identifiable {
+        case system
+        case light
+        case dark
+
+        var id: String { rawValue }
+
+        var colorScheme: ColorScheme? {
+            switch self {
+            case .system: nil
+            case .light: .light
+            case .dark: .dark
+            }
+        }
+    }
+
+    private static let key = "com.frinfo702.supersimple.theme"
+
+    var preference: Preference {
+        didSet {
+            UserDefaults.standard.set(preference.rawValue, forKey: Self.key)
+            apply()
+        }
+    }
+
+    init() {
+        let raw = UserDefaults.standard.string(forKey: Self.key) ?? Preference.system.rawValue
+        preference = Preference(rawValue: raw) ?? .system
+        // Defer the first application until after launch so `NSApp` exists and the
+        // explicit nil (system) round-trip is safe.
+        DispatchQueue.main.async { [weak self] in
+            self?.apply()
+        }
+    }
+
+    private func apply() {
+        let appearance: NSAppearance?
+        switch preference {
+        case .system: appearance = nil
+        case .light: appearance = NSAppearance(named: .aqua)
+        case .dark: appearance = NSAppearance(named: .darkAqua)
+        }
+        NSApp.appearance = appearance
+    }
+}

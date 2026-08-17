@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: Core Package (Tests)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run Swift package tests (including performance)
+        run: |
+          cd Packages/SupersimpleCore
+          # Performance tests run to keep search/scan "observable" on every push.
+          RUN_PERF_TESTS=1 swift test
+
+  xcode:
+    name: macOS App (Build + Unit Tests)
+    runs-on: macos-26
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Lint Swift format
+        run: ./Scripts/format.sh lint
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build & run unit tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project supersimple.xcodeproj \
+            -scheme supersimple \
+            -destination 'platform=macOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            -resultBundlePath build/Test.xcresult
+
+      - name: Build Release
+        run: |
+          xcodebuild build \
+            -project supersimple.xcodeproj \
+            -scheme supersimple \
+            -configuration Release \
+            -derivedDataPath build/ReleaseDD \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            build/Test.xcresult
+          if-no-files-found: ignore
+
+      - name: Upload Release app
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supersimple-release
+          path: |
+            build/ReleaseDD/Build/Products/Release/supersimple.app
+          if-no-files-found: ignore
