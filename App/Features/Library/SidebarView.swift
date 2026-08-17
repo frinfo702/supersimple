@@ -132,6 +132,7 @@ private struct NoteRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .focusable()
         .accessibilityLabel(note.title)
         .accessibilityValue(preview)
         .accessibilityAddTraits(isSelected ? .isSelected : [])

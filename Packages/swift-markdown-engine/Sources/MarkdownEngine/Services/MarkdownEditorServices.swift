@@ -192,6 +192,13 @@ public protocol FaviconProvider: Sendable {
     /// Returns the cached favicon for `host` (e.g. "github.com"), or `nil` if not yet
     /// available. Called synchronously during styling; embedders prefetch asynchronously.
     func favicon(for host: String) -> NSImage?
+    /// Posted when a previously missing favicon becomes available. The engine
+    /// restyles so the icon appears without waiting for the next keystroke.
+    var didLoadNotification: Notification.Name? { get }
+}
+
+public extension FaviconProvider {
+    var didLoadNotification: Notification.Name? { nil }
 }
 
 /// Default provider that returns no favicon.

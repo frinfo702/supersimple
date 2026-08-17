@@ -190,13 +190,7 @@ final class AppModel {
 
     /// Extracts hostnames from a body and prefetches their favicons.
     func prefetchFavicons(in body: String) {
-        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
-        var hosts: Set<String> = []
-        detector?.enumerateMatches(
-            in: body, options: [], range: NSRange(location: 0, length: (body as NSString).length)
-        ) { match, _, _ in
-            if let url = match?.url, let host = url.host { hosts.insert(host) }
-        }
+        let hosts = FaviconService.hosts(in: body)
         if !hosts.isEmpty {
             faviconService.prefetch(hosts: Array(hosts))
         }
@@ -259,6 +253,7 @@ final class AppModel {
             notes[idx].body = newBody
             notes[idx].updatedAt = Date()
         }
+        prefetchFavicons(in: newBody)
         scheduleSave()
     }
 

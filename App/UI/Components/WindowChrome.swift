@@ -26,6 +26,7 @@ struct WindowChrome: NSViewRepresentable {
             window.styleMask.insert(.fullSizeContentView)
             window.isMovableByWindowBackground = true
             window.toolbarStyle = .unified
+            window.animations["appearance"] = NSNull()
         }
     }
 }

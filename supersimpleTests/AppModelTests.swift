@@ -289,6 +289,47 @@ struct AppModelTests {
     }
 }
 
+@Suite("FaviconService")
+struct FaviconServiceTests {
+    @Test("Extracts hosts from markdown links and bare URLs")
+    func extractsHosts() {
+        let hosts = FaviconService.hosts(in: """
+        See [GitHub](https://github.com/foo) and https://example.com/x
+        Also [docs](example.org/path)
+        """)
+        #expect(hosts.contains("github.com"))
+        #expect(hosts.contains("example.com"))
+        #expect(hosts.contains("example.org"))
+    }
+
+    @Test("Ignores text that is not a link")
+    func ignoresPlainText() {
+        let hosts = FaviconService.hosts(in: "hello world, no urls here")
+        #expect(hosts.isEmpty)
+    }
+}
+
+@Suite("Line delete")
+struct LineDeleteTests {
+    @Test("paragraphRange covers the whole line including the newline")
+    func paragraphRangeCoversLine() {
+        let text = "alpha\nbeta\ngamma" as NSString
+        let beta = text.range(of: "beta")
+        let line = text.paragraphRange(for: beta)
+        #expect(text.substring(with: line) == "beta\n")
+    }
+
+    @Test("paragraphRange spans every selected line")
+    func paragraphRangeSpansSelection() {
+        let text = "alpha\nbeta\ngamma" as NSString
+        let start = text.range(of: "pha")
+        let end = text.range(of: "ga")
+        let selection = NSRange(location: start.location, length: NSMaxRange(end) - start.location)
+        let line = text.paragraphRange(for: selection)
+        #expect(text.substring(with: line) == "alpha\nbeta\ngamma")
+    }
+}
+
 @Suite("NoteStats")
 struct NoteStatsTests {
     @Test("Counts words and characters")
@@ -304,5 +345,36 @@ struct NoteStatsTests {
         #expect(NoteStats.sanitizedFilename("Recipes / Ideas") == "Recipes - Ideas")
         #expect(NoteStats.sanitizedFilename("   ") == "Untitled")
         #expect(NoteStats.sanitizedFilename("a:b?c") == "a-b-c")
+    }
+}
+
+@MainActor
+@Suite("ThemeManager")
+struct ThemeManagerTests {
+    @Test("Explicit light/dark does not wait on the environment color scheme")
+    func explicitPreferenceIgnoresEnvironmentScheme() {
+        let manager = ThemeManager()
+        let previous = manager.preference
+        defer { manager.preference = previous }
+
+        manager.preference = .light
+        #expect(!manager.isDark(matching: .dark))
+        #expect(!manager.isDark(matching: .light))
+
+        manager.preference = .dark
+        #expect(manager.isDark(matching: .light))
+        #expect(manager.isDark(matching: .dark))
+    }
+
+    @Test("setPreferenceImmediately updates preference on the same turn")
+    func setPreferenceImmediatelyWrites() {
+        let manager = ThemeManager()
+        let previous = manager.preference
+        defer { manager.preference = previous }
+
+        manager.setPreferenceImmediately(.dark)
+        #expect(manager.preference == .dark)
+        manager.setPreferenceImmediately(.light)
+        #expect(manager.preference == .light)
     }
 }

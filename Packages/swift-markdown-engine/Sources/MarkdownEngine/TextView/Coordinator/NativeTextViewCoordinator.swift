@@ -52,6 +52,7 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
         didSet {
             subscribeToBusNotifications(replacing: oldValue.services.bus)
             subscribeToAppearanceNotification()
+            subscribeToFaviconNotification()
             // Precompiled registry for the per-keystroke parse path — deriving
             // it from the configuration on every keystroke would rebuild the
             // delimiter arrays + fingerprint string each time.
@@ -70,6 +71,7 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     var lastWikiFingerprint: AnyHashable?
     private var busObservers: [NSObjectProtocol] = []
     private var registeredAppearanceObserverName: Notification.Name?
+    private var registeredFaviconObserverName: Notification.Name?
     weak var textView: NSTextView?
     /// Owns the scroll-away header (build, content refresh, collapse/expand,
     /// teardown). Created on first reconcile with a non-nil header.
@@ -291,6 +293,7 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
         super.init()
         // Init + didSet share this helper so the observer tracks whichever service is current.
         subscribeToAppearanceNotification()
+        subscribeToFaviconNotification()
     }
 
     /// (Re)register the syntax-highlighter appearance observer; idempotent and unsubscribes on nil.
@@ -309,6 +312,25 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
             object: nil
         )
         registeredAppearanceObserverName = name
+    }
+
+    /// Restyle when a favicon arrives so `[text](url)` links pick up the icon
+    /// without waiting for the next keystroke.
+    private func subscribeToFaviconNotification() {
+        let target = configuration.services.favicons.didLoadNotification
+        if registeredFaviconObserverName == target { return }
+        if let current = registeredFaviconObserverName {
+            NotificationCenter.default.removeObserver(self, name: current, object: nil)
+        }
+        registeredFaviconObserverName = nil
+        guard let name = target else { return }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleAppearanceChange(_:)),
+            name: name,
+            object: nil
+        )
+        registeredFaviconObserverName = name
     }
 
     /// Subscribe to whichever bus notification names the current configuration

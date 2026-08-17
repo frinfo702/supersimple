@@ -474,7 +474,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
                 drawRect = rect
             } else {
                 let descent = imageBounds.origin.y
-                drawRect = CGRect(x: pos.x,
+                drawRect = CGRect(x: pos.x + imageBounds.origin.x,
                                   y: pos.baselineY + descent - imageBounds.height,
                                   width: imageBounds.width, height: imageBounds.height)
             }

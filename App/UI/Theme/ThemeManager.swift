@@ -1,4 +1,5 @@
 import AppKit
+import QuartzCore
 import SwiftUI
 
 /// Controls the app-level color scheme preference (System / Light / Dark),
@@ -50,9 +51,18 @@ final class ThemeManager {
         }
     }
 
+    /// Assigns `preference` without SwiftUI interpolating toolbar chrome.
+    func setPreferenceImmediately(_ newValue: Preference) {
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            preference = newValue
+        }
+    }
+
     /// Toggles Light ↔ Dark, resolving `.system` from the current effective appearance.
     func cycle() {
-        preference = currentlyDark ? .light : .dark
+        setPreferenceImmediately(currentlyDark ? .light : .dark)
     }
 
     private var currentlyDark: Bool {
@@ -71,13 +81,17 @@ final class ThemeManager {
         case .dark: appearance = NSAppearance(named: .darkAqua)
         }
         // AppKit otherwise fades the titlebar/toolbar a beat after SwiftUI content.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
         NSAnimationContext.runAnimationGroup { context in
             context.duration = 0
             context.allowsImplicitAnimation = false
             NSApp.appearance = appearance
             for window in NSApp.windows {
+                window.animations["appearance"] = NSNull()
                 window.appearance = appearance
             }
         }
+        CATransaction.commit()
     }
 }

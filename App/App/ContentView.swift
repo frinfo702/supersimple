@@ -3,13 +3,15 @@ import SwiftUI
 
 /// Toolbar chrome: sidebar toggle + search on the left (next to the traffic lights),
 /// appearance / bottom-bar / export / new-note on the right.
+///
+/// `isDark` is passed from `ContentView` so these items do not wait on the
+/// toolbar hosting view's delayed color-scheme environment.
 struct TopBar: ToolbarContent {
     @Bindable var model: AppModel
     @Environment(ThemeManager.self) private var themeManager
-    @Environment(\.colorScheme) private var colorScheme
+    var isDark: Bool
     @FocusState private var searchIsFocused: Bool
 
-    private var isDark: Bool { themeManager.isDark(matching: colorScheme) }
     private var muted: Color { AppTheme.mutedColor(isDark: isDark) }
     private var well: Color { AppTheme.sidebarBackgroundColor(isDark: isDark) }
 
@@ -20,12 +22,17 @@ struct TopBar: ToolbarContent {
                 searchField
                     .frame(minWidth: 180, idealWidth: 260, maxWidth: 360)
             }
+            .immediateToolbarChrome(isDark: isDark)
         }
         ToolbarItemGroup(placement: .primaryAction) {
             themePicker
+                .immediateToolbarChrome(isDark: isDark)
             bottomBarToggle
+                .immediateToolbarChrome(isDark: isDark)
             exportButton
+                .immediateToolbarChrome(isDark: isDark)
             newNoteButton
+                .immediateToolbarChrome(isDark: isDark)
         }
     }
 
@@ -57,9 +64,14 @@ struct TopBar: ToolbarContent {
             SearchIcon(lineWidth: 1.4)
                 .foregroundStyle(muted)
                 .frame(width: 13, height: 13)
-            TextField("Search notes", text: $model.searchQuery)
+            TextField(
+                "",
+                text: $model.searchQuery,
+                prompt: Text("Search notes").foregroundStyle(muted)
+            )
                 .textFieldStyle(.plain)
                 .font(.system(size: 13))
+                .foregroundStyle(AppTheme.textColor(isDark: isDark))
                 .focused($searchIsFocused)
                 .accessibilityIdentifier("search-field")
                 .accessibilityLabel("Search notes")
@@ -84,6 +96,7 @@ struct TopBar: ToolbarContent {
         .background(
             RoundedRectangle(cornerRadius: AppTheme.Metric.controlRadius, style: .continuous)
                 .fill(well)
+                .animation(nil, value: isDark)
         )
     }
 
@@ -97,7 +110,7 @@ struct TopBar: ToolbarContent {
                 identifier: "theme-light-button",
                 label: "Light appearance"
             ) {
-                themeManager.preference = .light
+                themeManager.setPreferenceImmediately(.light)
             }
             themeOption(
                 icon: DarkThemeIcon(lineWidth: 1.4),
@@ -105,13 +118,14 @@ struct TopBar: ToolbarContent {
                 identifier: "theme-dark-button",
                 label: "Dark appearance"
             ) {
-                themeManager.preference = .dark
+                themeManager.setPreferenceImmediately(.dark)
             }
         }
         .padding(2)
         .background(
             RoundedRectangle(cornerRadius: 8, style: .continuous)
                 .fill(well)
+                .animation(nil, value: isDark)
         )
         .accessibilityElement(children: .contain)
         .help("Appearance: \(isDark ? "Dark" : "Light")")
@@ -204,6 +218,16 @@ struct TopBar: ToolbarContent {
     }
 }
 
+private extension View {
+    /// Pins toolbar items to the resolved scheme and drops implicit animation so
+    /// wells / icons snap with the window instead of interpolating a beat later.
+    func immediateToolbarChrome(isDark: Bool) -> some View {
+        self
+            .environment(\.colorScheme, isDark ? .dark : .light)
+            .transaction { $0.animation = nil }
+    }
+}
+
 struct ContentView: View {
     @Environment(AppModel.self) private var model
     @Environment(ThemeManager.self) private var themeManager
@@ -254,7 +278,7 @@ struct ContentView: View {
         .toolbarColorScheme(isDark ? .dark : .light, for: .windowToolbar)
         .animation(nil, value: themeManager.preference)
         .toolbar {
-            TopBar(model: model)
+            TopBar(model: model, isDark: isDark)
         }
         .onAppear {
             if appLaunchTask == nil {
@@ -336,6 +360,12 @@ struct AppCommands: Commands {
         }
         CommandGroup(after: .pasteboard) {
             Button("Delete Note") {
+                // The editor consumes ⌘⌫ itself (delete current line). Skip when
+                // any text input is first responder so a search-field ⌘⌫ cannot
+                // delete the open note either.
+                if let first = NSApp.keyWindow?.firstResponder, first is NSText {
+                    return
+                }
                 NotificationCenter.default.post(name: Notification.Name("supersimple.deleteNote"), object: nil)
             }
             .keyboardShortcut(.delete, modifiers: [.command])

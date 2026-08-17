@@ -87,6 +87,12 @@ enum AppTheme {
             ? SwiftUI.Color(red: 0.58, green: 0.59, blue: 0.51)
             : SwiftUI.Color(red: 0.37, green: 0.38, blue: 0.31)
     }
+
+    static func textColor(isDark: Bool) -> SwiftUI.Color {
+        isDark
+            ? SwiftUI.Color(white: 0.94)
+            : SwiftUI.Color(white: 0.1)
+    }
 }
 
 extension NSAppearance {

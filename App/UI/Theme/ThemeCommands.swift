@@ -9,7 +9,7 @@ struct ThemeCommands: Commands {
         CommandMenu("Appearance") {
             ForEach(ThemeManager.Preference.allCases) { preference in
                 Button(preference.label) {
-                    themeManager.preference = preference
+                    themeManager.setPreferenceImmediately(preference)
                 }
                 .keyboardShortcut(preference.shortcut, modifiers: [.command, .shift])
             }

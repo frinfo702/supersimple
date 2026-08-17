@@ -2,10 +2,7 @@
 import PackageDescription
 
 // VENDORED from https://github.com/nodes-app/swift-markdown-engine @ 0.12.0
-// (Apache-2.0). Local modification: the MarkdownEngineTests target was removed
-// (no test sources are vendored), and MarkdownASTStyler.swift was patched so
-// fenced-code ``` markers are always hidden (they previously flipped color with
-// the caret). See VENDORED.md.
+// (Apache-2.0). Local modifications are listed in VENDORED.md.
 
 
 // MarkdownEngine — a TextKit-2 backed Markdown editor view for macOS.

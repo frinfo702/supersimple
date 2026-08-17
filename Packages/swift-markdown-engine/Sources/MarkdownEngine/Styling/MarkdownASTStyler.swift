@@ -78,6 +78,10 @@ enum MarkdownASTStyler {
             styleBlock(block, font: baseFont, ctx: ctx, into: &attrs)
         }
         shrinkInactiveMarkers(in: blocks, ctx: ctx, into: &attrs)
+        // After shrink: the `[` marker is collapsed to ~0 width. Re-open that
+        // slot to favicon width so the overlay has somewhere to sit. Must run
+        // after shrink so this kern wins.
+        styleLinkFavicons(in: blocks, ctx: ctx, into: &attrs)
 
         // Text/regex passes (AST-agnostic); AST code ranges drive the "skip inside code" checks.
         let codeRanges = collectCodeRanges(in: blocks)
@@ -446,8 +450,27 @@ enum MarkdownASTStyler {
                       !isInCode(match.range, codeRanges),
                       !isInCode(match.range, linkRanges) else { return }
                 attrs.append((match.range, [.link: url]))
+                appendAutolinkFavicon(matchRange: match.range, url: url, ctx: ctx, into: &attrs)
             }
         }
+    }
+
+    /// Favicon for a bare URL: sit it on the preceding space when there is one
+    /// so the URL text is not overlapped. Start-of-line URLs skip this; wrap
+    /// them as `[label](url)` to get an icon.
+    private static func appendAutolinkFavicon(
+        matchRange: NSRange, url: URL, ctx: Ctx, into attrs: inout [StyledRange]
+    ) {
+        guard matchRange.location > 0, url.host != nil else { return }
+        let prev = matchRange.location - 1
+        let ch = ctx.ns.character(at: prev)
+        guard ch == 0x20 || ch == 0x09 else { return }
+        appendFavicon(
+            on: NSRange(location: prev, length: 1),
+            urlString: url.absoluteString,
+            ctx: ctx,
+            into: &attrs
+        )
     }
 
     private static func styleIncompleteLinkBrackets(ctx: Ctx, codeRanges: [NSRange], checkboxRanges: [NSRange], into attrs: inout [StyledRange]) {
@@ -793,18 +816,72 @@ enum MarkdownASTStyler {
                 ]))
             }
         }
-        // Prepend a small favicon before the link text when one is cached. We draw it
-        // on the first (hidden-when-inactive) marker so the source text is untouched.
-        if !isActive, let first = markers.first, let host = faviconHost(urlString),
-           let icon = ctx.config.services.favicons.favicon(for: host) {
-            attrs.append((first, [
-                .latexImage: icon,
-                .latexBounds: NSValue(rect: CGRect(x: 0, y: 0, width: 16, height: 16)),
-                .latexIsBlock: false,
-            ]))
-        }
         for marker in markers { attrs.append((marker, [.foregroundColor: ctx.theme.mutedText])) }
         styleInlines(children, font: font, ctx: ctx, into: &attrs)
+    }
+
+    private static let faviconDisplaySize: CGFloat = 12
+    private static let faviconGap: CGFloat = 4
+
+    /// Places a cached site icon in the hidden `[` marker of each inactive
+    /// `[text](url)` link, expanding that marker so the overlay doesn't overlap
+    /// the label. Applied after marker-shrinking so the reserved width sticks.
+    private static func styleLinkFavicons(in blocks: [BlockNode], ctx: Ctx, into attrs: inout [StyledRange]) {
+        func walk(_ nodes: [InlineNode]) {
+            for node in nodes {
+                switch node {
+                case .link(let range, _, let urlRange, let markers, let children):
+                    if !ctx.isActive(range), let first = markers.first, first.length > 0 {
+                        appendFavicon(on: first, urlRange: urlRange, ctx: ctx, into: &attrs)
+                    }
+                    walk(children)
+                case .emphasis(_, _, _, let children):
+                    walk(children)
+                case .ext(let node):
+                    walk(node.children)
+                default:
+                    break
+                }
+            }
+        }
+        for block in blocks where ctx.inScope(block.range) {
+            switch block {
+            case .paragraph(_, let inlines), .heading(_, _, _, let inlines), .blockquote(_, let inlines):
+                walk(inlines)
+            case .list(_, let items):
+                for item in items { walk(item.inlines) }
+            case .ext(let node):
+                walk(node.inlines)
+            default:
+                break
+            }
+        }
+    }
+
+    private static func appendFavicon(
+        on slot: NSRange, urlRange: NSRange, ctx: Ctx, into attrs: inout [StyledRange]
+    ) {
+        var urlString = ctx.ns.substring(with: urlRange)
+        if !urlString.contains("://") { urlString = "https://\(urlString)" }
+        appendFavicon(on: slot, urlString: urlString, ctx: ctx, into: &attrs)
+    }
+
+    private static func appendFavicon(
+        on slot: NSRange, urlString: String, ctx: Ctx, into attrs: inout [StyledRange]
+    ) {
+        guard let host = faviconHost(urlString),
+              let icon = ctx.config.services.favicons.favicon(for: host) else { return }
+        let slotText = ctx.ns.substring(with: slot)
+        let slotWidth = HeadingHelpers.textWidth(slotText, font: ctx.inlineMarkerFont)
+        let targetWidth = faviconDisplaySize + faviconGap
+        attrs.append((slot, [
+            .latexImage: icon,
+            .latexBounds: NSValue(rect: CGRect(x: 0, y: 1, width: faviconDisplaySize, height: faviconDisplaySize)),
+            .latexIsBlock: false,
+            .foregroundColor: NSColor.clear,
+            .font: ctx.inlineMarkerFont,
+            .kern: targetWidth - slotWidth,
+        ]))
     }
 
     /// Extracts the hostname from a URL string for favicon lookup.
