@@ -22,8 +22,8 @@ struct AppModelTests {
         return (
             model,
             {
+                model.shutdown()
                 defaults.removePersistentDomain(forName: suiteName)
-                try? FileManager.default.removeItem(at: dir)
             }
         )
     }
@@ -39,7 +39,10 @@ struct AppModelTests {
     func createAndPersist() async throws {
         let dir = try makeTempDir()
         let (model, cleanup) = try makeModel(in: dir)
-        defer { cleanup() }
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
 
         await model.bootstrap()
 
@@ -51,17 +54,41 @@ struct AppModelTests {
         model.flushNow()
 
         // Reload from the SAME directory to confirm persistence.
-        let (model2, _) = try makeModel(in: dir)
+        let (model2, cleanup2) = try makeModel(in: dir)
+        defer { cleanup2() }
         await model2.bootstrap()
         #expect(model2.notes.count == 1)
         #expect(model2.notes.first?.body.contains("Some body") == true)
+    }
+
+    @Test("New note action creates and selects a fresh note")
+    func createActionSelectsFreshNote() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+
+        model.createNote()
+        let firstID = model.currentNoteID
+        model.createNote()
+
+        #expect(model.notes.count == 2)
+        #expect(model.currentNoteID != firstID)
+        #expect(model.currentNote()?.body == "# New Note")
+        #expect(model.notes.first?.id == model.currentNoteID)
     }
 
     @Test("Extracts tags from edited body")
     func tagExtraction() async throws {
         let dir = try makeTempDir()
         let (model, cleanup) = try makeModel(in: dir)
-        defer { cleanup() }
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
         await model.bootstrap()
 
         model.createNote()
@@ -76,7 +103,10 @@ struct AppModelTests {
     func deleteNote() async throws {
         let dir = try makeTempDir()
         let (model, cleanup) = try makeModel(in: dir)
-        defer { cleanup() }
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
         await model.bootstrap()
 
         model.createNote()
@@ -93,7 +123,10 @@ struct AppModelTests {
     func searchAfterSave() async throws {
         let dir = try makeTempDir()
         let (model, cleanup) = try makeModel(in: dir)
-        defer { cleanup() }
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
         await model.bootstrap()
 
         model.createNote()
@@ -114,7 +147,10 @@ struct AppModelTests {
     func untitledTitle() async throws {
         let dir = try makeTempDir()
         let (model, cleanup) = try makeModel(in: dir)
-        defer { cleanup() }
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
         await model.bootstrap()
 
         model.createNote()
@@ -125,7 +161,10 @@ struct AppModelTests {
     func staleCallbackIgnored() async throws {
         let dir = try makeTempDir()
         let (model, cleanup) = try makeModel(in: dir)
-        defer { cleanup() }
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
         await model.bootstrap()
 
         model.createNote()
@@ -149,7 +188,10 @@ struct AppModelTests {
     func toggleTagPersists() async throws {
         let dir = try makeTempDir()
         let (model, cleanup) = try makeModel(in: dir)
-        defer { cleanup() }
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
         await model.bootstrap()
 
         model.createNote()

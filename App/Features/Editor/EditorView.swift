@@ -10,14 +10,38 @@ struct EditorView: View {
     @Bindable var model: AppModel
 
     var body: some View {
-        Group {
-            if let note = model.currentNote() {
-                liveEditor(for: note)
-            } else {
-                emptyState
+        ZStack {
+            Color(nsColor: AppTheme.Color.background)
+
+            ZStack {
+                RoundedRectangle(cornerRadius: AppTheme.Metric.editorRadius, style: .continuous)
+                    .fill(AppTheme.editorGradient)
+                    .shadow(color: Color.supersimpleAccent.opacity(0.16), radius: 34, y: 12)
+
+                Group {
+                    if let note = model.currentNote() {
+                        liveEditor(for: note)
+                    } else {
+                        emptyState
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color(nsColor: AppTheme.Color.editorSurface))
+                .clipShape(
+                    RoundedRectangle(cornerRadius: AppTheme.Metric.editorSurfaceRadius, style: .continuous)
+                )
+                .padding(.top, 8)
+                .padding(.trailing, 8)
+                .padding(.bottom, 8)
+                .padding(.leading, 18)
             }
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metric.editorRadius, style: .continuous))
+            .accessibilityIdentifier("editor-surface")
+            .padding(.top, 44)
+            .padding(.horizontal, 28)
+            .padding(.bottom, 28)
         }
-        .background(Color(nsColor: AppTheme.Color.background))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private func liveEditor(for note: Note) -> some View {
@@ -29,7 +53,7 @@ struct EditorView: View {
             documentId: note.id.uuidString,
             isEditable: true
         )
-        .background(Color(nsColor: AppTheme.Color.background))
+        .background(Color(nsColor: AppTheme.Color.editorSurface))
     }
 
     private func binding(for note: Note) -> Binding<String> {
@@ -40,14 +64,18 @@ struct EditorView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 10) {
-            Image(systemName: "square.and.pencil")
-                .font(.system(size: 30, weight: .light))
-                .foregroundStyle(.secondary)
-            Text("No note selected")
-                .font(.callout)
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 14) {
+            Spacer()
+            Text("A quiet place\nfor clear thinking.")
+                .font(.system(size: 38, weight: .semibold, design: .rounded))
+                .tracking(-1.2)
+            Text("Choose a note, or create one with ⌘N.")
+                .font(.system(size: 15))
+                .foregroundStyle(Color.supersimpleMuted)
+            Spacer()
         }
+        .padding(52)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 }
 
@@ -57,10 +85,12 @@ enum EditorConfiguration {
         var config = MarkdownEditorConfiguration.default
 
         var theme = MarkdownEditorTheme.default
-        theme.bodyText = .labelColor
-        theme.mutedText = .secondaryLabelColor
-        theme.link = NSColor.systemBlue
-        theme.incompleteLink = NSColor.systemBlue.withAlphaComponent(0.7)
+        theme.bodyText = AppTheme.Color.editorText
+        theme.mutedText = AppTheme.Color.mutedText
+        theme.disabledText = AppTheme.Color.mutedText.withAlphaComponent(0.65)
+        theme.headingMarker = AppTheme.Color.mutedText
+        theme.link = AppTheme.Color.accent
+        theme.incompleteLink = AppTheme.Color.accent.withAlphaComponent(0.7)
         config.theme = theme
 
         config.services = MarkdownEditorServices(
@@ -70,7 +100,7 @@ enum EditorConfiguration {
         config.readingWidth = AppTheme.Metric.readingWidth
         config.paragraph.spacingFactor = 0.35
         config.paragraph.lineHeightExtraSpacing = 2
-        config.textInsets = TextInsets(horizontal: 28, vertical: 28)
+        config.textInsets = TextInsets(horizontal: 42, vertical: 40)
         return config
     }
 }

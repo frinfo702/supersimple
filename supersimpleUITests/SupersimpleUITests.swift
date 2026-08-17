@@ -20,6 +20,20 @@ final class SupersimpleUITests: XCTestCase {
     }
 
     @MainActor
+    func testCreateNoteViaSidebarButton() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        let newNoteButton = app.buttons["new-note-button"]
+        XCTAssertTrue(newNoteButton.waitForExistence(timeout: 5))
+        XCTAssertTrue(newNoteButton.isEnabled)
+        newNoteButton.click()
+
+        XCTAssertTrue(app.descendants(matching: .any)["editor-surface"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.descendants(matching: .any)["notes-list"].exists)
+    }
+
+    @MainActor
     func testAppLaunches() throws {
         let app = XCUIApplication()
         app.launch()

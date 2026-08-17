@@ -1,107 +1,213 @@
 import SupersimpleCore
 import SwiftUI
 
-/// Left-hand sidebar: a search field at the top, the (optionally tag-filtered)
-/// note list below, and a compact tag index at the bottom.
+/// Search, note selection, and tag filtering in a fixed-width library column.
 struct SidebarView: View {
     @Bindable var model: AppModel
+    @FocusState private var searchIsFocused: Bool
 
     var body: some View {
         VStack(spacing: 0) {
+            header
             searchField
-            Divider()
-                .overlay(AppTheme.hairline)
+            sectionLabel("Notes", count: model.visibleNotes.count)
             noteList
-            Divider().overlay(AppTheme.hairline)
-            tagIndex
+
+            if !model.allTags.isEmpty {
+                Rectangle()
+                    .fill(AppTheme.hairline)
+                    .frame(height: AppTheme.Metric.hairlineWidth)
+                    .padding(.horizontal, 20)
+                tagIndex
+            }
         }
-        .frame(minWidth: 220, idealWidth: AppTheme.Metric.sidebarWidth, maxHeight: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: AppTheme.Color.sidebarBackground))
-        .animation(.easeOut(duration: 0.15), value: model.sidebarVisible)
+    }
+
+    private var header: some View {
+        HStack(alignment: .center, spacing: 14) {
+            VStack(alignment: .leading, spacing: 3) {
+                Text("supersimple")
+                    .font(.system(size: 24, weight: .semibold, design: .rounded))
+                    .italic()
+                    .tracking(-0.6)
+                Text(model.notes.count == 1 ? "1 note" : "\(model.notes.count) notes")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Color.supersimpleMuted)
+            }
+
+            Spacer(minLength: 0)
+
+            Button {
+                model.createNote()
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 16, weight: .semibold))
+                    .frame(width: 38, height: 38)
+                    .foregroundStyle(Color.black.opacity(0.82))
+                    .background(
+                        RoundedRectangle(cornerRadius: AppTheme.Metric.controlRadius, style: .continuous)
+                            .fill(Color.supersimpleAccent)
+                    )
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("new-note-button")
+            .accessibilityLabel("New note")
+            .accessibilityHint("Creates a new note. Keyboard shortcut: Command-N.")
+            .help("New note (⌘N)")
+        }
+        .padding(.top, 42)
+        .padding(.horizontal, 22)
     }
 
     // MARK: - Search
 
     private var searchField: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 9) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.tertiary)
-            TextField("Search", text: $model.searchQuery)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.supersimpleMuted)
+            TextField("Search notes", text: $model.searchQuery)
                 .textFieldStyle(.plain)
-                .font(.callout)
-                .onChange(of: model.searchQuery) { old, new in
+                .font(.system(size: 14))
+                .focused($searchIsFocused)
+                .accessibilityIdentifier("search-field")
+                .accessibilityLabel("Search notes")
+                .onChange(of: model.searchQuery) { _, _ in
                     model.performSearch()
                 }
+
+            if !model.searchQuery.isEmpty {
+                Button {
+                    model.closeSearch()
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Color.supersimpleMuted)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Clear search")
+            }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
+        .padding(.bottom, 9)
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(searchIsFocused ? Color.supersimpleAccent : AppTheme.hairline)
+                .frame(height: AppTheme.Metric.hairlineWidth)
+        }
+        .padding(.top, 24)
+        .padding(.horizontal, 22)
+        .padding(.bottom, 22)
+    }
+
+    private func sectionLabel(_ title: String, count: Int? = nil) -> some View {
+        HStack(spacing: 8) {
+            Text(title.uppercased())
+                .tracking(1.4)
+            Spacer(minLength: 0)
+            if let count {
+                Text("\(count)")
+            }
+        }
+        .font(.system(size: 10, weight: .semibold))
+        .foregroundStyle(Color.supersimpleMuted)
+        .padding(.horizontal, 22)
+        .padding(.bottom, 9)
     }
 
     // MARK: - Note list
 
     private var noteList: some View {
-        List(selection: selection) {
-            ForEach(model.visibleNotes) { note in
-                NoteRow(note: note)
-                    .tag(note.id)
-            }
-        }
-        .listStyle(.sidebar)
-        .scrollContentBackground(.hidden)
-    }
-
-    private var selection: Binding<UUID?> {
-        Binding<UUID?>(
-            get: { model.currentNoteID },
-            set: { newValue in
-                if let id = newValue, let note = model.notes.first(where: { $0.id == id }) {
-                    model.select(note)
+        ScrollView {
+            LazyVStack(spacing: 4) {
+                if model.visibleNotes.isEmpty {
+                    Text(model.searchQuery.isEmpty ? "No notes yet" : "No matching notes")
+                        .font(.system(size: 13))
+                        .foregroundStyle(Color.supersimpleMuted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 10)
+                        .padding(.top, 12)
+                } else {
+                    ForEach(model.visibleNotes) { note in
+                        NoteRow(note: note, isSelected: model.currentNoteID == note.id) {
+                            model.select(note)
+                        }
+                    }
                 }
             }
-        )
+            .padding(.horizontal, 12)
+            .padding(.bottom, 14)
+        }
+        .accessibilityIdentifier("notes-list")
     }
 
     // MARK: - Tags
 
     private var tagIndex: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 2) {
-                ForEach(model.allTags, id: \.tag) { entry in
-                    TagRow(tag: entry.tag, count: entry.count, isSelected: model.selectedTag == entry.tag) {
-                        model.selectTag(entry.tag)
+        VStack(spacing: 8) {
+            sectionLabel("Tags", count: model.allTags.count)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 3) {
+                    ForEach(model.allTags, id: \.tag) { entry in
+                        TagRow(tag: entry.tag, count: entry.count, isSelected: model.selectedTag == entry.tag) {
+                            model.selectTag(entry.tag)
+                        }
                     }
                 }
+                .padding(.horizontal, 14)
+                .padding(.bottom, 12)
             }
-            .padding(.vertical, 6)
         }
-        .frame(maxHeight: 220)
+        .padding(.top, 14)
+        .frame(maxHeight: 190)
     }
 }
 
 private struct NoteRow: View {
     let note: Note
+    let isSelected: Bool
+    let action: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text(note.title)
-                .font(.system(size: 13, weight: .medium))
-                .lineLimit(1)
-            if !preview.isEmpty {
-                Text(preview)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+        Button(action: action) {
+            HStack(spacing: 0) {
+                Rectangle()
+                    .fill(isSelected ? Color.supersimpleAccent : .clear)
+                    .frame(width: 3)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(note.title)
+                        .font(.system(size: 14, weight: isSelected ? .semibold : .medium))
+                        .lineLimit(1)
+                    if !preview.isEmpty {
+                        Text(preview)
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color.supersimpleMuted)
+                            .lineLimit(2)
+                    }
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
+            .background(
+                RoundedRectangle(cornerRadius: AppTheme.Metric.controlRadius, style: .continuous)
+                    .fill(isSelected ? Color(nsColor: AppTheme.Color.selectionFill) : .clear)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: AppTheme.Metric.controlRadius, style: .continuous))
+            .contentShape(Rectangle())
         }
-        .padding(.vertical, 2)
-        .contentShape(Rectangle())
+        .buttonStyle(.plain)
+        .accessibilityLabel(note.title)
+        .accessibilityValue(preview)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private var preview: String {
         let body = note.body.replacingOccurrences(of: "\n", with: " ")
         let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Strip leading markdown heading markers for the preview.
         return trimmed.replacingOccurrences(
             of: #"^\s*#{1,6}\s*"#,
             with: "",
@@ -118,20 +224,23 @@ private struct TagRow: View {
 
     var body: some View {
         Button(action: action) {
-            HStack(spacing: 6) {
-                Text("#\(tag.name)")
-                    .font(.system(size: 12))
+            HStack(spacing: 7) {
+                Image(systemName: "number")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(isSelected ? Color.supersimpleAccent : Color.supersimpleMuted)
+                Text(tag.name)
+                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
                     .lineLimit(1)
                 Spacer(minLength: 0)
                 Text("\(count)")
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Color.supersimpleMuted)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: AppTheme.Metric.cornerRadius, style: .continuous)
+                RoundedRectangle(cornerRadius: AppTheme.Metric.controlRadius, style: .continuous)
                     .fill(isSelected ? Color(nsColor: AppTheme.Color.selectionFill) : .clear)
             )
             .contentShape(Rectangle())

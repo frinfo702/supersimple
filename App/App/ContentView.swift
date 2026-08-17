@@ -8,15 +8,32 @@ struct ContentView: View {
     private static let toggleSidebarName = Notification.Name("supersimple.toggleSidebar")
 
     var body: some View {
-        HSplitView {
-            if model.sidebarVisible {
-                SidebarView(model: model)
-                    .frame(minWidth: 220, idealWidth: AppTheme.Metric.sidebarWidth)
+        ZStack {
+            Color(nsColor: AppTheme.Color.background)
+                .ignoresSafeArea()
+
+            HStack(spacing: 0) {
+                if model.sidebarVisible {
+                    SidebarView(model: model)
+                        .frame(width: AppTheme.Metric.sidebarWidth)
+                        .transition(.move(edge: .leading).combined(with: .opacity))
+
+                    Rectangle()
+                        .fill(AppTheme.hairline)
+                        .frame(width: AppTheme.Metric.hairlineWidth)
+                }
+
+                EditorView(model: model)
+                    .frame(
+                        minWidth: AppTheme.Metric.editorMinWidth,
+                        maxWidth: .infinity,
+                        maxHeight: .infinity
+                    )
+                    .layoutPriority(1)
             }
-            EditorView(model: model)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .background(Color(nsColor: AppTheme.Color.background))
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .tint(.supersimpleAccent)
         .onAppear {
             if appLaunchTask == nil {
                 appLaunchTask = Task { await model.bootstrap() }

@@ -1,52 +1,80 @@
 import SwiftUI
 
-/// Central design tokens for the minimalist (Superlogical-inspired) look.
-/// Colors are dynamic `NSColor`s so light/dark mode is handled natively.
+/// Central design tokens for the Superlogical-inspired visual language.
 enum AppTheme {
 
     enum Color {
-        /// Warm, restrained accent used sparingly (selection, focus). ~`#C7745A`.
+        /// Warm accent used sparingly for focus and selection.
         static let accent = NSColor(
-            calibratedRed: 0.78, green: 0.455, blue: 0.353, alpha: 1.0
+            calibratedRed: 0.96, green: 0.56, blue: 0.43, alpha: 1.0
         )
-        /// Near-black canvas background for dark mode. ~`#0E0E0E`.
         static let background = NSColor(name: nil) { appearance in
-            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            return isDark
-                ? NSColor(calibratedRed: 0.055, green: 0.055, blue: 0.060, alpha: 1.0)
-                : NSColor(calibratedWhite: 0.97, alpha: 1.0)
+            appearance.isDark
+                ? NSColor(calibratedWhite: 0.025, alpha: 1.0)
+                : NSColor(calibratedRed: 0.95, green: 0.945, blue: 0.92, alpha: 1.0)
         }
-        /// Sidebar fill, subtly darker than the canvas.
         static let sidebarBackground = NSColor(name: nil) { appearance in
-            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            return isDark
-                ? NSColor(calibratedRed: 0.075, green: 0.075, blue: 0.080, alpha: 1.0)
-                : NSColor(calibratedWhite: 0.93, alpha: 1.0)
+            appearance.isDark
+                ? NSColor(calibratedRed: 0.035, green: 0.036, blue: 0.032, alpha: 1.0)
+                : NSColor(calibratedRed: 0.91, green: 0.905, blue: 0.875, alpha: 1.0)
         }
-        /// Fine hairline separators.
+        static let editorSurface = NSColor(name: nil) { appearance in
+            appearance.isDark
+                ? NSColor(calibratedRed: 0.065, green: 0.065, blue: 0.06, alpha: 0.97)
+                : NSColor(calibratedRed: 0.985, green: 0.98, blue: 0.955, alpha: 0.98)
+        }
+        static let editorText = NSColor(name: nil) { appearance in
+            appearance.isDark
+                ? NSColor(calibratedWhite: 0.94, alpha: 1.0)
+                : NSColor(calibratedWhite: 0.1, alpha: 1.0)
+        }
+        static let mutedText = NSColor(name: nil) { appearance in
+            appearance.isDark
+                ? NSColor(calibratedRed: 0.58, green: 0.59, blue: 0.51, alpha: 1.0)
+                : NSColor(calibratedRed: 0.37, green: 0.38, blue: 0.31, alpha: 1.0)
+        }
         static let hairline = NSColor(name: nil) { appearance in
-            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            return isDark
+            appearance.isDark
                 ? NSColor(calibratedWhite: 1.0, alpha: 0.07)
-                : NSColor(calibratedWhite: 0.0, alpha: 0.08)
+                : NSColor(calibratedWhite: 0.0, alpha: 0.1)
         }
-        /// Row highlight behind the selected note / hovered tag.
         static let selectionFill = NSColor(name: nil) { appearance in
-            let isDark = appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
-            return isDark
-                ? NSColor.controlAccentColor.withAlphaComponent(0.22)
-                : NSColor.controlAccentColor.withAlphaComponent(0.13)
+            appearance.isDark
+                ? accent.withAlphaComponent(0.13)
+                : accent.withAlphaComponent(0.18)
         }
     }
 
+    static let editorGradient = LinearGradient(
+        stops: [
+            .init(color: SwiftUI.Color(red: 0.9, green: 0.34, blue: 0.5), location: 0),
+            .init(color: SwiftUI.Color(red: 0.72, green: 0.47, blue: 0.88), location: 0.25),
+            .init(color: SwiftUI.Color(red: 0.96, green: 0.48, blue: 0.3), location: 0.5),
+            .init(color: SwiftUI.Color(red: 0.95, green: 0.68, blue: 0.22), location: 0.73),
+            .init(color: SwiftUI.Color(red: 0.35, green: 0.59, blue: 0.4), location: 1),
+        ],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
+
     enum Metric {
-        static let sidebarWidth: CGFloat = 280
-        static let readingWidth: CGFloat = 680
+        static let sidebarWidth: CGFloat = 300
+        static let editorMinWidth: CGFloat = 560
+        static let readingWidth: CGFloat = 720
         static let hairlineWidth: CGFloat = 1
-        static let cornerRadius: CGFloat = 6
+        static let controlRadius: CGFloat = 10
+        static let editorRadius: CGFloat = 30
+        static let editorSurfaceRadius: CGFloat = 23
+    }
+}
+
+extension NSAppearance {
+    fileprivate var isDark: Bool {
+        bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
     }
 }
 
 extension Color {
     static let supersimpleAccent = Color(nsColor: AppTheme.Color.accent)
+    static let supersimpleMuted = Color(nsColor: AppTheme.Color.mutedText)
 }

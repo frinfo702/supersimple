@@ -14,7 +14,7 @@ struct SupersimpleApp: App {
                 .environment(model)
                 .environment(themeManager)
                 .preferredColorScheme(themeManager.preference.colorScheme)
-                .frame(minWidth: 720, minHeight: 480)
+                .frame(minWidth: 900, minHeight: 560)
                 .task { appDelegate.model = model }
         }
         .windowStyle(.hiddenTitleBar)
@@ -22,7 +22,7 @@ struct SupersimpleApp: App {
             AppCommands()
             ThemeCommands(themeManager: themeManager)
         }
-        .defaultSize(width: 1100, height: 720)
+        .defaultSize(width: 1180, height: 760)
     }
 }
 
