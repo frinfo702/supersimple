@@ -77,12 +77,27 @@ final class SupersimpleUITests: XCTestCase {
     func testToolbarActionsExist() throws {
         let app = XCUIApplication()
         app.launch()
-        XCTAssertTrue(app.buttons["theme-light-button"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["theme-dark-button"].exists)
-        XCTAssertTrue(app.buttons["toggle-bottom-bar-button"].exists)
-        XCTAssertTrue(app.buttons["export-note-button"].exists)
+        XCTAssertTrue(app.buttons["toggle-sidebar-button"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["new-note-button"].exists)
-        XCTAssertTrue(app.searchFields["search-field"].exists || app.textFields["search-field"].exists)
+        XCTAssertTrue(app.buttons["sidebar-search-button"].exists)
+        XCTAssertTrue(app.buttons["current-theme-icon"].exists)
+        XCTAssertFalse(app.buttons["sidebar-appearance-button"].exists)
+        XCTAssertFalse(app.buttons["theme-light-button"].exists)
+        XCTAssertFalse(app.buttons["toggle-bottom-bar-button"].exists)
+        XCTAssertFalse(app.buttons["export-note-button"].exists)
+    }
+
+    @MainActor
+    func testSearchButtonRevealsSearchField() throws {
+        let app = XCUIApplication()
+        app.launch()
+        let searchButton = app.buttons["sidebar-search-button"]
+        XCTAssertTrue(searchButton.waitForExistence(timeout: 5))
+        searchButton.click()
+        XCTAssertTrue(
+            app.searchFields["search-field"].waitForExistence(timeout: 2)
+                || app.textFields["search-field"].waitForExistence(timeout: 2)
+        )
     }
 
     // MARK: - Screenshot capture

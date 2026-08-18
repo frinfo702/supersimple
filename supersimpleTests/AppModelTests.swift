@@ -46,11 +46,9 @@ struct AppModelTests {
 
         await model.bootstrap()
 
-        model.createNote()
-        #expect(model.currentNote() != nil)
         #expect(model.notes.count == 1)
-
-        model.noteBodyEdited("# New Note\nSome body", for: model.currentNoteID!)
+        let id = try #require(model.currentNoteID)
+        model.noteBodyEdited("# New Note\nSome body", for: id)
         model.flushNow()
 
         // Reload from the SAME directory to confirm persistence.
@@ -71,13 +69,13 @@ struct AppModelTests {
         }
         await model.bootstrap()
 
-        model.createNote()
+        #expect(model.notes.count == 1)
         let firstID = model.currentNoteID
         model.createNote()
 
         #expect(model.notes.count == 2)
         #expect(model.currentNoteID != firstID)
-        #expect(model.currentNote()?.body == "# New Note")
+        #expect(model.currentNote()?.body == "")
         #expect(model.notes.first?.id == model.currentNoteID)
     }
 
@@ -91,7 +89,7 @@ struct AppModelTests {
         }
         await model.bootstrap()
 
-        model.createNote()
+        #expect(model.notes.count == 1)
         model.noteBodyEdited("# Work\nTagged with #swift and #obsidian.", for: model.currentNoteID!)
         model.flushNow()
 
@@ -109,7 +107,6 @@ struct AppModelTests {
         }
         await model.bootstrap()
 
-        model.createNote()
         guard let note = model.currentNote() else {
             Issue.record("no current note")
             return
@@ -129,7 +126,6 @@ struct AppModelTests {
         }
         await model.bootstrap()
 
-        model.createNote()
         model.noteBodyEdited("# Recipes\nHow to make apple crumble.", for: model.currentNoteID!)
         model.flushNow()
 
@@ -153,8 +149,7 @@ struct AppModelTests {
         }
         await model.bootstrap()
 
-        model.createNote()
-        #expect(model.currentNote()?.title == "New Note")
+        #expect(model.currentNote()?.title == "Untitled")
     }
 
     @Test("A stale editor callback does not overwrite the newly selected note")
@@ -167,7 +162,6 @@ struct AppModelTests {
         }
         await model.bootstrap()
 
-        model.createNote()
         let firstID = model.currentNoteID!
         model.noteBodyEdited("body of A", for: firstID)
         model.flushNow()
@@ -178,8 +172,8 @@ struct AppModelTests {
 
         // A delayed callback belonging to the OLD note must be ignored.
         model.noteBodyEdited("body of A (stale)", for: firstID)
-        #expect(model.currentBody == "# New Note")
-        #expect(model.visibleNotes.first { $0.id == secondID }?.body == "# New Note")
+        #expect(model.currentBody == "")
+        #expect(model.visibleNotes.first { $0.id == secondID }?.body == "")
         // The first note's persisted body is untouched.
         #expect(model.notes.first { $0.id == firstID }?.body == "body of A")
     }
@@ -194,7 +188,6 @@ struct AppModelTests {
         }
         await model.bootstrap()
 
-        model.createNote()
         model.noteBodyEdited("# Work\nTagged with #swift.", for: model.currentNoteID!)
         model.flushNow()
 
@@ -220,7 +213,6 @@ struct AppModelTests {
         }
         await model.bootstrap()
 
-        model.createNote()
         model.noteBodyEdited("# Recipes / Ideas\nHow to make apple crumble.", for: model.currentNoteID!)
         model.flushNow()
 
@@ -250,7 +242,7 @@ struct AppModelTests {
         #expect(note.title == "Imported")
         #expect(note.body.contains("Hello #inbox"))
         #expect(note.tags.contains(Tag(name: "inbox")))
-        #expect(model.notes.count == 1)
+        #expect(model.notes.count == 2)
         #expect(model.currentNoteID == note.id)
     }
 
@@ -264,15 +256,14 @@ struct AppModelTests {
         }
         await model.bootstrap()
 
-        model.createNote()
         #expect(model.notes.count == 1)
         model.deleteCurrentNote()
         #expect(model.notes.isEmpty)
         #expect(model.currentNote() == nil)
     }
 
-    @Test("Bottom bar visibility can be toggled")
-    func bottomBarVisibilityToggles() async throws {
+    @Test("Opening a note keeps the library filter")
+    func openPreservesFilter() async throws {
         let dir = try makeTempDir()
         let (model, cleanup) = try makeModel(in: dir)
         defer {
@@ -281,11 +272,74 @@ struct AppModelTests {
         }
         await model.bootstrap()
 
-        #expect(model.bottomBarVisible)
-        model.bottomBarVisible = false
-        #expect(!model.bottomBarVisible)
-        model.bottomBarVisible = true
-        #expect(model.bottomBarVisible)
+        model.noteBodyEdited("# Alpha\nHello #work", for: model.currentNoteID!)
+        model.flushNow()
+        model.createNote()
+        model.noteBodyEdited("# Beta\nOther", for: model.currentNoteID!)
+        model.flushNow()
+
+        let work = Tag(name: "work")
+        model.selectTag(work)
+        model.searchQuery = "Hello"
+        model.performSearch()
+
+        let tagged = try #require(model.notes.first { $0.tags.contains(work) })
+        model.open(tagged)
+
+        #expect(model.selectedTag == work)
+        #expect(model.searchQuery == "Hello")
+        #expect(model.currentNoteID == tagged.id)
+    }
+
+    @Test("Creating a note while filtered clears the filter so the note is visible")
+    func createNoteClearsFilter() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+
+        model.noteBodyEdited("# Alpha\nHello #work", for: model.currentNoteID!)
+        model.flushNow()
+        model.selectTag(Tag(name: "work"))
+        #expect(model.hasActiveFilter)
+
+        model.createNote()
+        #expect(!model.hasActiveFilter)
+        #expect(model.currentNote()?.body == "")
+        #expect(model.visibleNotes.contains { $0.id == model.currentNoteID })
+    }
+
+    @Test("Empty library is seeded with one untitled note on bootstrap")
+    func bootstrapSeedsEmptyLibrary() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+
+        #expect(model.notes.count == 1)
+        #expect(model.currentNote()?.title == "Untitled")
+        #expect(model.currentNote()?.body == "")
+    }
+
+    @Test("Sidebar width is clamped to the design range")
+    func sidebarWidthClamps() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+
+        model.sidebarWidth = 120
+        #expect(model.sidebarWidth == AppTheme.Metric.sidebarMinWidth)
+        model.sidebarWidth = 900
+        #expect(model.sidebarWidth == AppTheme.Metric.sidebarMaxWidth)
     }
 }
 
@@ -293,10 +347,11 @@ struct AppModelTests {
 struct FaviconServiceTests {
     @Test("Extracts hosts from markdown links and bare URLs")
     func extractsHosts() {
-        let hosts = FaviconService.hosts(in: """
-        See [GitHub](https://github.com/foo) and https://example.com/x
-        Also [docs](example.org/path)
-        """)
+        let hosts = FaviconService.hosts(
+            in: """
+                See [GitHub](https://github.com/foo) and https://example.com/x
+                Also [docs](example.org/path)
+                """)
         #expect(hosts.contains("github.com"))
         #expect(hosts.contains("example.com"))
         #expect(hosts.contains("example.org"))
@@ -345,6 +400,23 @@ struct NoteStatsTests {
         #expect(NoteStats.sanitizedFilename("Recipes / Ideas") == "Recipes - Ideas")
         #expect(NoteStats.sanitizedFilename("   ") == "Untitled")
         #expect(NoteStats.sanitizedFilename("a:b?c") == "a-b-c")
+    }
+
+    @Test("Preview skips headings and blank lines")
+    func previewSkipsHeadings() {
+        #expect(NoteStats.preview(from: "") == "")
+        #expect(NoteStats.preview(from: "# Title\n\n# Another") == "")
+        #expect(NoteStats.preview(from: "# Title\n\nThe body starts here") == "The body starts here")
+    }
+
+    @Test("Relative timestamps distinguish today, yesterday, and older")
+    func relativeTimestamps() {
+        let now = Date()
+        #expect(
+            NoteStats.relativeUpdated(now, now: now).contains(":")
+                || NoteStats.relativeUpdated(now, now: now).contains("."))
+        let yesterday = Calendar.current.date(byAdding: .day, value: -1, to: now)!
+        #expect(NoteStats.relativeUpdated(yesterday, now: now) == "Yesterday")
     }
 }
 

@@ -1,27 +1,27 @@
 import SwiftUI
 
-/// Central design tokens for the Superlogical-inspired visual language.
+/// Central design tokens. Two surfaces: a slightly sunken library, and paper for writing.
+///
+/// Hue is reserved for links. Selection, hover, and chrome are value shifts of
+/// the same charcoal / taupe — never the system accent.
 enum AppTheme {
 
     enum Color {
-        /// Warm accent used sparingly for focus and selection.
+        /// Warm ink for links only. Not used as a fill.
         static let accent = NSColor(
-            calibratedRed: 0.96, green: 0.56, blue: 0.43, alpha: 1.0
+            calibratedRed: 0.82, green: 0.48, blue: 0.38, alpha: 1.0
         )
+        /// Window chrome and library. Charcoal in dark, warm taupe in light.
         static let background = NSColor(name: nil) { appearance in
             appearance.isDark
-                ? NSColor(calibratedWhite: 0.025, alpha: 1.0)
-                : NSColor(calibratedRed: 0.95, green: 0.945, blue: 0.92, alpha: 1.0)
-        }
-        static let sidebarBackground = NSColor(name: nil) { appearance in
-            appearance.isDark
-                ? NSColor(calibratedRed: 0.035, green: 0.036, blue: 0.032, alpha: 1.0)
+                ? NSColor(calibratedWhite: 0.09, alpha: 1.0)
                 : NSColor(calibratedRed: 0.91, green: 0.905, blue: 0.875, alpha: 1.0)
         }
+        static let sidebarBackground = background
         static let editorSurface = NSColor(name: nil) { appearance in
             appearance.isDark
-                ? NSColor(calibratedRed: 0.065, green: 0.065, blue: 0.06, alpha: 0.97)
-                : NSColor(calibratedRed: 0.985, green: 0.98, blue: 0.955, alpha: 0.98)
+                ? NSColor(calibratedWhite: 0.125, alpha: 1.0)
+                : NSColor(calibratedRed: 0.985, green: 0.98, blue: 0.955, alpha: 1.0)
         }
         static let editorText = NSColor(name: nil) { appearance in
             appearance.isDark
@@ -35,51 +35,43 @@ enum AppTheme {
         }
         static let hairline = NSColor(name: nil) { appearance in
             appearance.isDark
-                ? NSColor(calibratedWhite: 1.0, alpha: 0.07)
+                ? NSColor(calibratedWhite: 1.0, alpha: 0.08)
                 : NSColor(calibratedWhite: 0.0, alpha: 0.1)
         }
+        /// Selected library row: a lift of the sidebar, not a tint.
         static let selectionFill = NSColor(name: nil) { appearance in
             appearance.isDark
-                ? accent.withAlphaComponent(0.13)
-                : accent.withAlphaComponent(0.18)
+                ? NSColor(calibratedWhite: 1.0, alpha: 0.12)
+                : NSColor(calibratedWhite: 0.0, alpha: 0.09)
+        }
+        static let hoverFill = NSColor(name: nil) { appearance in
+            appearance.isDark
+                ? NSColor(calibratedWhite: 1.0, alpha: 0.045)
+                : NSColor(calibratedWhite: 0.0, alpha: 0.04)
         }
     }
 
-    static let editorGradient = LinearGradient(
-        stops: [
-            .init(color: SwiftUI.Color(red: 0.9, green: 0.34, blue: 0.5), location: 0),
-            .init(color: SwiftUI.Color(red: 0.72, green: 0.47, blue: 0.88), location: 0.25),
-            .init(color: SwiftUI.Color(red: 0.96, green: 0.48, blue: 0.3), location: 0.5),
-            .init(color: SwiftUI.Color(red: 0.95, green: 0.68, blue: 0.22), location: 0.73),
-            .init(color: SwiftUI.Color(red: 0.35, green: 0.59, blue: 0.4), location: 1),
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-
     enum Metric {
-        static let sidebarWidth: CGFloat = 300
+        static let sidebarWidth: CGFloat = 248
+        static let sidebarMinWidth: CGFloat = 200
+        static let sidebarMaxWidth: CGFloat = 340
         static let editorMinWidth: CGFloat = 560
-        static let readingWidth: CGFloat = 720
-        static let hairlineWidth: CGFloat = 1
-        static let controlRadius: CGFloat = 10
-        static let editorRadius: CGFloat = 30
-        static let editorSurfaceRadius: CGFloat = 23
-        static let bottomBarHeight: CGFloat = 32
+        static let readingWidth: CGFloat = 640
+        static let hairlineWidth: CGFloat = 0.5
+        static let controlRadius: CGFloat = 8
+        static let bodyFontSize: CGFloat = 17
     }
 
     /// SwiftUI colors resolved for a known scheme. Use these in the toolbar so
     /// chrome does not wait on AppKit's appearance fade.
     static func backgroundColor(isDark: Bool) -> SwiftUI.Color {
         isDark
-            ? SwiftUI.Color(white: 0.025)
-            : SwiftUI.Color(red: 0.95, green: 0.945, blue: 0.92)
+            ? SwiftUI.Color(white: 0.09)
+            : SwiftUI.Color(red: 0.91, green: 0.905, blue: 0.875)
     }
 
     static func sidebarBackgroundColor(isDark: Bool) -> SwiftUI.Color {
-        isDark
-            ? SwiftUI.Color(red: 0.035, green: 0.036, blue: 0.032)
-            : SwiftUI.Color(red: 0.91, green: 0.905, blue: 0.875)
+        backgroundColor(isDark: isDark)
     }
 
     static func mutedColor(isDark: Bool) -> SwiftUI.Color {
@@ -93,6 +85,9 @@ enum AppTheme {
             ? SwiftUI.Color(white: 0.94)
             : SwiftUI.Color(white: 0.1)
     }
+
+    /// Re-export a hairline `Color` for SwiftUI overlay usage.
+    static var hairline: SwiftUI.Color { SwiftUI.Color(nsColor: Color.hairline) }
 }
 
 extension NSAppearance {
@@ -101,7 +96,7 @@ extension NSAppearance {
     }
 }
 
-extension Color {
+extension SwiftUI.Color {
     static let supersimpleAccent = Color(nsColor: AppTheme.Color.accent)
     static let supersimpleMuted = Color(nsColor: AppTheme.Color.mutedText)
 }
