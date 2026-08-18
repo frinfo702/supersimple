@@ -14,6 +14,7 @@ final class SupersimpleUITests: XCTestCase {
     private func launchedApp() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchEnvironment["SUPERSIMPLE_DISABLE_UPDATES"] = "1"
+        app.launchEnvironment["SUPERSIMPLE_UI_TEST"] = "1"
         app.launch()
         return app
     }
