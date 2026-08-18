@@ -25,8 +25,8 @@ struct PlusIcon: View {
     }
 }
 
-/// sidebar_icon.svg: rounded rect `x=2 y=2.75 w=12 h=10.5 rx=2.25` (stroke 1)
-/// plus an inner filled divider `x=10.75 y=5 w=1.75 h=6 rx=0.875` (opacity 0.7).
+/// sidebar_left_icon.svg: same pane as `sidebar_icon.svg`, mirrored so the
+/// rail sits on the left (`x=3.5 y=5 w=1.75 h=6 rx=0.875`, opacity 0.7).
 struct SidebarIcon: View {
     var lineWidth: CGFloat = 1.5
 
@@ -50,7 +50,7 @@ struct SidebarIcon: View {
     struct DividerPath: Shape {
         func path(in rect: CGRect) -> Path {
             let m = IconMetrics(rect: rect)
-            return Path(roundedRect: m.rect(x: 10.75, y: 5, w: 1.75, h: 6), cornerRadius: m.v(0.875))
+            return Path(roundedRect: m.rect(x: 3.5, y: 5, w: 1.75, h: 6), cornerRadius: m.v(0.875))
         }
     }
 }
