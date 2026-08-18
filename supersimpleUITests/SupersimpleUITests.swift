@@ -49,8 +49,8 @@ final class SupersimpleUITests: XCTestCase {
         let editorFrame = editor.frame
         XCTAssertGreaterThan(editorFrame.width, 400, "editor should be wide, got \(editorFrame.width)")
         XCTAssertGreaterThan(editorFrame.height, 300, "editor should be tall")
-        // Editor starts to the right of the sidebar.
-        XCTAssertGreaterThanOrEqual(editorFrame.minX, 220)
+        // Sidebar can sit at its 200pt minimum in a small CI window.
+        XCTAssertGreaterThanOrEqual(editorFrame.minX, 200)
     }
 
     @MainActor
@@ -94,10 +94,8 @@ final class SupersimpleUITests: XCTestCase {
         let searchButton = app.buttons["sidebar-search-button"]
         XCTAssertTrue(searchButton.waitForExistence(timeout: 5))
         searchButton.click()
-        XCTAssertTrue(
-            app.searchFields["search-field"].waitForExistence(timeout: 2)
-                || app.textFields["search-field"].waitForExistence(timeout: 2)
-        )
+        let field = app.descendants(matching: .any)["search-field"]
+        XCTAssertTrue(field.waitForExistence(timeout: 3))
     }
 
     // MARK: - Screenshot capture

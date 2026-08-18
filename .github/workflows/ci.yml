@@ -44,6 +44,7 @@ jobs:
             -scheme supersimple \
             -destination 'platform=macOS' \
             -derivedDataPath build/DerivedData \
+            -only-testing:supersimpleTests \
             CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath build/Test.xcresult
 

@@ -6,9 +6,10 @@ import SwiftUI
 struct SidebarView: View {
     @Bindable var model: AppModel
     @FocusState private var searchIsFocused: Bool
+    @State private var searchExpanded = false
 
     private var showsSearchField: Bool {
-        searchIsFocused || model.isSearching
+        searchExpanded || model.isSearching
     }
 
     var body: some View {
@@ -25,6 +26,7 @@ struct SidebarView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(nsColor: AppTheme.Color.sidebarBackground))
         .onChange(of: model.searchFocusToken) { _, _ in
+            searchExpanded = true
             DispatchQueue.main.async {
                 searchIsFocused = true
             }
@@ -96,15 +98,16 @@ struct SidebarView: View {
             .onExitCommand {
                 if model.isSearching {
                     model.closeSearch()
-                } else {
-                    searchIsFocused = false
-                    model.focusEditor()
                 }
+                searchExpanded = false
+                searchIsFocused = false
+                model.focusEditor()
             }
 
             if model.isSearching {
                 Button {
                     model.closeSearch()
+                    searchExpanded = false
                     searchIsFocused = false
                 } label: {
                     Image(systemName: "xmark.circle.fill")
