@@ -114,9 +114,10 @@ The zip is attached to the workflow run (Artifacts, 90 days) and, by default, to
 Release. The build is ad-hoc signed; downloaded copies may need right-click → Open, or
 `xattr -cr supersimple.app`.
 
-Installed copies check GitHub Releases on launch. If a newer zip is available it is
-downloaded in the background; an **Update** button then appears at the trailing end of the
-top bar. Clicking it quits, replaces the app bundle, and relaunches.
+Installed copies check GitHub Releases on launch and every six hours. **supersimple →
+Check for Updates…** checks immediately. If a newer zip is available it is downloaded; an
+**Update** button then appears at the trailing end of the top bar. Clicking it quits,
+replaces the app bundle, and relaunches.
 
 ## Keyboard
 

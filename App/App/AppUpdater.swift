@@ -49,6 +49,14 @@ enum AppUpdaterError: Error {
     case helperMissing
 }
 
+enum UpdateCheckOutcome: Equatable {
+    case disabled
+    case alreadyChecking
+    case upToDate
+    case ready(String)
+    case failed
+}
+
 /// Checks GitHub Releases, downloads a newer app zip in the background, and
 /// relaunches via the unsandboxed helper when the user confirms.
 @MainActor
@@ -58,6 +66,8 @@ final class AppUpdater {
 
     /// Non-nil once a newer build has been downloaded and is ready to install.
     private(set) var availableUpdateVersion: String?
+    /// True while a GitHub check / zip download is in flight.
+    private(set) var isChecking = false
 
     private let owner: String
     private let repo: String
@@ -106,6 +116,8 @@ final class AppUpdater {
         self.enabled = enabled ?? AppUpdater.shouldEnable()
     }
 
+    var currentVersionString: String { currentVersion.displayString }
+
     static func shouldEnable(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         bundlePath: String = Bundle.main.bundlePath
@@ -116,24 +128,30 @@ final class AppUpdater {
         return true
     }
 
-    func checkAndDownloadIfNeeded() async {
-        guard enabled else { return }
+    @discardableResult
+    func checkAndDownloadIfNeeded() async -> UpdateCheckOutcome {
+        guard enabled else { return .disabled }
+        guard !isChecking else { return .alreadyChecking }
+        isChecking = true
+        defer { isChecking = false }
         do {
             let latestURL = URL(string: "https://api.github.com/repos/\(owner)/\(repo)/releases/latest")!
             let data = try await transport.get(url: latestURL)
             let release = try GitHubRelease.parseLatest(data)
             guard currentVersion < release.version else {
                 availableUpdateVersion = nil
-                return
+                return .upToDate
             }
             if isAlreadyStaged(release.version) {
                 availableUpdateVersion = release.version.displayString
-                return
+                return .ready(release.version.displayString)
             }
             try await stage(release)
             availableUpdateVersion = release.version.displayString
+            return .ready(release.version.displayString)
         } catch {
             Self.log.error("update check failed: \(error.localizedDescription, privacy: .public)")
+            return .failed
         }
     }
 

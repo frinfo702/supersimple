@@ -224,8 +224,15 @@ private struct SidebarWidthKey: PreferenceKey {
 
 struct AppCommands: Commands {
     var model: AppModel
+    @Bindable var updater: AppUpdater
 
     var body: some Commands {
+        CommandGroup(after: .appInfo) {
+            Button(updater.isChecking ? "Checking for Updates…" : "Check for Updates…") {
+                Task { await checkForUpdatesFromMenu() }
+            }
+            .disabled(updater.isChecking)
+        }
         CommandGroup(after: .newItem) {
             Button("New Note") {
                 model.createNote()
@@ -269,5 +276,37 @@ struct AppCommands: Commands {
             }
             .keyboardShortcut("l")
         }
+    }
+
+    @MainActor
+    private func checkForUpdatesFromMenu() async {
+        switch await updater.checkAndDownloadIfNeeded() {
+        case .ready, .alreadyChecking:
+            break
+        case .upToDate:
+            presentUpdateAlert(
+                title: "You're up to date",
+                message: "supersimple \(updater.currentVersionString) is the latest version."
+            )
+        case .failed:
+            presentUpdateAlert(
+                title: "Couldn't check for updates",
+                message: "Make sure you're online and try again."
+            )
+        case .disabled:
+            presentUpdateAlert(
+                title: "Updates unavailable",
+                message: "This copy of supersimple doesn't install GitHub updates (Xcode and test builds)."
+            )
+        }
+    }
+
+    private func presentUpdateAlert(title: String, message: String) {
+        let alert = NSAlert()
+        alert.messageText = title
+        alert.informativeText = message
+        alert.alertStyle = .informational
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
     }
 }

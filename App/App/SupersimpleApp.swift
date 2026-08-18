@@ -36,7 +36,7 @@ struct SupersimpleApp: App {
         .windowStyle(.hiddenTitleBar)
         .windowToolbarStyle(.unified)
         .commands {
-            AppCommands(model: model)
+            AppCommands(model: model, updater: updater)
             ThemeCommands(themeManager: themeManager)
         }
         .defaultSize(width: 1180, height: 760)

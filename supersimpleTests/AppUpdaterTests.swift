@@ -6,10 +6,15 @@ import Testing
 private struct MockTransport: UpdateTransport {
     var releaseJSON: Data
     var zipURL: URL
+    var error: URLError?
 
-    func get(url: URL) async throws -> Data { releaseJSON }
+    func get(url: URL) async throws -> Data {
+        if let error { throw error }
+        return releaseJSON
+    }
 
     func download(url: URL, to file: URL) async throws {
+        if let error { throw error }
         try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
         try? FileManager.default.removeItem(at: file)
         try FileManager.default.copyItem(at: zipURL, to: file)
@@ -76,9 +81,11 @@ struct AppUpdaterTests {
             enabled: true
         )
 
-        await updater.checkAndDownloadIfNeeded()
+        let outcome = await updater.checkAndDownloadIfNeeded()
 
+        #expect(outcome == .ready("0.1.0.4"))
         #expect(updater.availableUpdateVersion == "0.1.0.4")
+        #expect(!updater.isChecking)
         #expect(FileManager.default.fileExists(atPath: updater.stagedAppURL.path))
     }
 
@@ -94,8 +101,9 @@ struct AppUpdaterTests {
             enabled: true
         )
 
-        await updater.checkAndDownloadIfNeeded()
+        let outcome = await updater.checkAndDownloadIfNeeded()
 
+        #expect(outcome == .upToDate)
         #expect(updater.availableUpdateVersion == nil)
     }
 
@@ -111,9 +119,33 @@ struct AppUpdaterTests {
             enabled: false
         )
 
-        await updater.checkAndDownloadIfNeeded()
+        let outcome = await updater.checkAndDownloadIfNeeded()
 
+        #expect(outcome == .disabled)
         #expect(updater.availableUpdateVersion == nil)
+    }
+
+    @Test("Reports failure when the GitHub request throws")
+    func reportsTransportFailure() async throws {
+        let dir = try tempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let zip = try makeZip(in: dir)
+        let updater = AppUpdater(
+            currentVersion: "0.1.0",
+            stagingDirectory: dir.appendingPathComponent("staging"),
+            transport: MockTransport(
+                releaseJSON: releaseJSON(tag: "v9.0.0"),
+                zipURL: zip,
+                error: URLError(.notConnectedToInternet)
+            ),
+            enabled: true
+        )
+
+        let outcome = await updater.checkAndDownloadIfNeeded()
+
+        #expect(outcome == .failed)
+        #expect(updater.availableUpdateVersion == nil)
+        #expect(!updater.isChecking)
     }
 
     @Test("Rejects a zip whose app bundle id does not match")
@@ -128,8 +160,9 @@ struct AppUpdaterTests {
             enabled: true
         )
 
-        await updater.checkAndDownloadIfNeeded()
+        let outcome = await updater.checkAndDownloadIfNeeded()
 
+        #expect(outcome == .failed)
         #expect(updater.availableUpdateVersion == nil)
         #expect(!FileManager.default.fileExists(atPath: updater.stagedAppURL.path))
     }
