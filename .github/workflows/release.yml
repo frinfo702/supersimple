@@ -1,0 +1,86 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version (e.g. 0.1.0). Leave empty to auto-generate from MARKETING_VERSION + run number."
+        required: false
+        type: string
+      create_github_release:
+        description: "Also publish a GitHub Release (Releases page download)"
+        type: boolean
+        default: true
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Build official app
+    runs-on: macos-26
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: meta
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          if [ -n "$INPUT_VERSION" ]; then
+            VERSION="$INPUT_VERSION"
+          else
+            MARKETING=$(awk '/MARKETING_VERSION:/ { print $2; exit }' project.yml | tr -d '"')
+            VERSION="${MARKETING}.${RUN_NUMBER}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Resolved version: $VERSION"
+
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Build official Release app
+        env:
+          MARKETING_VERSION: ${{ steps.meta.outputs.version }}
+          CURRENT_PROJECT_VERSION: ${{ github.run_number }}
+        run: ./Scripts/build.sh release
+
+      - name: Package .app as zip
+        run: |
+          ditto -c -k --keepParent dist/supersimple.app dist/supersimple.zip
+          ls -lh dist/supersimple.zip
+
+      - name: Upload downloadable app
+        uses: actions/upload-artifact@v4
+        with:
+          name: supersimple-${{ steps.meta.outputs.tag }}
+          path: dist/supersimple.zip
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Create GitHub Release
+        if: ${{ inputs.create_github_release }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.meta.outputs.tag }}
+          VERSION: ${{ steps.meta.outputs.version }}
+        run: |
+          {
+            echo "Official macOS build of supersimple ${VERSION}."
+            echo
+            echo "Download \`supersimple.zip\`, unzip, then open \`supersimple.app\`."
+            echo
+            echo "This build is ad-hoc signed (no Developer ID / notarization). If macOS blocks it after download, right-click the app → Open, or run:"
+            echo
+            echo '```'
+            echo 'xattr -cr supersimple.app'
+            echo '```'
+          } > /tmp/release-notes.md
+          gh release create "$TAG" dist/supersimple.zip \
+            --title "supersimple ${VERSION}" \
+            --notes-file /tmp/release-notes.md

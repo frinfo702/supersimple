@@ -381,6 +381,24 @@ struct AppModelTests {
         model.sidebarWidth = 900
         #expect(model.sidebarWidth == AppTheme.Metric.sidebarMaxWidth)
     }
+
+    @Test("focusSearch presents the search field even if the sidebar was hidden")
+    func focusSearchPresentsFieldFromHiddenSidebar() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+
+        model.sidebarVisible = false
+        model.focusSearch()
+        #expect(model.sidebarVisible)
+        #expect(model.searchFieldPresented)
+
+        model.closeSearch()
+        #expect(!model.searchFieldPresented)
+    }
 }
 
 @Suite("FaviconService")

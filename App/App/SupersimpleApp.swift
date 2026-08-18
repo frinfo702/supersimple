@@ -5,6 +5,7 @@ struct SupersimpleApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var model = AppModel()
     @State private var themeManager = ThemeManager()
+    @State private var updater = AppUpdater()
 
     var body: some Scene {
         // A single window app: avoids per-window command fan-out and the
@@ -13,6 +14,7 @@ struct SupersimpleApp: App {
             ContentView()
                 .environment(model)
                 .environment(themeManager)
+                .environment(updater)
                 .preferredColorScheme(themeManager.preference.colorScheme)
                 .animation(nil, value: themeManager.preference)
                 .frame(minWidth: 900, minHeight: 560)
@@ -22,6 +24,13 @@ struct SupersimpleApp: App {
                 .task {
                     appDelegate.model = model
                     await model.bootstrap()
+                }
+                .task {
+                    await updater.checkAndDownloadIfNeeded()
+                    while !Task.isCancelled {
+                        try? await Task.sleep(for: .seconds(6 * 60 * 60))
+                        await updater.checkAndDownloadIfNeeded()
+                    }
                 }
         }
         .windowStyle(.hiddenTitleBar)

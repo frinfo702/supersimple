@@ -29,18 +29,32 @@ SCHEME="supersimple"
 echo "▸ Generating Xcode project"
 xcodegen generate --spec "$ROOT/project.yml" >/dev/null
 
+VERSION_SETTINGS=()
+if [ -n "${MARKETING_VERSION:-}" ]; then
+  VERSION_SETTINGS+=("MARKETING_VERSION=${MARKETING_VERSION}")
+fi
+if [ -n "${CURRENT_PROJECT_VERSION:-}" ]; then
+  VERSION_SETTINGS+=("CURRENT_PROJECT_VERSION=${CURRENT_PROJECT_VERSION}")
+fi
+
 echo "▸ Building ($CONFIG)"
-xcodebuild build \
-  -project "$ROOT/supersimple.xcodeproj" \
-  -scheme "$SCHEME" \
-  -configuration "$CONFIG" \
-  -derivedDataPath "$DERIVED" \
-  CODE_SIGN_IDENTITY="-" \
-  CODE_SIGN_STYLE=Manual \
-  DEVELOPMENT_TEAM="" \
-  CODE_SIGNING_REQUIRED=YES \
-  CODE_SIGNING_ALLOWED=YES \
+XCODEBUILD_ARGS=(
+  xcodebuild build
+  -project "$ROOT/supersimple.xcodeproj"
+  -scheme "$SCHEME"
+  -configuration "$CONFIG"
+  -derivedDataPath "$DERIVED"
+  CODE_SIGN_IDENTITY="-"
+  CODE_SIGN_STYLE=Manual
+  DEVELOPMENT_TEAM=""
+  CODE_SIGNING_REQUIRED=YES
+  CODE_SIGNING_ALLOWED=YES
   ENABLE_DEBUG_DYLIB=NO
+)
+if [ ${#VERSION_SETTINGS[@]} -gt 0 ]; then
+  XCODEBUILD_ARGS+=("${VERSION_SETTINGS[@]}")
+fi
+"${XCODEBUILD_ARGS[@]}"
 
 APP_PATH="$DERIVED/Build/Products/$CONFIG/supersimple.app"
 if [ ! -d "$APP_PATH" ]; then
@@ -48,9 +62,14 @@ if [ ! -d "$APP_PATH" ]; then
   exit 1
 fi
 
-# Re-sign the app bundle (top level + nested) with an ad-hoc identity so
-# hardened runtime + entitlements are intact.
-codesign --force --deep --sign - \
+# Sign the nested updater first *without* the app sandbox entitlements, then the
+# outer app. `--deep` on the outer bundle would sandbox the helper and block installs.
+HELPER_PATH="$APP_PATH/Contents/PlugIns/SupersimpleUpdater.app"
+if [ -d "$HELPER_PATH" ]; then
+  codesign --force --sign - --options runtime "$HELPER_PATH" >/dev/null
+fi
+
+codesign --force --sign - \
   --options runtime \
   --entitlements "$ROOT/App/Resources/Supersimple.entitlements" \
   "$APP_PATH" >/dev/null

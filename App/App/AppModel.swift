@@ -63,6 +63,8 @@ final class AppModel {
         }
     }
 
+    /// True while the library search field should stay on screen (empty query included).
+    private(set) var searchFieldPresented = false
     /// Bumped to move keyboard focus into the library search field.
     private(set) var searchFocusToken: UInt = 0
     /// Bumped to move keyboard focus into the editor.
@@ -85,7 +87,16 @@ final class AppModel {
         appSupportURLOverride: URL? = nil,
         userDefaults: UserDefaults? = nil
     ) {
-        self.userDefaults = userDefaults ?? .standard
+        if let userDefaults {
+            self.userDefaults = userDefaults
+        } else if ProcessInfo.processInfo.environment["SUPERSIMPLE_UI_TEST"] == "1" {
+            let suite = "com.frinfo702.supersimple.uitest"
+            let defaults = UserDefaults(suiteName: suite) ?? .standard
+            defaults.removePersistentDomain(forName: suite)
+            self.userDefaults = defaults
+        } else {
+            self.userDefaults = .standard
+        }
         sidebarVisible = self.userDefaults.object(forKey: "sidebarVisible") as? Bool ?? true
         if let storedWidth = self.userDefaults.object(forKey: "sidebarWidth") as? Double {
             sidebarWidth = Self.clampSidebarWidth(CGFloat(storedWidth))
@@ -236,6 +247,7 @@ final class AppModel {
         if !sidebarVisible {
             sidebarVisible = true
         }
+        searchFieldPresented = true
         searchFocusToken &+= 1
     }
 
@@ -526,6 +538,7 @@ final class AppModel {
     func closeSearch() {
         searchQuery = ""
         searchResults = []
+        searchFieldPresented = false
     }
 
     // MARK: - Export / import
