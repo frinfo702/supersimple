@@ -51,6 +51,8 @@ targets:
     platform: macOS
     sources:
       - path: Updater
+      - path: App/App/PendingUpdateInstall.swift
+      - path: App/App/AppBundleInstaller.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.frinfo702.supersimple.updater

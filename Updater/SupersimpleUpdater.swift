@@ -5,21 +5,38 @@ import Foundation
 @main
 enum SupersimpleUpdater {
     static func main() {
-        guard let args = Arguments.parse(CommandLine.arguments) else {
-            fputs("usage: SupersimpleUpdater --source <app> --destination <app> --pid <pid>\n", stderr)
+        guard let request = loadRequest() else {
+            log("usage: SupersimpleUpdater --source <app> --destination <app> --pid <pid>")
             exit(2)
         }
 
-        waitForExit(pid: args.pid, timeout: 20)
+        log("waiting for pid \(request.install.pid)")
+        waitForExit(pid: request.install.pid, timeout: 30)
+        Thread.sleep(forTimeInterval: 0.4)
 
         do {
-            try install(from: args.source, to: args.destination)
-            try relaunch(args.destination)
+            let source = URL(fileURLWithPath: request.install.sourcePath)
+            let destination = URL(fileURLWithPath: request.install.destinationPath)
+            log("install \(source.path) -> \(destination.path)")
+            try AppBundleInstaller.replace(source: source, destination: destination)
+            try? FileManager.default.removeItem(at: request.fileURL)
+            log("relaunch \(destination.path)")
+            try relaunch(destination)
             exit(0)
         } catch {
-            fputs("supersimple updater failed: \(error)\n", stderr)
+            log("supersimple updater failed: \(error)")
             exit(1)
         }
+    }
+
+    private static func loadRequest() -> (install: PendingUpdateInstall, fileURL: URL)? {
+        if let parsed = PendingUpdateInstall.parseCommandLine(CommandLine.arguments) {
+            let fileURL =
+                PendingUpdateInstall.loadFromKnownLocations()?.1
+                ?? PendingUpdateInstall.searchURLs()[0]
+            return (parsed, fileURL)
+        }
+        return PendingUpdateInstall.loadFromKnownLocations()
     }
 
     private static func waitForExit(pid: Int32, timeout: TimeInterval) {
@@ -28,79 +45,29 @@ enum SupersimpleUpdater {
             if kill(pid, 0) != 0 { return }
             usleep(100_000)
         }
-    }
-
-    private static func install(from source: URL, to destination: URL) throws {
-        let fm = FileManager.default
-        guard fm.fileExists(atPath: source.path) else {
-            throw POSIXError(.ENOENT)
-        }
-        try fm.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
-        process.arguments = [source.path, destination.path]
-        try process.run()
-        process.waitUntilExit()
-        guard process.terminationStatus == 0 else {
-            throw POSIXError(.EIO)
-        }
-
-        let xattr = Process()
-        xattr.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
-        xattr.arguments = ["-cr", destination.path]
-        do {
-            try xattr.run()
-            xattr.waitUntilExit()
-        } catch {
-            // Quarantine stripping is best-effort; the copy still installed.
-        }
+        log("timed out waiting for pid \(pid); installing anyway")
     }
 
     private static func relaunch(_ app: URL) throws {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
-        process.arguments = [app.path]
+        process.arguments = ["-n", app.path]
         try process.run()
         process.waitUntilExit()
         guard process.terminationStatus == 0 else {
             throw POSIXError(.EIO)
         }
     }
-}
 
-private struct Arguments {
-    var source: URL
-    var destination: URL
-    var pid: Int32
-
-    static func parse(_ argv: [String]) -> Arguments? {
-        var source: String?
-        var destination: String?
-        var pid: Int32?
-        var index = 1
-        while index < argv.count {
-            let key = argv[index]
-            let next = index + 1 < argv.count ? argv[index + 1] : nil
-            switch key {
-            case "--source":
-                source = next
-                index += 2
-            case "--destination":
-                destination = next
-                index += 2
-            case "--pid":
-                if let next { pid = Int32(next) }
-                index += 2
-            default:
-                index += 1
-            }
+    private static func log(_ message: String) {
+        let line = "\(ISO8601DateFormatter().string(from: Date())) \(message)\n"
+        fputs(line, stderr)
+        for pendingURL in PendingUpdateInstall.searchURLs() {
+            let logURL = pendingURL.deletingLastPathComponent().appendingPathComponent("updater.log")
+            let dir = logURL.deletingLastPathComponent()
+            guard FileManager.default.fileExists(atPath: dir.path) else { continue }
+            let previous = (try? String(contentsOf: logURL, encoding: .utf8)) ?? ""
+            try? (previous + line).write(to: logURL, atomically: true, encoding: .utf8)
         }
-        guard let source, let destination, let pid else { return nil }
-        return Arguments(
-            source: URL(fileURLWithPath: source),
-            destination: URL(fileURLWithPath: destination),
-            pid: pid
-        )
     }
 }

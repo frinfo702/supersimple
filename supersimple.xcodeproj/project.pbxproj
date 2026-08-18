@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		00D9968516FA9AB4F913A40B /* SVGIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E4E3A695A1A592C185A3819 /* SVGIcons.swift */; };
 		1DFA51B809AEC2578A5B24A0 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 446DDC1536D6EB8106031BC9 /* SidebarView.swift */; };
+		33481172F99C6D9423CAA52F /* AppBundleInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9CE6E095CC7CB793813737 /* AppBundleInstaller.swift */; };
 		3807F6FEA88ADF5648BED01D /* NoteStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8442FD7B2968A92BD6C95C03 /* NoteStats.swift */; };
 		39F2E8A9B7A786AB3D4D6372 /* SupersimpleCore in Frameworks */ = {isa = PBXBuildFile; productRef = 28CE08F4153B4EF6060AC482 /* SupersimpleCore */; };
 		412D8C864C9C1631C52ED3E5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8C3C369BC4DD2868AD5632C0 /* Assets.xcassets */; };
@@ -17,6 +18,7 @@
 		4AAB69C0B7C1120587B9150C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA4917AA8AFCFD7E1E952AD /* ContentView.swift */; };
 		56CE689B1FBE96551A47030B /* MarkdownEngine in Frameworks */ = {isa = PBXBuildFile; productRef = F63F4B23BF2EB69355738DE1 /* MarkdownEngine */; };
 		62A6EBB69ADEB23FFD352AF4 /* MarkdownEngineLatex in Frameworks */ = {isa = PBXBuildFile; productRef = 574E0DC4D79106D424F96D2F /* MarkdownEngineLatex */; };
+		7050887B5CCE0DF269821C72 /* AppBundleInstallerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FFA8CE0E90CD09DD259CD8 /* AppBundleInstallerTests.swift */; };
 		8A333A14EFBD621403AD3640 /* SupersimpleUpdater.app in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = D422B2FA546462BD6941BF2A /* SupersimpleUpdater.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		8DB20AA1ED612D1DE0B527A1 /* GeistMono.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1A8A5098809F4EF931DED0F4 /* GeistMono.ttf */; };
 		9164CAE29549E33199E4DE8E /* ThemeCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */; };
@@ -29,7 +31,10 @@
 		B2ED1BBFE2D902D3D9500E9C /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62BC1A8D2178CDBFA86142BB /* AppTheme.swift */; };
 		B406A05B88773A7F065CEB6A /* AppUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29AC3EE0C4D902C22D99F38F /* AppUpdater.swift */; };
 		BF31B866A8162104F210E0F5 /* FaviconService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E44268CB09A660B95EBCA712 /* FaviconService.swift */; };
+		C13CA269CD80545CDDED1BA2 /* PendingUpdateInstall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 653479FFD8F94AB26A8F716D /* PendingUpdateInstall.swift */; };
 		C794FA9B0F44F271C5313763 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FF15FA9B631FA47690BF74A /* AppModel.swift */; };
+		DB9513E2393E5059A929F047 /* PendingUpdateInstall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 653479FFD8F94AB26A8F716D /* PendingUpdateInstall.swift */; };
+		DD57B5ABC49EF0C1EF2CFB74 /* AppBundleInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9CE6E095CC7CB793813737 /* AppBundleInstaller.swift */; };
 		E836B0648BB415F0B0B67B07 /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47DE2CE54F87F1D7E7C3DA3 /* EditorView.swift */; };
 		EB199922E2AC8A65FCACA04D /* ImageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 906F2D47A23E7FDAA0E1A35E /* ImageStore.swift */; };
 		F16EFE8330FB90E14D4E0D68 /* SupersimpleUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 59245FC4B2E2EF851ECE0F93 /* SupersimpleUITests.swift */; };
@@ -79,6 +84,7 @@
 		08C3404FB831A9B8678E717D /* Supersimple.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Supersimple.entitlements; sourceTree = "<group>"; };
 		1A8A5098809F4EF931DED0F4 /* GeistMono.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = GeistMono.ttf; sourceTree = "<group>"; };
 		29AC3EE0C4D902C22D99F38F /* AppUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdater.swift; sourceTree = "<group>"; };
+		2C9CE6E095CC7CB793813737 /* AppBundleInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBundleInstaller.swift; sourceTree = "<group>"; };
 		2D52CF398C51C27B1282D75C /* WindowChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowChrome.swift; sourceTree = "<group>"; };
 		2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersimpleApp.swift; sourceTree = "<group>"; };
 		36777A37D6601ACFD8813534 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -92,12 +98,14 @@
 		637D22A7341BBADF047DF9F6 /* AppModelTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModelTests.swift; sourceTree = "<group>"; };
 		63AD7E0126C10688365F9204 /* SupersimpleCore */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SupersimpleCore; path = Packages/SupersimpleCore; sourceTree = SOURCE_ROOT; };
 		63B37994CE45CDC8551691C0 /* NativeCodeHighlighter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeCodeHighlighter.swift; sourceTree = "<group>"; };
+		653479FFD8F94AB26A8F716D /* PendingUpdateInstall.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PendingUpdateInstall.swift; sourceTree = "<group>"; };
 		8442FD7B2968A92BD6C95C03 /* NoteStats.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStats.swift; sourceTree = "<group>"; };
 		8C3B6C8592BA4AB3F51AB499 /* supersimpleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8C3C369BC4DD2868AD5632C0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		906F2D47A23E7FDAA0E1A35E /* ImageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageStore.swift; sourceTree = "<group>"; };
 		9B5590BE343F38F278F31CC5 /* AppUpdaterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdaterTests.swift; sourceTree = "<group>"; };
 		B47DE2CE54F87F1D7E7C3DA3 /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
+		B8FFA8CE0E90CD09DD259CD8 /* AppBundleInstallerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBundleInstallerTests.swift; sourceTree = "<group>"; };
 		C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeCommands.swift; sourceTree = "<group>"; };
 		D422B2FA546462BD6941BF2A /* SupersimpleUpdater.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SupersimpleUpdater.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E44268CB09A660B95EBCA712 /* FaviconService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaviconService.swift; sourceTree = "<group>"; };
@@ -105,7 +113,7 @@
 		EC02340F436B5F0721F130D1 /* SupersimpleUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersimpleUpdater.swift; sourceTree = "<group>"; };
 		F40B77214A55275DF8977211 /* NoteRecencyGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteRecencyGroup.swift; sourceTree = "<group>"; };
 		FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		"TEMP_B7F76FC4-AB5F-4348-A836-690938EE0DAA" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
+		"TEMP_21014256-5656-4FE2-873F-91FF5EAB6B3C" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -205,6 +213,7 @@
 		92715D2A3F7BF3A49EDFB448 /* supersimpleTests */ = {
 			isa = PBXGroup;
 			children = (
+				B8FFA8CE0E90CD09DD259CD8 /* AppBundleInstallerTests.swift */,
 				637D22A7341BBADF047DF9F6 /* AppModelTests.swift */,
 				9B5590BE343F38F278F31CC5 /* AppUpdaterTests.swift */,
 			);
@@ -223,12 +232,14 @@
 		9DF80DE537A2969105DB7346 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				2C9CE6E095CC7CB793813737 /* AppBundleInstaller.swift */,
 				3FF15FA9B631FA47690BF74A /* AppModel.swift */,
 				29AC3EE0C4D902C22D99F38F /* AppUpdater.swift */,
 				3FA4917AA8AFCFD7E1E952AD /* ContentView.swift */,
 				E44268CB09A660B95EBCA712 /* FaviconService.swift */,
 				906F2D47A23E7FDAA0E1A35E /* ImageStore.swift */,
 				8442FD7B2968A92BD6C95C03 /* NoteStats.swift */,
+				653479FFD8F94AB26A8F716D /* PendingUpdateInstall.swift */,
 				2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */,
 			);
 			path = App;
@@ -448,6 +459,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7050887B5CCE0DF269821C72 /* AppBundleInstallerTests.swift in Sources */,
 				A7DDEE8CC9C8D519FDAD555A /* AppModelTests.swift in Sources */,
 				A25CBCCDB8F32192852B8D96 /* AppUpdaterTests.swift in Sources */,
 			);
@@ -465,6 +477,8 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				33481172F99C6D9423CAA52F /* AppBundleInstaller.swift in Sources */,
+				C13CA269CD80545CDDED1BA2 /* PendingUpdateInstall.swift in Sources */,
 				9CD355F5F13E815A054F4E5D /* SupersimpleUpdater.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -473,6 +487,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DD57B5ABC49EF0C1EF2CFB74 /* AppBundleInstaller.swift in Sources */,
 				C794FA9B0F44F271C5313763 /* AppModel.swift in Sources */,
 				B2ED1BBFE2D902D3D9500E9C /* AppTheme.swift in Sources */,
 				B406A05B88773A7F065CEB6A /* AppUpdater.swift in Sources */,
@@ -483,6 +498,7 @@
 				F9DC6812742022BD42B5FC71 /* NativeCodeHighlighter.swift in Sources */,
 				45866057297972557FBFBCA7 /* NoteRecencyGroup.swift in Sources */,
 				3807F6FEA88ADF5648BED01D /* NoteStats.swift in Sources */,
+				DB9513E2393E5059A929F047 /* PendingUpdateInstall.swift in Sources */,
 				00D9968516FA9AB4F913A40B /* SVGIcons.swift in Sources */,
 				1DFA51B809AEC2578A5B24A0 /* SidebarView.swift in Sources */,
 				A965689EF507898F3E2EF21B /* SupersimpleApp.swift in Sources */,

@@ -157,19 +157,39 @@ final class AppUpdater {
 
     func installAndRelaunch() {
         guard availableUpdateVersion != nil, fileManager.fileExists(atPath: stagedAppURL.path) else { return }
-        guard let helper = Self.helperURL() else {
+        let stagedHelper = stagedAppURL.appendingPathComponent(
+            "Contents/PlugIns/SupersimpleUpdater.app", isDirectory: true)
+        let helper: URL
+        if fileManager.fileExists(atPath: stagedHelper.path) {
+            helper = stagedHelper
+        } else if let bundled = Self.helperURL() {
+            helper = bundled
+        } else {
             Self.log.error("updater helper is missing from the app bundle")
             return
         }
 
         let destination = installDestination()
+        let pending = PendingUpdateInstall(
+            sourcePath: stagedAppURL.path,
+            destinationPath: destination.path,
+            pid: ProcessInfo.processInfo.processIdentifier
+        )
+        do {
+            try fileManager.createDirectory(at: stagingDirectory, withIntermediateDirectories: true)
+            try pending.write(to: PendingUpdateInstall.fileURL(in: stagingDirectory))
+        } catch {
+            Self.log.error("failed to write pending install: \(error.localizedDescription, privacy: .public)")
+            return
+        }
+
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.activates = false
         configuration.createsNewApplicationInstance = true
         configuration.arguments = [
             "--source", stagedAppURL.path,
             "--destination", destination.path,
-            "--pid", String(ProcessInfo.processInfo.processIdentifier),
+            "--pid", String(pending.pid),
         ]
 
         NSWorkspace.shared.openApplication(at: helper, configuration: configuration) { _, error in
