@@ -3,8 +3,8 @@ import SupersimpleCore
 import SwiftUI
 
 /// Native unified toolbar so glyphs sit on the same row as the traffic lights.
-/// Search and new-note are their own items (not one growing HStack) so macOS
-/// does not clip them when the library hides.
+/// Leading glyphs share one item so their spacing stays tight; `.id` forces a
+/// fresh slot size when search/plus appear so macOS does not clip them.
 struct TopBar: ToolbarContent {
     @Bindable var model: AppModel
     var isDark: Bool
@@ -14,64 +14,63 @@ struct TopBar: ToolbarContent {
     private var muted: Color { AppTheme.mutedColor(isDark: isDark) }
 
     var body: some ToolbarContent {
+        // One item (not a growing stack of items) so macOS sizes the slot for
+        // the full glyph row and does not clip search/plus when the library hides.
         GlyphToolbarItem(placement: .navigation) {
-            chromeButton(
-                identifier: "toggle-sidebar-button",
-                label: "Toggle sidebar",
-                hint: "Shows or hides the sidebar. Keyboard shortcut: Option-Command-S.",
-                help: "Toggle sidebar (⌥⌘S)",
-                size: 18
-            ) {
-                SidebarIcon(lineWidth: 1.5)
-            } action: {
-                withAnimation(.easeOut(duration: 0.15)) {
-                    model.sidebarVisible.toggle()
-                }
-            }
-        }
-        if !model.sidebarVisible {
-            GlyphToolbarItem(placement: .navigation) {
+            HStack(spacing: 8) {
                 chromeButton(
-                    identifier: "sidebar-search-button",
-                    label: "Search",
-                    hint: "Opens the library and focuses search. Keyboard shortcut: Command-L.",
-                    help: "Search notes (⌘L)"
+                    identifier: "toggle-sidebar-button",
+                    label: "Toggle sidebar",
+                    hint: "Shows or hides the sidebar. Keyboard shortcut: Option-Command-S.",
+                    help: "Toggle sidebar (⌥⌘S)",
+                    size: 18
                 ) {
-                    SearchIcon(lineWidth: 1.5)
+                    SidebarIcon(lineWidth: 1.5)
                 } action: {
-                    model.focusSearch()
-                }
-            }
-            GlyphToolbarItem(placement: .navigation) {
-                chromeButton(
-                    identifier: "new-note-button",
-                    label: "New Note",
-                    hint: "Creates a new note. Keyboard shortcut: Command-N.",
-                    help: "New Note (⌘N)"
-                ) {
-                    PlusIcon(lineWidth: 1.5)
-                } action: {
-                    model.createNote()
-                }
-            }
-        }
-        GlyphToolbarItem(placement: .primaryAction) {
-            chromeButton(
-                identifier: "current-theme-icon",
-                label: isDark ? "Switch to Light" : "Switch to Dark",
-                hint: "Toggles Light and Dark. Keyboard shortcuts: Shift-Command-L and Shift-Command-D.",
-                help: isDark ? "Switch to Light" : "Switch to Dark"
-            ) {
-                Group {
-                    if isDark {
-                        DarkThemeIcon()
-                    } else {
-                        LightThemeIcon()
+                    withAnimation(.easeOut(duration: 0.15)) {
+                        model.sidebarVisible.toggle()
                     }
                 }
-            } action: {
-                themeManager.cycle()
+                if !model.sidebarVisible {
+                    chromeButton(
+                        identifier: "sidebar-search-button",
+                        label: "Search",
+                        hint: "Opens the library and focuses search. Keyboard shortcut: Command-L.",
+                        help: "Search notes (⌘L)"
+                    ) {
+                        SearchIcon(lineWidth: 1.5)
+                    } action: {
+                        model.focusSearch()
+                    }
+                    chromeButton(
+                        identifier: "new-note-button",
+                        label: "New Note",
+                        hint: "Creates a new note. Keyboard shortcut: Command-N.",
+                        help: "New Note (⌘N)"
+                    ) {
+                        PlusIcon(lineWidth: 1.5)
+                    } action: {
+                        model.createNote()
+                    }
+                }
+                chromeButton(
+                    identifier: "current-theme-icon",
+                    label: isDark ? "Switch to Light" : "Switch to Dark",
+                    hint: "Toggles Light and Dark. Keyboard shortcuts: Shift-Command-L and Shift-Command-D.",
+                    help: isDark ? "Switch to Light" : "Switch to Dark"
+                ) {
+                    Group {
+                        if isDark {
+                            DarkThemeIcon()
+                        } else {
+                            LightThemeIcon()
+                        }
+                    }
+                } action: {
+                    themeManager.cycle()
+                }
             }
+            .id(model.sidebarVisible)
         }
         if updater.availableUpdateVersion != nil {
             GlyphToolbarItem(placement: .confirmationAction) {
@@ -103,6 +102,7 @@ struct TopBar: ToolbarContent {
             icon()
                 .foregroundStyle(muted)
                 .frame(width: size, height: size)
+                .frame(width: 24, height: 24)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
