@@ -105,7 +105,7 @@
 		EC02340F436B5F0721F130D1 /* SupersimpleUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersimpleUpdater.swift; sourceTree = "<group>"; };
 		F40B77214A55275DF8977211 /* NoteRecencyGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteRecencyGroup.swift; sourceTree = "<group>"; };
 		FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		"TEMP_7128647D-436E-432A-972E-7CC8D90D4168" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
+		"TEMP_B7F76FC4-AB5F-4348-A836-690938EE0DAA" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
