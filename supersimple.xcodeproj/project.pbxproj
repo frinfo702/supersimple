@@ -9,11 +9,11 @@
 /* Begin PBXBuildFile section */
 		00D9968516FA9AB4F913A40B /* SVGIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E4E3A695A1A592C185A3819 /* SVGIcons.swift */; };
 		1DFA51B809AEC2578A5B24A0 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 446DDC1536D6EB8106031BC9 /* SidebarView.swift */; };
-		34CFE42F7C3E4BE8C22E2B9F /* BottomBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C93C3653B49C91E32CA9A045 /* BottomBarView.swift */; };
 		3807F6FEA88ADF5648BED01D /* NoteStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8442FD7B2968A92BD6C95C03 /* NoteStats.swift */; };
 		39F2E8A9B7A786AB3D4D6372 /* SupersimpleCore in Frameworks */ = {isa = PBXBuildFile; productRef = 28CE08F4153B4EF6060AC482 /* SupersimpleCore */; };
 		412D8C864C9C1631C52ED3E5 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8C3C369BC4DD2868AD5632C0 /* Assets.xcassets */; };
 		43CAD5F67985F9829DEF5FFB /* ThemeManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A7F5E8CF87F9CE35E40084A /* ThemeManager.swift */; };
+		45866057297972557FBFBCA7 /* NoteRecencyGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40B77214A55275DF8977211 /* NoteRecencyGroup.swift */; };
 		4AAB69C0B7C1120587B9150C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA4917AA8AFCFD7E1E952AD /* ContentView.swift */; };
 		56CE689B1FBE96551A47030B /* MarkdownEngine in Frameworks */ = {isa = PBXBuildFile; productRef = F63F4B23BF2EB69355738DE1 /* MarkdownEngine */; };
 		62A6EBB69ADEB23FFD352AF4 /* MarkdownEngineLatex in Frameworks */ = {isa = PBXBuildFile; productRef = 574E0DC4D79106D424F96D2F /* MarkdownEngineLatex */; };
@@ -72,11 +72,11 @@
 		906F2D47A23E7FDAA0E1A35E /* ImageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageStore.swift; sourceTree = "<group>"; };
 		B47DE2CE54F87F1D7E7C3DA3 /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
 		C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeCommands.swift; sourceTree = "<group>"; };
-		C93C3653B49C91E32CA9A045 /* BottomBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BottomBarView.swift; sourceTree = "<group>"; };
 		E44268CB09A660B95EBCA712 /* FaviconService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaviconService.swift; sourceTree = "<group>"; };
 		E52E7AD4D9C61D126880708B /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
+		F40B77214A55275DF8977211 /* NoteRecencyGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteRecencyGroup.swift; sourceTree = "<group>"; };
 		FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		"TEMP_2A4A6667-BE8A-4818-9ACE-3A4420BD9CA4" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
+		"TEMP_C8FC04B8-5CA4-4485-B236-C8B8C2F0CD1F" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -183,7 +183,7 @@
 		9DC95DB0734FF9ABEC1189E6 /* Library */ = {
 			isa = PBXGroup;
 			children = (
-				C93C3653B49C91E32CA9A045 /* BottomBarView.swift */,
+				F40B77214A55275DF8977211 /* NoteRecencyGroup.swift */,
 				446DDC1536D6EB8106031BC9 /* SidebarView.swift */,
 			);
 			path = Library;
@@ -401,12 +401,12 @@
 			files = (
 				C794FA9B0F44F271C5313763 /* AppModel.swift in Sources */,
 				B2ED1BBFE2D902D3D9500E9C /* AppTheme.swift in Sources */,
-				34CFE42F7C3E4BE8C22E2B9F /* BottomBarView.swift in Sources */,
 				4AAB69C0B7C1120587B9150C /* ContentView.swift in Sources */,
 				E836B0648BB415F0B0B67B07 /* EditorView.swift in Sources */,
 				BF31B866A8162104F210E0F5 /* FaviconService.swift in Sources */,
 				EB199922E2AC8A65FCACA04D /* ImageStore.swift in Sources */,
 				F9DC6812742022BD42B5FC71 /* NativeCodeHighlighter.swift in Sources */,
+				45866057297972557FBFBCA7 /* NoteRecencyGroup.swift in Sources */,
 				3807F6FEA88ADF5648BED01D /* NoteStats.swift in Sources */,
 				00D9968516FA9AB4F913A40B /* SVGIcons.swift in Sources */,
 				1DFA51B809AEC2578A5B24A0 /* SidebarView.swift in Sources */,

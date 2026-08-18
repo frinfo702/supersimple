@@ -35,10 +35,14 @@ final class AppModel {
     /// The live body text backed by the editor binding.
     var currentBody: String = ""
 
-    /// Search UI state.
+    /// Search UI state. Independent of the open note; opening a row does not clear this.
     var searchQuery: String = ""
     var selectedTag: Tag?
     var searchResults: [SearchResult] = []
+
+    /// Confirmation target for the delete dialog. Independent of the current selection
+    /// so a context-menu delete can target a row that is not open.
+    var notePendingDelete: Note?
 
     /// Whether the sidebar column is shown.
     var sidebarVisible: Bool {
@@ -47,12 +51,22 @@ final class AppModel {
         }
     }
 
-    /// Whether the status strip under the editor is shown.
-    var bottomBarVisible: Bool {
+    /// User-resized library column width, clamped to the design range.
+    var sidebarWidth: CGFloat {
         didSet {
-            userDefaults.set(bottomBarVisible, forKey: "bottomBarVisible")
+            let clamped = Self.clampSidebarWidth(sidebarWidth)
+            if clamped != sidebarWidth {
+                sidebarWidth = clamped
+                return
+            }
+            userDefaults.set(Double(clamped), forKey: "sidebarWidth")
         }
     }
+
+    /// Bumped to move keyboard focus into the library search field.
+    private(set) var searchFocusToken: UInt = 0
+    /// Bumped to move keyboard focus into the editor.
+    private(set) var editorFocusToken: UInt = 0
 
     private var isBootstrapLoaded = false
     private var saveTask: Task<Void, Never>?
@@ -73,7 +87,11 @@ final class AppModel {
     ) {
         self.userDefaults = userDefaults ?? UserDefaults(suiteName: "com.frinfo702.supersimple") ?? .standard
         sidebarVisible = self.userDefaults.object(forKey: "sidebarVisible") as? Bool ?? true
-        bottomBarVisible = self.userDefaults.object(forKey: "bottomBarVisible") as? Bool ?? true
+        if let storedWidth = self.userDefaults.object(forKey: "sidebarWidth") as? Double {
+            sidebarWidth = Self.clampSidebarWidth(CGFloat(storedWidth))
+        } else {
+            sidebarWidth = AppTheme.Metric.sidebarWidth
+        }
 
         if let override = notesDirectoryOverride {
             notesDirectory = override
@@ -122,6 +140,11 @@ final class AppModel {
         Self.log.info("Bootstrapped \(loaded.count) notes in \(elapsed, format: .fixed(precision: 1)) ms")
 
         resumeLastSelection()
+        if notes.isEmpty {
+            createNote()
+        } else if currentNoteID == nil {
+            open(notes[0])
+        }
     }
 
     /// Reads and decodes every note file off the main actor.
@@ -165,7 +188,7 @@ final class AppModel {
             let id = UUID(uuidString: last),
             let note = notes.first(where: { $0.id == id })
         {
-            select(note)
+            open(note)
         }
     }
 
@@ -176,16 +199,52 @@ final class AppModel {
         return notes.first { $0.id == id }
     }
 
-    /// Switches the editor to a note, flushing any pending edits first.
-    func select(_ note: Note) {
+    /// Opens a note in the editor without touching the library filter.
+    func open(_ note: Note) {
+        if currentNoteID == note.id {
+            currentBody = note.body
+            return
+        }
         flushNow()
         cancelPendingSave()
         currentNoteID = note.id
         currentBody = note.body
-        selectedTag = nil
-        searchQuery = ""
         userDefaults.set(note.id.uuidString, forKey: "lastNote")
         prefetchFavicons(in: note.body)
+    }
+
+    /// Backwards-compatible alias for ``open(_:)``.
+    func select(_ note: Note) {
+        open(note)
+    }
+
+    var hasActiveFilter: Bool {
+        !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty || selectedTag != nil
+    }
+
+    func clearLibraryFilter() {
+        searchQuery = ""
+        searchResults = []
+        selectedTag = nil
+    }
+
+    var isSearching: Bool {
+        !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
+    func focusSearch() {
+        if !sidebarVisible {
+            sidebarVisible = true
+        }
+        searchFocusToken &+= 1
+    }
+
+    func focusEditor() {
+        editorFocusToken &+= 1
+    }
+
+    func requestDelete(_ note: Note? = nil) {
+        notePendingDelete = note ?? currentNote()
     }
 
     /// Extracts hostnames from a body and prefetches their favicons.
@@ -200,10 +259,12 @@ final class AppModel {
 
     func createNote() {
         flushNow()
-        var note = Note()
-        note.body = "# New Note"
+        if hasActiveFilter {
+            clearLibraryFilter()
+        }
+        let note = Note()
         notes.insert(note, at: 0)
-        select(note)
+        open(note)
         persist(note)
     }
 
@@ -437,7 +498,25 @@ final class AppModel {
 
     func openSearchResult(_ result: SearchResult) {
         guard let note = notes.first(where: { $0.id == result.noteID }) else { return }
-        select(note)
+        open(note)
+    }
+
+    /// Recency buckets for the unfiltered (or tag-filtered) library. Search hits
+    /// stay in relevance order and are not grouped.
+    var groupedVisibleNotes: [(group: NoteRecencyGroup, notes: [Note])] {
+        guard !isSearching else { return [] }
+        var buckets: [NoteRecencyGroup: [Note]] = [:]
+        for note in visibleNotes {
+            buckets[NoteRecencyGroup.group(for: note.updatedAt), default: []].append(note)
+        }
+        return NoteRecencyGroup.allCases.compactMap { group in
+            guard let notes = buckets[group], !notes.isEmpty else { return nil }
+            return (group, notes)
+        }
+    }
+
+    static func clampSidebarWidth(_ width: CGFloat) -> CGFloat {
+        min(max(width, AppTheme.Metric.sidebarMinWidth), AppTheme.Metric.sidebarMaxWidth)
     }
 
     func closeSearch() {
@@ -516,7 +595,10 @@ final class AppModel {
         note.body = doc.body
         note.tags = TagNormalizer.extractTags(from: note.body)
         notes.insert(note, at: 0)
-        select(note)
+        if hasActiveFilter {
+            clearLibraryFilter()
+        }
+        open(note)
         persist(note)
         return note
     }

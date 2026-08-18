@@ -10,32 +10,17 @@ struct EditorView: View {
     @Bindable var model: AppModel
 
     var body: some View {
-        GeometryReader { geo in
-            HStack(spacing: 0) {
-                editorSurface
-                    .layoutPriority(1)
-
-                // A slim vertical gradient accent on the right of the editor. Its width
-                // scales with the available width; its height matches the window.
-                gradientBand(width: bandWidth(for: geo.size.width))
-            }
-        }
-        .background(Color(nsColor: AppTheme.Color.background))
-        .accessibilityElement(children: .contain)
-    }
-
-    // MARK: - Editor surface
-
-    private var editorSurface: some View {
-        ZStack {
+        ZStack(alignment: .bottomTrailing) {
             Color(nsColor: AppTheme.Color.editorSurface)
             if let note = model.currentNote() {
                 liveEditor(for: note)
-            } else {
-                emptyState
             }
+            wordCountOverlay
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: AppTheme.Color.editorSurface))
+        .background(EditorFocusBeacon(token: model.editorFocusToken))
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("editor-surface")
     }
 
@@ -45,10 +30,11 @@ struct EditorView: View {
             configuration: EditorConfiguration.build(
                 imageStore: model.imageStore, faviconService: model.faviconService),
             fontName: "SF Pro",
-            fontSize: 16,
+            fontSize: AppTheme.Metric.bodyFontSize,
             documentId: note.id.uuidString,
             isEditable: true,
-            onPasteImage: model.pasteImageHandler
+            onPasteImage: model.pasteImageHandler,
+            placeholder: Self.placeholder
         )
         .background(Color(nsColor: AppTheme.Color.editorSurface))
     }
@@ -60,36 +46,32 @@ struct EditorView: View {
         )
     }
 
-    // MARK: - Gradient band
-
-    /// Width of the right gradient band, growing with the window but kept slim.
-    private func bandWidth(for total: CGFloat) -> CGFloat {
-        min(max(total * 0.11, 24), 160)
+    private var wordCountOverlay: some View {
+        Text(wordLabel)
+            .font(.system(size: 11, weight: .medium))
+            .foregroundStyle(Color.supersimpleMuted)
+            .padding(.trailing, 16)
+            .padding(.bottom, 10)
+            .allowsHitTesting(false)
+            .accessibilityIdentifier("word-count")
+            .accessibilityLabel(wordLabel)
     }
 
-    /// Full-height gradient strip on the right edge with slightly rounded corners.
-    /// The container has a fixed width so the editor takes the remaining space.
-    private func gradientBand(width: CGFloat) -> some View {
-        RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(AppTheme.editorGradient)
-            .frame(width: width)
-            .frame(maxHeight: .infinity)
+    private var wordLabel: String {
+        guard model.currentNote() != nil else { return "" }
+        let count = NoteStats.wordCount(model.currentBody)
+        return count == 1 ? "1 word" : "\(count) words"
     }
 
-    private var emptyState: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Spacer()
-            Text("A quiet place\nfor clear thinking.")
-                .font(.system(size: 38, weight: .semibold, design: .rounded))
-                .tracking(-1.2)
-            Text("Choose a note, or create one with ⌘N.")
-                .font(.system(size: 15))
-                .foregroundStyle(Color.supersimpleMuted)
-            Spacer()
-        }
-        .padding(52)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-    }
+    private static let placeholder: NSAttributedString = {
+        NSAttributedString(
+            string: "Start writing",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: AppTheme.Metric.bodyFontSize),
+                .foregroundColor: AppTheme.Color.mutedText.withAlphaComponent(0.55),
+            ]
+        )
+    }()
 }
 
 /// Concentrates engine configuration (theme + services + typography).
@@ -113,9 +95,51 @@ enum EditorConfiguration {
             favicons: faviconService
         )
         config.readingWidth = AppTheme.Metric.readingWidth
-        config.paragraph.spacingFactor = 0.35
-        config.paragraph.lineHeightExtraSpacing = 2
-        config.textInsets = TextInsets(horizontal: 42, vertical: 40)
+        var headings = config.headings
+        headings.fontMultipliers = [1.5, 1.28, 1.12, 1.0, 1.0, 1.0]
+        config.headings = headings
+        var paragraph = config.paragraph
+        paragraph.spacingFactor = 0.28
+        paragraph.lineHeightExtraSpacing = 4
+        config.paragraph = paragraph
+        config.textInsets = TextInsets(horizontal: 48, vertical: 36)
         return config
+    }
+}
+
+/// Finds the editor `NSTextView` and makes it first responder when the token bumps.
+private struct EditorFocusBeacon: NSViewRepresentable {
+    var token: UInt
+
+    func makeNSView(context: Context) -> NSView {
+        NSView()
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        guard token > 0, context.coordinator.lastToken != token else { return }
+        context.coordinator.lastToken = token
+        DispatchQueue.main.async {
+            guard let window = nsView.window, let textView = Self.firstTextView(in: window.contentView) else {
+                return
+            }
+            window.makeFirstResponder(textView)
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    final class Coordinator {
+        var lastToken: UInt = 0
+    }
+
+    private static func firstTextView(in root: NSView?) -> NSTextView? {
+        guard let root else { return nil }
+        if let textView = root as? NSTextView { return textView }
+        for child in root.subviews {
+            if let found = firstTextView(in: child) { return found }
+        }
+        return nil
     }
 }
