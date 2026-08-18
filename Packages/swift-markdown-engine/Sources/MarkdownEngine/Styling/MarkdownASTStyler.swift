@@ -713,10 +713,11 @@ enum MarkdownASTStyler {
             }
         }
         // Use the whole block range (not codeRange): an incomplete fence collapses codeRange to the ```.
-        // Always hide the fence markers so the ``` never renders as a jarring, different
-        // color from the code content (previously it flipped between mutedText and clear
-        // depending on caret position).
-        let markerAttrs: [NSAttributedString.Key: Any] = [.foregroundColor: NSColor.clear, .font: ctx.codeFont]
+        // Reveal fences while the caret is inside the block (same as inline `code`); hide
+        // otherwise. Keep `codeFont` in both states so line height stays stable across the flip.
+        let markerAttrs: [NSAttributedString.Key: Any] = ctx.isActive(range)
+            ? [.foregroundColor: ctx.theme.mutedText, .font: ctx.codeFont]
+            : [.foregroundColor: NSColor.clear, .font: ctx.codeFont]
         attrs.append((parts.openFence, markerAttrs))
         attrs.append((parts.closeFence, markerAttrs))
     }

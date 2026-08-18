@@ -6,9 +6,6 @@ This is a local copy of [swift-markdown-engine](https://github.com/nodes-app/swi
 ## Local modifications
 
 - Removed the `MarkdownEngineTests` target (no test sources are vendored).
-- `Sources/MarkdownEngine/Styling/MarkdownASTStyler.swift`: fenced-code ``` markers are
-  now **always hidden** (`NSColor.clear`) instead of flipping between `mutedText` and
-  clear based on caret position, which rendered the ``` as a jarring, different color.
 - Fenced code blocks use `.markdownCodeBlockBackground` instead of `.backgroundColor`,
   so AppKit doesn't double-composite the translucent fill on the glyph box / ``` fences.
 - `MarkdownASTStyler.swift`: inactive `[text](url)` links reserve the hidden `[`
@@ -21,4 +18,4 @@ This is a local copy of [swift-markdown-engine](https://github.com/nodes-app/swi
 ## Upgrading
 
 To upgrade, re-copy `Sources/`, `Package.swift`, and `LICENSE` from the upstream tag and
-re-apply the two changes above.
+re-apply the local modifications above.
