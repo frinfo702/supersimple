@@ -64,7 +64,6 @@ targets:
         DEVELOPMENT_TEAM: ""
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_LSUIElement: YES
-        INFOPLIST_KEY_LSBackgroundOnly: YES
         INFOPLIST_KEY_CFBundleDisplayName: SupersimpleUpdater
   supersimpleTests:
     type: bundle.unit-test

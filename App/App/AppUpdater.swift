@@ -157,14 +157,12 @@ final class AppUpdater {
 
     func installAndRelaunch() {
         guard availableUpdateVersion != nil, fileManager.fileExists(atPath: stagedAppURL.path) else { return }
-        let stagedHelper = stagedAppURL.appendingPathComponent(
-            "Contents/PlugIns/SupersimpleUpdater.app", isDirectory: true)
-        let helper: URL
-        if fileManager.fileExists(atPath: stagedHelper.path) {
-            helper = stagedHelper
-        } else if let bundled = Self.helperURL() {
-            helper = bundled
-        } else {
+        // Launch Services refuses apps a sandboxed process wrote (`spctl`:
+        // "File created by an AppSandbox, exec/open not allowed"). The staged
+        // zip lives in the container, so its nested helper cannot be opened —
+        // that produces "The application “SupersimpleUpdater.app” can’t be opened."
+        // The helper that shipped inside the running bundle is already trusted.
+        guard let helper = Self.helperURL() else {
             Self.log.error("updater helper is missing from the app bundle")
             return
         }
