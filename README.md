@@ -100,8 +100,19 @@ xcodebuild test -scheme supersimple -destination 'platform=macOS'
 ```
 
 `Scripts/format.sh` and `Scripts/format.sh lint` run `swift-format` (Xcode-bundled) over all
-sources. CI runs format lint, the Core tests, the unit tests, and a Release build, uploading
-the `.xcresult` and the built `.app` as artifacts.
+sources. CI runs format lint, the Core tests, and the unit tests on every push/PR.
+
+### Official Release build (on demand)
+
+The downloadable app is **not** built on every push. To produce an official Release `.app`:
+
+1. GitHub → **Actions** → **Release** → **Run workflow**
+2. Optionally set a version (otherwise `MARKETING_VERSION` + run number)
+3. Leave **create_github_release** on to also publish it on the Releases page
+
+The zip is attached to the workflow run (Artifacts, 90 days) and, by default, to a GitHub
+Release. The build is ad-hoc signed; downloaded copies may need right-click → Open, or
+`xattr -cr supersimple.app`.
 
 ## Keyboard
 

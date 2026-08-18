@@ -48,15 +48,6 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             -resultBundlePath build/Test.xcresult
 
-      - name: Build Release
-        run: |
-          xcodebuild build \
-            -project supersimple.xcodeproj \
-            -scheme supersimple \
-            -configuration Release \
-            -derivedDataPath build/ReleaseDD \
-            CODE_SIGNING_ALLOWED=NO
-
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
@@ -64,15 +55,6 @@ jobs:
           name: test-results
           path: |
             build/Test.xcresult
-          if-no-files-found: ignore
-
-      - name: Upload Release app
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: supersimple-release
-          path: |
-            build/ReleaseDD/Build/Products/Release/supersimple.app
           if-no-files-found: ignore
 
   ui:
