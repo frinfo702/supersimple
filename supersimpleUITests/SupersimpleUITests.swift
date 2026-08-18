@@ -98,6 +98,17 @@ final class SupersimpleUITests: XCTestCase {
         XCTAssertTrue(field.waitForExistence(timeout: 3))
     }
 
+    @MainActor
+    func testChromeSearchAppearsWhenSidebarHidden() throws {
+        let app = XCUIApplication()
+        app.launch()
+        let toggle = app.buttons["toggle-sidebar-button"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 5))
+        toggle.click()
+        XCTAssertTrue(app.buttons["sidebar-search-button"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["new-note-button"].exists)
+    }
+
     // MARK: - Screenshot capture
 
     @MainActor

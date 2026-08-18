@@ -391,6 +391,9 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         guard let textView = nsView.nativeTextView else {
             return
         }
+        // Keep the coordinator on the current SwiftUI binding. A Binding captured
+        // only in `makeCoordinator` can go stale, so keystrokes never reach AppModel.
+        context.coordinator.adoptTextBinding(_text)
         reconcileHeader(textView: textView, context: context)
 
         let isNodeSwitch = context.coordinator.documentId != documentId

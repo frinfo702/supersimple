@@ -2,8 +2,9 @@ import AppKit
 import SupersimpleCore
 import SwiftUI
 
-/// Toolbar chrome: sidebar toggle next to the traffic lights, theme mark on the
-/// right. New note and search live in the library.
+/// Native unified toolbar so glyphs sit on the same row as the traffic lights.
+/// Search and new-note are their own items (not one growing HStack) so macOS
+/// does not clip them when the library hides.
 struct TopBar: ToolbarContent {
     @Bindable var model: AppModel
     var isDark: Bool
@@ -12,66 +13,105 @@ struct TopBar: ToolbarContent {
     private var muted: Color { AppTheme.mutedColor(isDark: isDark) }
 
     var body: some ToolbarContent {
-        ToolbarItem(placement: .navigation) {
-            sidebarToggle
-                .immediateToolbarChrome(isDark: isDark)
+        GlyphToolbarItem(placement: .navigation) {
+            chromeButton(
+                identifier: "toggle-sidebar-button",
+                label: "Toggle sidebar",
+                hint: "Shows or hides the sidebar. Keyboard shortcut: Option-Command-S.",
+                help: "Toggle sidebar (⌥⌘S)",
+                size: 18
+            ) {
+                SidebarIcon(lineWidth: 1.5)
+            } action: {
+                withAnimation(.easeOut(duration: 0.15)) {
+                    model.sidebarVisible.toggle()
+                }
+            }
         }
-        ToolbarItem(placement: .primaryAction) {
-            themeButton
-                .immediateToolbarChrome(isDark: isDark)
+        if !model.sidebarVisible {
+            GlyphToolbarItem(placement: .navigation) {
+                chromeButton(
+                    identifier: "sidebar-search-button",
+                    label: "Search",
+                    hint: "Opens the library and focuses search. Keyboard shortcut: Command-L.",
+                    help: "Search notes (⌘L)"
+                ) {
+                    SearchIcon(lineWidth: 1.5)
+                } action: {
+                    model.focusSearch()
+                }
+            }
+            GlyphToolbarItem(placement: .navigation) {
+                chromeButton(
+                    identifier: "new-note-button",
+                    label: "New Note",
+                    hint: "Creates a new note. Keyboard shortcut: Command-N.",
+                    help: "New Note (⌘N)"
+                ) {
+                    PlusIcon(lineWidth: 1.5)
+                } action: {
+                    model.createNote()
+                }
+            }
+        }
+        GlyphToolbarItem(placement: .primaryAction) {
+            chromeButton(
+                identifier: "current-theme-icon",
+                label: isDark ? "Switch to Light" : "Switch to Dark",
+                hint: "Toggles Light and Dark. Keyboard shortcuts: Shift-Command-L and Shift-Command-D.",
+                help: isDark ? "Switch to Light" : "Switch to Dark"
+            ) {
+                Group {
+                    if isDark {
+                        DarkThemeIcon()
+                    } else {
+                        LightThemeIcon()
+                    }
+                }
+            } action: {
+                themeManager.cycle()
+            }
         }
     }
 
-    private var sidebarToggle: some View {
-        Button {
-            withAnimation(.easeOut(duration: 0.15)) {
-                model.sidebarVisible.toggle()
-            }
-        } label: {
-            SidebarIcon(lineWidth: 1.5)
+    private func chromeButton<Icon: View>(
+        identifier: String,
+        label: String,
+        hint: String,
+        help: String,
+        size: CGFloat = 16,
+        @ViewBuilder icon: () -> Icon,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            icon()
                 .foregroundStyle(muted)
-                .frame(width: 18, height: 18)
-                .frame(width: 28, height: 28)
+                .frame(width: size, height: size)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .accessibilityIdentifier("toggle-sidebar-button")
-        .accessibilityLabel("Toggle sidebar")
-        .accessibilityHint("Shows or hides the sidebar. Keyboard shortcut: Option-Command-S.")
-        .help("Toggle sidebar (⌥⌘S)")
-    }
-
-    private var themeButton: some View {
-        Button {
-            themeManager.cycle()
-        } label: {
-            Group {
-                if isDark {
-                    DarkThemeIcon(lineWidth: 1.5)
-                } else {
-                    LightThemeIcon(lineWidth: 1.5)
-                }
-            }
-            .foregroundStyle(muted)
-            .frame(width: 16, height: 16)
-            .frame(width: 28, height: 28)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("current-theme-icon")
-        .accessibilityLabel(isDark ? "Switch to Light" : "Switch to Dark")
-        .accessibilityHint("Toggles Light and Dark. Keyboard shortcuts: Shift-Command-L and Shift-Command-D.")
-        .help(isDark ? "Switch to Light" : "Switch to Dark")
+        .accessibilityIdentifier(identifier)
+        .accessibilityLabel(label)
+        .accessibilityHint(hint)
+        .help(help)
     }
 }
 
-extension View {
-    /// Pins toolbar items to the resolved scheme and drops implicit animation so
-    /// wells / icons snap with the window instead of interpolating a beat later.
-    fileprivate func immediateToolbarChrome(isDark: Bool) -> some View {
-        self
-            .environment(\.colorScheme, isDark ? .dark : .light)
-            .transaction { $0.animation = nil }
+private struct GlyphToolbarItem<Label: View>: ToolbarContent {
+    var placement: ToolbarItemPlacement
+    @ViewBuilder var label: () -> Label
+
+    var body: some ToolbarContent {
+        if #available(macOS 26.0, *) {
+            ToolbarItem(placement: placement) {
+                label()
+            }
+            .sharedBackgroundVisibility(.hidden)
+        } else {
+            ToolbarItem(placement: placement) {
+                label()
+            }
+        }
     }
 }
 
@@ -100,16 +140,13 @@ struct ContentView: View {
                 editorColumn
             }
         }
-        .background(Color(nsColor: AppTheme.Color.background))
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(nsColor: AppTheme.Color.background))
         .tint(.supersimpleAccent)
-        .background(WindowChrome(title: windowTitle))
+        .toolbar { TopBar(model: model, isDark: isDark) }
         .toolbarBackground(AppTheme.backgroundColor(isDark: isDark), for: .windowToolbar)
-        .toolbarColorScheme(isDark ? .dark : .light, for: .windowToolbar)
+        .background(WindowChrome(title: windowTitle))
         .animation(nil, value: themeManager.preference)
-        .toolbar {
-            TopBar(model: model, isDark: isDark)
-        }
         .onAppear {
             if appLaunchTask == nil {
                 appLaunchTask = Task { await model.bootstrap() }
@@ -195,9 +232,6 @@ struct AppCommands: Commands {
         }
         CommandGroup(after: .pasteboard) {
             Button("Delete Note") {
-                // The editor consumes ⌘⌫ itself (delete current line). Skip when
-                // any text input is first responder so a search-field ⌘⌫ cannot
-                // delete the open note either.
                 if let first = NSApp.keyWindow?.firstResponder, first is NSText {
                     return
                 }

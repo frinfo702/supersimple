@@ -296,6 +296,12 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
         subscribeToFaviconNotification()
     }
 
+    /// SwiftUI recreates the representable's Binding each update. The coordinator
+    /// must adopt it or later keystrokes write into a stale Binding.
+    func adoptTextBinding(_ binding: Binding<String>) {
+        _text = binding
+    }
+
     /// (Re)register the syntax-highlighter appearance observer; idempotent and unsubscribes on nil.
     private func subscribeToAppearanceNotification() {
         let target = configuration.services.syntaxHighlighter.appearanceDidChangeNotification

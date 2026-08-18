@@ -22,6 +22,9 @@ struct WindowChrome: NSViewRepresentable {
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
             apply()
+            DispatchQueue.main.async { [weak self] in
+                self?.stripToolbarItemChrome()
+            }
         }
 
         func apply() {
@@ -34,6 +37,13 @@ struct WindowChrome: NSViewRepresentable {
             window.isMovableByWindowBackground = true
             window.toolbarStyle = .unified
             window.animations["appearance"] = NSNull()
+            stripToolbarItemChrome()
+        }
+
+        func stripToolbarItemChrome() {
+            for item in window?.toolbar?.items ?? [] {
+                item.isBordered = false
+            }
         }
     }
 }

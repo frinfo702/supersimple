@@ -59,6 +59,46 @@ struct AppModelTests {
         #expect(model2.notes.first?.body.contains("Some body") == true)
     }
 
+    @Test("Shutdown persists a dirty edit without waiting for autosave")
+    func shutdownPersistsDirtyEdit() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+
+        await model.bootstrap()
+        let id = try #require(model.currentNoteID)
+        model.noteBodyEdited("# Keep me\nThis must survive quit.", for: id)
+        model.shutdown()
+
+        let (model2, cleanup2) = try makeModel(in: dir)
+        defer { cleanup2() }
+        await model2.bootstrap()
+        #expect(model2.notes.first?.body.contains("This must survive quit.") == true)
+    }
+
+    @Test("Switching notes persists the outgoing body immediately")
+    func createNotePersistsPreviousBody() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+
+        await model.bootstrap()
+        let firstID = try #require(model.currentNoteID)
+        model.noteBodyEdited("# First\nDo not drop this.", for: firstID)
+        model.createNote()
+
+        let (model2, cleanup2) = try makeModel(in: dir)
+        defer { cleanup2() }
+        await model2.bootstrap()
+        #expect(model2.notes.contains { $0.id == firstID && $0.body.contains("Do not drop this.") })
+    }
+
     @Test("New note action creates and selects a fresh note")
     func createActionSelectsFreshNote() async throws {
         let dir = try makeTempDir()

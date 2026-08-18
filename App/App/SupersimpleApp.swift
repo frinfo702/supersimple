@@ -16,9 +16,12 @@ struct SupersimpleApp: App {
                 .preferredColorScheme(themeManager.preference.colorScheme)
                 .animation(nil, value: themeManager.preference)
                 .frame(minWidth: 900, minHeight: 560)
-                .task {
-                    await model.bootstrap()
+                .onAppear {
                     appDelegate.model = model
+                }
+                .task {
+                    appDelegate.model = model
+                    await model.bootstrap()
                 }
         }
         .windowStyle(.hiddenTitleBar)
@@ -35,6 +38,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     /// Weak reference set by the app so termination can flush edits even when no
     /// window/view is alive anymore.
     weak var model: AppModel?
+
+    func applicationWillResignActive(_ notification: Notification) {
+        model?.flushNow()
+    }
 
     func applicationWillTerminate(_ notification: Notification) {
         model?.shutdown()

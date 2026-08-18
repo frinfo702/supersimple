@@ -78,14 +78,14 @@ final class AppModel {
     /// - Parameters:
     ///   - notesDirectoryOverride: Redirects the notes directory (used by tests).
     ///   - appSupportURLOverride: Redirects the search DB location (used by tests).
-    ///   - userDefaults: Isolated defaults. Defaults to a suite scoped to the app so
-    ///     offline/CI runs never touch the environment's real preferences.
+    ///   - userDefaults: Isolated defaults for tests. Production uses `.standard`
+    ///     so last-note / sidebar state actually reach disk.
     init(
         notesDirectoryOverride: URL? = nil,
         appSupportURLOverride: URL? = nil,
         userDefaults: UserDefaults? = nil
     ) {
-        self.userDefaults = userDefaults ?? UserDefaults(suiteName: "com.frinfo702.supersimple") ?? .standard
+        self.userDefaults = userDefaults ?? .standard
         sidebarVisible = self.userDefaults.object(forKey: "sidebarVisible") as? Bool ?? true
         if let storedWidth = self.userDefaults.object(forKey: "sidebarWidth") as? Double {
             sidebarWidth = Self.clampSidebarWidth(CGFloat(storedWidth))
@@ -407,20 +407,24 @@ final class AppModel {
         fileManager.fileURL(for: id, notesDirectory: notesDirectory)
     }
 
-    /// Persists a note. Returns `true` only when both the file write and the index
-    /// update succeeded. The empty-case (no file) is treated as success.
+    /// Persists a note. Returns `true` when the file write succeeded. A search
+    /// index failure is logged but does not discard the document on disk.
     @discardableResult
     func persist(_ note: Note) -> Bool {
         let doc = FrontmatterCodec.document(note: note)
         guard let url = fileURL(for: note.id) else { return true }
         do {
             try fileManager.write(doc.fullText, to: url)
-            try searchIndex?.upsert(note: note)
-            return true
         } catch {
             Self.log.error("Failed to persist note \(note.id): \(error.localizedDescription, privacy: .public)")
             return false
         }
+        do {
+            try searchIndex?.upsert(note: note)
+        } catch {
+            Self.log.error("Search index update failed for \(note.id): \(error.localizedDescription, privacy: .public)")
+        }
+        return true
     }
 
     /// Immediate, unconditional persistence regardless of dirty flag (used by ⌘S and

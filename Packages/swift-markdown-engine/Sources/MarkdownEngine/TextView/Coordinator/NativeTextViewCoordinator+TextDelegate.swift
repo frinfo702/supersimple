@@ -79,11 +79,8 @@ extension NativeTextViewCoordinator {
         if configuration.rawSourceMode {
             guard !tv.hasMarkedText() else { return }
             if tv.string != lastSyncedText {
-                let rawText = tv.string
-                DispatchQueue.main.async {
-                    self.lastSyncedText = rawText
-                    self.text = rawText
-                }
+                lastSyncedText = tv.string
+                text = lastSyncedText
             }
             if let bottomTextView = tv as? NativeTextView,
                let scrollView = tv.enclosingScrollView {
@@ -173,11 +170,9 @@ extension NativeTextViewCoordinator {
                        "wiki incremental splice diverged from full rebuild")
             }
 #endif
-            if storageState.storage != self.lastSyncedText {
-                DispatchQueue.main.async {
-                    self.lastSyncedText = storageState.storage
-                    self.text = storageState.storage
-                }
+            if storageState.storage != lastSyncedText {
+                lastSyncedText = storageState.storage
+                text = lastSyncedText
             }
         }
 
