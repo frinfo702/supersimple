@@ -45,6 +45,9 @@ jobs:
         run: brew install xcodegen
 
       - name: Build official Release app
+        env:
+          MARKETING_VERSION: ${{ steps.meta.outputs.version }}
+          CURRENT_PROJECT_VERSION: ${{ github.run_number }}
         run: ./Scripts/build.sh release
 
       - name: Package .app as zip

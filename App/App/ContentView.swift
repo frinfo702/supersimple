@@ -9,6 +9,7 @@ struct TopBar: ToolbarContent {
     @Bindable var model: AppModel
     var isDark: Bool
     @Environment(ThemeManager.self) private var themeManager
+    @Environment(AppUpdater.self) private var updater
 
     private var muted: Color { AppTheme.mutedColor(isDark: isDark) }
 
@@ -70,6 +71,21 @@ struct TopBar: ToolbarContent {
                 }
             } action: {
                 themeManager.cycle()
+            }
+        }
+        if updater.availableUpdateVersion != nil {
+            GlyphToolbarItem(placement: .confirmationAction) {
+                Button("Update") {
+                    model.flushNow()
+                    updater.installAndRelaunch()
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(muted)
+                .font(.system(size: 13, weight: .medium))
+                .accessibilityIdentifier("update-app-button")
+                .accessibilityLabel("Update")
+                .accessibilityHint("Restarts supersimple to install the downloaded update.")
+                .help("Install update and restart")
             }
         }
     }

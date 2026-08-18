@@ -17,6 +17,7 @@ SOURCES=(
   "$ROOT/Packages/SupersimpleCore/Sources"
   "$ROOT/Packages/SupersimpleCore/Tests"
   "$ROOT/App"
+  "$ROOT/Updater"
   "$ROOT/supersimpleTests"
   "$ROOT/supersimpleUITests"
 )

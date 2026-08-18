@@ -11,6 +11,13 @@ final class SupersimpleUITests: XCTestCase {
         continueAfterFailure = false
     }
 
+    private func launchedApp() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchEnvironment["SUPERSIMPLE_DISABLE_UPDATES"] = "1"
+        app.launch()
+        return app
+    }
+
     private var repoRoot: URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()  // supersimpleUITests
@@ -25,15 +32,13 @@ final class SupersimpleUITests: XCTestCase {
 
     @MainActor
     func testAppLaunches() throws {
-        let app = XCUIApplication()
-        app.launch()
+        let app = launchedApp()
         XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 5))
     }
 
     @MainActor
     func testSidebarAndEditorHaveExpectedFrames() throws {
-        let app = XCUIApplication()
-        app.launch()
+        let app = launchedApp()
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 5))
 
@@ -55,8 +60,7 @@ final class SupersimpleUITests: XCTestCase {
 
     @MainActor
     func testCreateNoteViaSidebarButton() throws {
-        let app = XCUIApplication()
-        app.launch()
+        let app = launchedApp()
         let newNoteButton = app.buttons["new-note-button"]
         XCTAssertTrue(newNoteButton.waitForExistence(timeout: 5))
         XCTAssertTrue(newNoteButton.isEnabled)
@@ -66,8 +70,7 @@ final class SupersimpleUITests: XCTestCase {
 
     @MainActor
     func testSidebarToggleButtonExists() throws {
-        let app = XCUIApplication()
-        app.launch()
+        let app = launchedApp()
         let toggle = app.buttons["toggle-sidebar-button"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         XCTAssertTrue(toggle.isEnabled)
@@ -75,8 +78,7 @@ final class SupersimpleUITests: XCTestCase {
 
     @MainActor
     func testToolbarActionsExist() throws {
-        let app = XCUIApplication()
-        app.launch()
+        let app = launchedApp()
         XCTAssertTrue(app.buttons["toggle-sidebar-button"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["new-note-button"].exists)
         XCTAssertTrue(app.buttons["sidebar-search-button"].exists)
@@ -89,8 +91,7 @@ final class SupersimpleUITests: XCTestCase {
 
     @MainActor
     func testSearchButtonRevealsSearchField() throws {
-        let app = XCUIApplication()
-        app.launch()
+        let app = launchedApp()
         let searchButton = app.buttons["sidebar-search-button"]
         XCTAssertTrue(searchButton.waitForExistence(timeout: 5))
         searchButton.click()
@@ -100,8 +101,7 @@ final class SupersimpleUITests: XCTestCase {
 
     @MainActor
     func testChromeSearchAppearsWhenSidebarHidden() throws {
-        let app = XCUIApplication()
-        app.launch()
+        let app = launchedApp()
         let toggle = app.buttons["toggle-sidebar-button"]
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         toggle.click()
@@ -113,8 +113,7 @@ final class SupersimpleUITests: XCTestCase {
 
     @MainActor
     func testCaptureWindowScreenshot() throws {
-        let app = XCUIApplication()
-        app.launch()
+        let app = launchedApp()
         let window = app.windows.firstMatch
         XCTAssertTrue(window.waitForExistence(timeout: 5))
         Thread.sleep(forTimeInterval: 1.5)

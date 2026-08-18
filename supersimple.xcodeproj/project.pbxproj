@@ -17,13 +17,17 @@
 		4AAB69C0B7C1120587B9150C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA4917AA8AFCFD7E1E952AD /* ContentView.swift */; };
 		56CE689B1FBE96551A47030B /* MarkdownEngine in Frameworks */ = {isa = PBXBuildFile; productRef = F63F4B23BF2EB69355738DE1 /* MarkdownEngine */; };
 		62A6EBB69ADEB23FFD352AF4 /* MarkdownEngineLatex in Frameworks */ = {isa = PBXBuildFile; productRef = 574E0DC4D79106D424F96D2F /* MarkdownEngineLatex */; };
+		8A333A14EFBD621403AD3640 /* SupersimpleUpdater.app in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = D422B2FA546462BD6941BF2A /* SupersimpleUpdater.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		8DB20AA1ED612D1DE0B527A1 /* GeistMono.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1A8A5098809F4EF931DED0F4 /* GeistMono.ttf */; };
 		9164CAE29549E33199E4DE8E /* ThemeCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */; };
 		970E53D34EEA43F5A8288D81 /* WindowChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D52CF398C51C27B1282D75C /* WindowChrome.swift */; };
+		9CD355F5F13E815A054F4E5D /* SupersimpleUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC02340F436B5F0721F130D1 /* SupersimpleUpdater.swift */; };
 		9D3307BB19BF5568C5B7F868 /* SupersimpleCore in Frameworks */ = {isa = PBXBuildFile; productRef = AD01F469D880EDEF7D47834E /* SupersimpleCore */; };
+		A25CBCCDB8F32192852B8D96 /* AppUpdaterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B5590BE343F38F278F31CC5 /* AppUpdaterTests.swift */; };
 		A7DDEE8CC9C8D519FDAD555A /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637D22A7341BBADF047DF9F6 /* AppModelTests.swift */; };
 		A965689EF507898F3E2EF21B /* SupersimpleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */; };
 		B2ED1BBFE2D902D3D9500E9C /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62BC1A8D2178CDBFA86142BB /* AppTheme.swift */; };
+		B406A05B88773A7F065CEB6A /* AppUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29AC3EE0C4D902C22D99F38F /* AppUpdater.swift */; };
 		BF31B866A8162104F210E0F5 /* FaviconService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E44268CB09A660B95EBCA712 /* FaviconService.swift */; };
 		C794FA9B0F44F271C5313763 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FF15FA9B631FA47690BF74A /* AppModel.swift */; };
 		E836B0648BB415F0B0B67B07 /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47DE2CE54F87F1D7E7C3DA3 /* EditorView.swift */; };
@@ -40,6 +44,13 @@
 			remoteGlobalIDString = A8314F48305C160A10D0B585;
 			remoteInfo = supersimple;
 		};
+		38DAA57FAB3BE64512E8F105 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2ADA5AA47968FEA21125CD27 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 0D1A73725004A6D350363C64;
+			remoteInfo = SupersimpleUpdater;
+		};
 		8B7101DD345A391C4E522B71 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 2ADA5AA47968FEA21125CD27 /* Project object */;
@@ -49,10 +60,25 @@
 		};
 /* End PBXContainerItemProxy section */
 
+/* Begin PBXCopyFilesBuildPhase section */
+		38179952C4CE9FB77FA6CAE1 /* Embed Dependencies */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				8A333A14EFBD621403AD3640 /* SupersimpleUpdater.app in Embed Dependencies */,
+			);
+			name = "Embed Dependencies";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
 		07908A4E24E57D67ACB88BE5 /* supersimple.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = supersimple.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		08C3404FB831A9B8678E717D /* Supersimple.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Supersimple.entitlements; sourceTree = "<group>"; };
 		1A8A5098809F4EF931DED0F4 /* GeistMono.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = GeistMono.ttf; sourceTree = "<group>"; };
+		29AC3EE0C4D902C22D99F38F /* AppUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdater.swift; sourceTree = "<group>"; };
 		2D52CF398C51C27B1282D75C /* WindowChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowChrome.swift; sourceTree = "<group>"; };
 		2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersimpleApp.swift; sourceTree = "<group>"; };
 		36777A37D6601ACFD8813534 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -70,13 +96,16 @@
 		8C3B6C8592BA4AB3F51AB499 /* supersimpleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8C3C369BC4DD2868AD5632C0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		906F2D47A23E7FDAA0E1A35E /* ImageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageStore.swift; sourceTree = "<group>"; };
+		9B5590BE343F38F278F31CC5 /* AppUpdaterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdaterTests.swift; sourceTree = "<group>"; };
 		B47DE2CE54F87F1D7E7C3DA3 /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
 		C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeCommands.swift; sourceTree = "<group>"; };
+		D422B2FA546462BD6941BF2A /* SupersimpleUpdater.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SupersimpleUpdater.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E44268CB09A660B95EBCA712 /* FaviconService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaviconService.swift; sourceTree = "<group>"; };
 		E52E7AD4D9C61D126880708B /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
+		EC02340F436B5F0721F130D1 /* SupersimpleUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersimpleUpdater.swift; sourceTree = "<group>"; };
 		F40B77214A55275DF8977211 /* NoteRecencyGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteRecencyGroup.swift; sourceTree = "<group>"; };
 		FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		"TEMP_3359A59D-88B5-4CDC-A726-3E7A0CD0621F" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
+		"TEMP_7128647D-436E-432A-972E-7CC8D90D4168" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -125,6 +154,7 @@
 				B2FD5E95FD6D7E22DE5D3E7E /* Packages */,
 				92715D2A3F7BF3A49EDFB448 /* supersimpleTests */,
 				1C3A3F8E1EA7085FECFAE595 /* supersimpleUITests */,
+				C8037969BD4211FB4045163B /* Updater */,
 				A90DC1E63A385BE99EBD0880 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -176,6 +206,7 @@
 			isa = PBXGroup;
 			children = (
 				637D22A7341BBADF047DF9F6 /* AppModelTests.swift */,
+				9B5590BE343F38F278F31CC5 /* AppUpdaterTests.swift */,
 			);
 			path = supersimpleTests;
 			sourceTree = "<group>";
@@ -193,6 +224,7 @@
 			isa = PBXGroup;
 			children = (
 				3FF15FA9B631FA47690BF74A /* AppModel.swift */,
+				29AC3EE0C4D902C22D99F38F /* AppUpdater.swift */,
 				3FA4917AA8AFCFD7E1E952AD /* ContentView.swift */,
 				E44268CB09A660B95EBCA712 /* FaviconService.swift */,
 				906F2D47A23E7FDAA0E1A35E /* ImageStore.swift */,
@@ -217,6 +249,7 @@
 				07908A4E24E57D67ACB88BE5 /* supersimple.app */,
 				FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */,
 				8C3B6C8592BA4AB3F51AB499 /* supersimpleUITests.xctest */,
+				D422B2FA546462BD6941BF2A /* SupersimpleUpdater.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -228,6 +261,14 @@
 				E52E7AD4D9C61D126880708B /* swift-markdown-engine */,
 			);
 			path = Packages;
+			sourceTree = "<group>";
+		};
+		C8037969BD4211FB4045163B /* Updater */ = {
+			isa = PBXGroup;
+			children = (
+				EC02340F436B5F0721F130D1 /* SupersimpleUpdater.swift */,
+			);
+			path = Updater;
 			sourceTree = "<group>";
 		};
 		CE90F7F9A6F4BB3A2AC3D206 /* App */ = {
@@ -256,6 +297,23 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		0D1A73725004A6D350363C64 /* SupersimpleUpdater */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 0B6DC6447F8225E4F1FAA37B /* Build configuration list for PBXNativeTarget "SupersimpleUpdater" */;
+			buildPhases = (
+				B032D915D0CE1C5885976EB3 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = SupersimpleUpdater;
+			packageProductDependencies = (
+			);
+			productName = SupersimpleUpdater;
+			productReference = D422B2FA546462BD6941BF2A /* SupersimpleUpdater.app */;
+			productType = "com.apple.product-type.application";
+		};
 		A8314F48305C160A10D0B585 /* supersimple */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 3A810BF3EE4967F8719DF5BD /* Build configuration list for PBXNativeTarget "supersimple" */;
@@ -263,10 +321,12 @@
 				EF3D82A651AB8F6D16539EDE /* Sources */,
 				61383E6418B8381D17C1B946 /* Resources */,
 				BA1CF05D0A646E0F65E71518 /* Frameworks */,
+				38179952C4CE9FB77FA6CAE1 /* Embed Dependencies */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				FD4482A5F105B226DE64A21B /* PBXTargetDependency */,
 			);
 			name = supersimple;
 			packageProductDependencies = (
@@ -325,6 +385,10 @@
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1430;
 				TargetAttributes = {
+					0D1A73725004A6D350363C64 = {
+						DevelopmentTeam = "";
+						ProvisioningStyle = Manual;
+					};
 					A8314F48305C160A10D0B585 = {
 						DevelopmentTeam = "";
 						ProvisioningStyle = Automatic;
@@ -360,6 +424,7 @@
 			projectRoot = "";
 			targets = (
 				A8314F48305C160A10D0B585 /* supersimple */,
+				0D1A73725004A6D350363C64 /* SupersimpleUpdater */,
 				EC73FD558A6A652EFD7DFC85 /* supersimpleTests */,
 				EB7ED5609E382D3600302ADE /* supersimpleUITests */,
 			);
@@ -384,6 +449,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				A7DDEE8CC9C8D519FDAD555A /* AppModelTests.swift in Sources */,
+				A25CBCCDB8F32192852B8D96 /* AppUpdaterTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -395,12 +461,21 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		B032D915D0CE1C5885976EB3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				9CD355F5F13E815A054F4E5D /* SupersimpleUpdater.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		EF3D82A651AB8F6D16539EDE /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				C794FA9B0F44F271C5313763 /* AppModel.swift in Sources */,
 				B2ED1BBFE2D902D3D9500E9C /* AppTheme.swift in Sources */,
+				B406A05B88773A7F065CEB6A /* AppUpdater.swift in Sources */,
 				4AAB69C0B7C1120587B9150C /* ContentView.swift in Sources */,
 				E836B0648BB415F0B0B67B07 /* EditorView.swift in Sources */,
 				BF31B866A8162104F210E0F5 /* FaviconService.swift in Sources */,
@@ -429,6 +504,11 @@
 			isa = PBXTargetDependency;
 			target = A8314F48305C160A10D0B585 /* supersimple */;
 			targetProxy = 8B7101DD345A391C4E522B71 /* PBXContainerItemProxy */;
+		};
+		FD4482A5F105B226DE64A21B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 0D1A73725004A6D350363C64 /* SupersimpleUpdater */;
+			targetProxy = 38DAA57FAB3BE64512E8F105 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -482,6 +562,30 @@
 				TEST_TARGET_NAME = supersimple;
 			};
 			name = Release;
+		};
+		3662D5CF2DC5B2A0A6AC92BB /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_DEBUG_DYLIB = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = SupersimpleUpdater;
+				INFOPLIST_KEY_LSBackgroundOnly = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.frinfo702.supersimple.updater;
+				PRODUCT_NAME = SupersimpleUpdater;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Debug;
 		};
 		3E3CB88C6B458E4A71140364 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -645,6 +749,30 @@
 			};
 			name = Release;
 		};
+		E4EEE0D5E101EBD24D22C51A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_DEBUG_DYLIB = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = SupersimpleUpdater;
+				INFOPLIST_KEY_LSBackgroundOnly = YES;
+				INFOPLIST_KEY_LSUIElement = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.frinfo702.supersimple.updater;
+				PRODUCT_NAME = SupersimpleUpdater;
+				SDKROOT = macosx;
+				SKIP_INSTALL = YES;
+			};
+			name = Release;
+		};
 		E7BBFA065B6BED7F68310BCB /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -665,6 +793,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		0B6DC6447F8225E4F1FAA37B /* Build configuration list for PBXNativeTarget "SupersimpleUpdater" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3662D5CF2DC5B2A0A6AC92BB /* Debug */,
+				E4EEE0D5E101EBD24D22C51A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 		156FD2C788A6172EE183C585 /* Build configuration list for PBXNativeTarget "supersimpleUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
