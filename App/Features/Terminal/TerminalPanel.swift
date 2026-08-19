@@ -18,6 +18,7 @@ struct TerminalPanel: View {
             SplitResizeHandle(value: $height, hairline: palette.hairline, axis: .topHeight)
                 .frame(maxWidth: .infinity)
                 .frame(height: 6)
+                .contentShape(Rectangle())
                 .accessibilityIdentifier("terminal-resize-handle")
                 .accessibilityLabel("Resize terminal")
                 .accessibilityAddTraits(.isButton)

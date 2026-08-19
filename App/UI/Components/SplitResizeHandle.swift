@@ -30,6 +30,7 @@ struct SplitResizeHandle: NSViewRepresentable {
         context.coordinator.axis = axis
         view.coordinator = context.coordinator
         view.hairlineColor = NSColor(hairline)
+        view.window?.invalidateCursorRects(for: view)
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: HandleView, context: Context) -> CGSize {
@@ -57,7 +58,18 @@ struct SplitResizeHandle: NSViewRepresentable {
             didSet { needsDisplay = true }
         }
 
+        private var trackingArea: NSTrackingArea?
+
         override var mouseDownCanMoveWindow: Bool { false }
+
+        private var resizeCursor: NSCursor {
+            switch coordinator?.axis {
+            case .leadingWidth:
+                .resizeLeftRight
+            case .topHeight, .none:
+                .resizeUpDown
+            }
+        }
 
         override init(frame frameRect: NSRect) {
             super.init(frame: frameRect)
@@ -81,25 +93,68 @@ struct SplitResizeHandle: NSViewRepresentable {
             }
         }
 
-        override func resetCursorRects() {
-            switch coordinator?.axis {
-            case .leadingWidth:
-                addCursorRect(bounds, cursor: .resizeLeftRight)
-            case .topHeight, .none:
-                addCursorRect(bounds, cursor: .resizeUpDown)
+        override func updateTrackingAreas() {
+            super.updateTrackingAreas()
+            if let trackingArea {
+                removeTrackingArea(trackingArea)
             }
+            // Cursor rects often never register inside SwiftUI's representable
+            // host, so the editor I-beam sticks when the pointer crosses onto
+            // this handle. Assert the resize cursor on enter/move ourselves.
+            let area = NSTrackingArea(
+                rect: bounds,
+                options: [
+                    .mouseEnteredAndExited,
+                    .mouseMoved,
+                    .cursorUpdate,
+                    .activeAlways,
+                    .inVisibleRect,
+                ],
+                owner: self,
+                userInfo: nil
+            )
+            trackingArea = area
+            addTrackingArea(area)
+        }
+
+        override func resetCursorRects() {
+            addCursorRect(bounds, cursor: resizeCursor)
+        }
+
+        override func cursorUpdate(with event: NSEvent) {
+            resizeCursor.set()
+        }
+
+        override func mouseEntered(with event: NSEvent) {
+            resizeCursor.set()
+        }
+
+        override func mouseMoved(with event: NSEvent) {
+            resizeCursor.set()
+        }
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            window?.invalidateCursorRects(for: self)
+        }
+
+        override func setFrameSize(_ newSize: NSSize) {
+            super.setFrameSize(newSize)
+            window?.invalidateCursorRects(for: self)
         }
 
         override func mouseDown(with event: NSEvent) {
             guard let window, let coordinator else { return }
             let start = event.locationInWindow
             let startValue = coordinator.value.wrappedValue
+            resizeCursor.set()
 
             while true {
                 guard let next = window.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) else {
                     break
                 }
                 if next.type == .leftMouseUp { break }
+                resizeCursor.set()
                 switch coordinator.axis {
                 case .leadingWidth:
                     coordinator.value.wrappedValue = startValue + (next.locationInWindow.x - start.x)
