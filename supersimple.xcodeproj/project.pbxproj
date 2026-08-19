@@ -132,7 +132,7 @@
 		F40B77214A55275DF8977211 /* NoteRecencyGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteRecencyGroup.swift; sourceTree = "<group>"; };
 		F7D79E6663399201E241CD4C /* AppearanceSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsTests.swift; sourceTree = "<group>"; };
 		FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		"TEMP_E247ADAF-C659-4FA0-9A41-719F7AE99AC2" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
+		"TEMP_E7B942B3-BBA9-4A20-B04A-72582F497C80" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */

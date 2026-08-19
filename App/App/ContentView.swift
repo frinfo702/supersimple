@@ -179,6 +179,9 @@ struct ContentView: View {
             if appLaunchTask == nil {
                 appLaunchTask = Task { await model.bootstrap() }
             }
+            terminalSession.installToggleShortcut {
+                model.toggleTerminal()
+            }
             if model.terminalVisible {
                 terminalSession.prepare()
             }
