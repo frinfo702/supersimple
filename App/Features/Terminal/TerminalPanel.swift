@@ -5,24 +5,23 @@ import SwiftUI
 /// Bottom-docked libghostty surface under the editor. Chrome is a hairline drag
 /// handle; the emulator itself is an unmodified system login shell.
 struct TerminalPanel: View {
-    @ObservedObject var context: TerminalViewState
+    @ObservedObject var session: TerminalSession
     @Binding var height: CGFloat
     var visible: Bool
     var focusToken: UInt
     var palette: PaletteColors
 
-    @FocusState private var focused: Bool
+    @Environment(\.colorScheme) private var colorScheme
 
     var body: some View {
         VStack(spacing: 0) {
-            TerminalResizeHandle(height: $height, hairline: palette.hairline)
+            SplitResizeHandle(value: $height, hairline: palette.hairline, axis: .topHeight)
                 .frame(maxWidth: .infinity)
                 .frame(height: 6)
                 .accessibilityIdentifier("terminal-resize-handle")
                 .accessibilityLabel("Resize terminal")
                 .accessibilityAddTraits(.isButton)
-            TerminalSurfaceView(context: context)
-                .terminalFocused($focused)
+            HostedTerminalSurface(session: session)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .accessibilityIdentifier("terminal-surface")
                 .accessibilityLabel("Terminal")
@@ -31,93 +30,72 @@ struct TerminalPanel: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("terminal-panel")
         .onAppear {
-            if visible { focused = true }
+            session.context?.adopt(colorScheme: colorScheme)
+            focusTerminalIfNeeded()
+        }
+        .onChange(of: colorScheme) { _, scheme in
+            session.context?.adopt(colorScheme: scheme)
         }
         .onChange(of: focusToken) { _, _ in
-            if visible { focused = true }
+            focusTerminalIfNeeded()
+        }
+    }
+
+    private func focusTerminalIfNeeded() {
+        guard visible, let view = session.terminalView else { return }
+        DispatchQueue.main.async {
+            view.window?.makeFirstResponder(view)
         }
     }
 }
 
-/// AppKit handle so a drag resizes the panel instead of moving the window.
-/// (`isMovableByWindowBackground` treats SwiftUI `DragGesture` as a window drag.)
-private struct TerminalResizeHandle: NSViewRepresentable {
-    @Binding var height: CGFloat
-    var hairline: Color
+/// Embeds `TerminalSession.terminalView` without taking ownership, so SwiftUI
+/// can rebuild the representable (sidebar toggle) without killing the PTY.
+private struct HostedTerminalSurface: NSViewRepresentable {
+    var session: TerminalSession
 
-    func makeCoordinator() -> Coordinator {
-        Coordinator(height: $height)
+    func makeNSView(context: Context) -> TerminalHostView {
+        let host = TerminalHostView()
+        host.attach(session.terminalView)
+        return host
     }
 
-    func makeNSView(context: Context) -> HandleView {
-        let view = HandleView()
-        view.coordinator = context.coordinator
-        return view
+    func updateNSView(_ host: TerminalHostView, context: Context) {
+        host.attach(session.terminalView)
     }
 
-    func updateNSView(_ view: HandleView, context: Context) {
-        context.coordinator.height = $height
-        view.coordinator = context.coordinator
-        view.hairlineColor = NSColor(hairline)
+    static func dismantleNSView(_ host: TerminalHostView, coordinator: ()) {
+        host.detachIfAttached()
+    }
+}
+
+private final class TerminalHostView: NSView {
+    private(set) weak var terminal: TerminalView?
+
+    override var mouseDownCanMoveWindow: Bool { false }
+
+    override func layout() {
+        super.layout()
+        terminal?.frame = bounds
+        if bounds.width > 0, bounds.height > 0 {
+            terminal?.fitToSize()
+        }
     }
 
-    func sizeThatFits(_ proposal: ProposedViewSize, nsView: HandleView, context: Context) -> CGSize {
-        CGSize(width: proposal.width ?? nsView.bounds.width, height: 6)
+    func attach(_ view: TerminalView?) {
+        guard let view else { return }
+        if view.superview !== self {
+            view.removeFromSuperview()
+            addSubview(view)
+        }
+        terminal = view
+        view.frame = bounds
+        view.autoresizingMask = [.width, .height]
     }
 
-    final class Coordinator {
-        var height: Binding<CGFloat>
-
-        init(height: Binding<CGFloat>) {
-            self.height = height
-        }
-    }
-
-    final class HandleView: NSView {
-        var coordinator: Coordinator?
-        var hairlineColor: NSColor = .separatorColor {
-            didSet { needsDisplay = true }
-        }
-
-        override var mouseDownCanMoveWindow: Bool { false }
-
-        override init(frame frameRect: NSRect) {
-            super.init(frame: frameRect)
-            wantsLayer = true
-        }
-
-        required init?(coder: NSCoder) {
-            nil
-        }
-
-        override var intrinsicContentSize: NSSize {
-            NSSize(width: NSView.noIntrinsicMetric, height: 6)
-        }
-
-        override func draw(_ dirtyRect: NSRect) {
-            hairlineColor.setFill()
-            let lineHeight = AppTheme.Metric.hairlineWidth
-            let y = ((bounds.height - lineHeight) / 2).rounded(.down)
-            NSRect(x: bounds.minX, y: y, width: bounds.width, height: lineHeight).fill()
-        }
-
-        override func resetCursorRects() {
-            addCursorRect(bounds, cursor: .resizeUpDown)
-        }
-
-        override func mouseDown(with event: NSEvent) {
-            guard let window else { return }
-            let startY = event.locationInWindow.y
-            let startHeight = coordinator?.height.wrappedValue ?? AppTheme.Metric.terminalHeight
-
-            while true {
-                guard let next = window.nextEvent(matching: [.leftMouseDragged, .leftMouseUp]) else {
-                    break
-                }
-                if next.type == .leftMouseUp { break }
-                // Window coords grow upward. Dragging the top handle up enlarges the panel.
-                coordinator?.height.wrappedValue = startHeight + (next.locationInWindow.y - startY)
-            }
-        }
+    func detachIfAttached() {
+        guard let terminal, terminal.superview === self else { return }
+        terminal.removeFromSuperview()
+        self.terminal = nil
     }
 }

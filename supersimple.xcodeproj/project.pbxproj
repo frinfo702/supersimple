@@ -35,6 +35,7 @@
 		A7DDEE8CC9C8D519FDAD555A /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637D22A7341BBADF047DF9F6 /* AppModelTests.swift */; };
 		A965689EF507898F3E2EF21B /* SupersimpleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */; };
 		B2ED1BBFE2D902D3D9500E9C /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62BC1A8D2178CDBFA86142BB /* AppTheme.swift */; };
+		B34DE7707FBD4A5D5F0F6261 /* SplitResizeHandle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0E36FED5D7F1ACC4B039FFE /* SplitResizeHandle.swift */; };
 		B406A05B88773A7F065CEB6A /* AppUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29AC3EE0C4D902C22D99F38F /* AppUpdater.swift */; };
 		B8CB4008CBF25485BF0588C5 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D9A159CD940CBFE79F8D818 /* SettingsView.swift */; };
 		BF31B866A8162104F210E0F5 /* FaviconService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E44268CB09A660B95EBCA712 /* FaviconService.swift */; };
@@ -127,10 +128,11 @@
 		E52E7AD4D9C61D126880708B /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 		EA3EE4C0A864F7BDB1B6908E /* SandboxContainerMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SandboxContainerMigration.swift; sourceTree = "<group>"; };
 		EC02340F436B5F0721F130D1 /* SupersimpleUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersimpleUpdater.swift; sourceTree = "<group>"; };
+		F0E36FED5D7F1ACC4B039FFE /* SplitResizeHandle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitResizeHandle.swift; sourceTree = "<group>"; };
 		F40B77214A55275DF8977211 /* NoteRecencyGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteRecencyGroup.swift; sourceTree = "<group>"; };
 		F7D79E6663399201E241CD4C /* AppearanceSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsTests.swift; sourceTree = "<group>"; };
 		FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		"TEMP_7C17042F-C0A4-400C-BE22-684D6962653F" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
+		"TEMP_E247ADAF-C659-4FA0-9A41-719F7AE99AC2" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -197,6 +199,7 @@
 		5F0D93FB680547A883B4F6F7 /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				F0E36FED5D7F1ACC4B039FFE /* SplitResizeHandle.swift */,
 				4E4E3A695A1A592C185A3819 /* SVGIcons.swift */,
 				2D52CF398C51C27B1282D75C /* WindowChrome.swift */,
 			);
@@ -551,6 +554,7 @@
 				97AF5F2F78AF0252CDE1B8EB /* SandboxContainerMigration.swift in Sources */,
 				B8CB4008CBF25485BF0588C5 /* SettingsView.swift in Sources */,
 				1DFA51B809AEC2578A5B24A0 /* SidebarView.swift in Sources */,
+				B34DE7707FBD4A5D5F0F6261 /* SplitResizeHandle.swift in Sources */,
 				A965689EF507898F3E2EF21B /* SupersimpleApp.swift in Sources */,
 				2EC7A7880B30F8247635FDD7 /* TerminalPanel.swift in Sources */,
 				C9F243FBE74F842975D10ED4 /* TerminalSession.swift in Sources */,

@@ -143,21 +143,28 @@ struct ContentView: View {
     private var palette: PaletteColors { themeManager.paletteColors(isDark: isDark) }
 
     var body: some View {
-        Group {
-            if model.sidebarVisible {
-                HSplitView {
-                    SidebarView(model: model)
-                        .frame(
-                            minWidth: AppTheme.Metric.sidebarMinWidth,
-                            idealWidth: model.sidebarWidth,
-                            maxWidth: AppTheme.Metric.sidebarMaxWidth
-                        )
-                        .background(sidebarWidthReader)
-                    editorColumn
-                }
-            } else {
-                editorColumn
-            }
+        @Bindable var bindableModel = model
+        HStack(spacing: 0) {
+            SidebarView(model: model)
+                .frame(width: model.sidebarVisible ? model.sidebarWidth : 0)
+                .frame(maxHeight: .infinity)
+                .clipped()
+                .opacity(model.sidebarVisible ? 1 : 0)
+                .allowsHitTesting(model.sidebarVisible)
+                .accessibilityHidden(!model.sidebarVisible)
+            SplitResizeHandle(
+                value: $bindableModel.sidebarWidth,
+                hairline: palette.hairline,
+                axis: .leadingWidth
+            )
+            .frame(width: model.sidebarVisible ? 6 : 0)
+            .frame(maxHeight: .infinity)
+            .allowsHitTesting(model.sidebarVisible)
+            .accessibilityHidden(!model.sidebarVisible)
+            .accessibilityIdentifier("sidebar-resize-handle")
+            .accessibilityLabel("Resize sidebar")
+            editorColumn
+                .id("editor-column")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
@@ -180,6 +187,14 @@ struct ContentView: View {
             if visible {
                 terminalSession.prepare()
             }
+        }
+        .onChange(of: model.sidebarVisible) { _, _ in
+            DispatchQueue.main.async {
+                terminalSession.refreshLayout()
+            }
+        }
+        .onChange(of: model.sidebarWidth) { _, _ in
+            terminalSession.refreshLayout()
         }
         .confirmationDialog(
             "Delete this note?",
@@ -225,9 +240,9 @@ struct ContentView: View {
     @ViewBuilder
     private var terminalStrip: some View {
         @Bindable var bindableModel = model
-        if let context = terminalSession.context {
+        if terminalSession.context != nil {
             TerminalPanel(
-                context: context,
+                session: terminalSession,
                 height: $bindableModel.terminalHeight,
                 visible: model.terminalVisible,
                 focusToken: model.terminalFocusToken,
@@ -238,29 +253,11 @@ struct ContentView: View {
             .opacity(model.terminalVisible ? 1 : 0)
             .allowsHitTesting(model.terminalVisible)
             .accessibilityHidden(!model.terminalVisible)
-            .id(ObjectIdentifier(context))
         }
     }
 
     private var windowTitle: String {
         model.currentNote()?.title ?? "supersimple"
-    }
-
-    private var sidebarWidthReader: some View {
-        GeometryReader { geo in
-            Color.clear.preference(key: SidebarWidthKey.self, value: geo.size.width)
-        }
-        .onPreferenceChange(SidebarWidthKey.self) { width in
-            guard width > 1, abs(width - model.sidebarWidth) > 1 else { return }
-            model.sidebarWidth = width
-        }
-    }
-}
-
-private struct SidebarWidthKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
     }
 }
 
