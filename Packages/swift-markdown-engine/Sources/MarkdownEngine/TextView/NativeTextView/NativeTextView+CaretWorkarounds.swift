@@ -65,7 +65,7 @@ extension NativeTextView {
         guard let r = layoutCaretSegmentRectInView(), r.height > 0,
               indicator.frame.height > r.height + 1 else { return }
         applyCaretFrame(indicator, rect: CGRect(
-            x: indicator.frame.origin.x, y: r.origin.y,
+            x: r.origin.x, y: r.origin.y,
             width: indicator.frame.width, height: r.height
         ))
     }
@@ -73,25 +73,51 @@ extension NativeTextView {
     /// TextKit 2 sizes `NSTextInsertionIndicator` to the line fragment, which includes
     /// `minimumLineHeight` extra leading. That extra sits *above* the em-box, so a
     /// top-aligned crop leaves the caret floating over the glyphs. Pin the em-box
-    /// to the line's typographic bottom; keep AppKit's X.
+    /// to the line's typographic bottom.
+    ///
+    /// X is taken from TextKit, not AppKit. This text view is a centered subview of
+    /// the document view (reading column); AppKit lays the indicator out as if we
+    /// were the document view, so a leftover or origin-shifted X lands outside the
+    /// column — empty notes and first layout after launch are the usual triggers.
     func snapInsertionIndicatorToGlyph(_ indicator: NSView) {
         let font = fontAtCaret() ?? baseFont
         let glyphHeight = ceil(max(0, font.ascender - font.descender))
         guard glyphHeight > 1 else { return }
         let current = indicator.frame
         let line = caretLineBoundsInView()
-        let boxHeight = min(glyphHeight, line?.height ?? current.height)
+        let layout = layoutCaretSegmentRectInView()
+        let boxHeight = min(glyphHeight, line?.height ?? layout?.height ?? current.height)
         guard boxHeight > 1 else { return }
         let y: CGFloat
         if let line, line.height > 1 {
             y = line.maxY - boxHeight
+        } else if let layout, layout.height > 1 {
+            y = layout.maxY - boxHeight
         } else {
             y = current.origin.y + max(0, current.height - boxHeight)
         }
+        let x = caretXInView(line: line, layout: layout)
         applyCaretFrame(indicator, rect: CGRect(
-            x: current.origin.x, y: y,
+            x: x, y: y,
             width: current.width, height: boxHeight
         ))
+    }
+
+    /// Column-local X: TextKit segment, else the line's leading edge, else the
+    /// text-container origin (empty docs before fragments exist).
+    private func caretXInView(line: CGRect?, layout: CGRect?) -> CGFloat {
+        let proposed: CGFloat
+        if let layout {
+            proposed = layout.origin.x
+        } else if let line {
+            proposed = line.origin.x
+        } else {
+            proposed = textContainerOrigin.x
+        }
+        let minX = textContainerOrigin.x
+        let columnWidth = textContainer?.size.width ?? bounds.width
+        let maxX = minX + max(columnWidth, 0)
+        return min(max(proposed, minX), maxX)
     }
 
     private func fontAtCaret() -> NSFont? {
@@ -118,6 +144,20 @@ extension NativeTextView {
                 y: origin.y + fragment.layoutFragmentFrame.origin.y + tb.origin.y,
                 width: max(tb.width, 1),
                 height: tb.height
+            )
+        }
+
+        if ns.length == 0 {
+            if let layout = layoutCaretSegmentRectInView(), layout.height > 1 {
+                return layout
+            }
+            let lineHeight = layoutBridgeDefaultLineHeight(for: baseFont, using: layoutBridge)
+                + configuration.paragraph.lineHeightExtraSpacing
+            return CGRect(
+                x: origin.x,
+                y: origin.y,
+                width: 1,
+                height: max(lineHeight, 1)
             )
         }
 
@@ -166,11 +206,22 @@ extension NativeTextView {
     private func layoutCaretSegmentRectInView() -> CGRect? {
         guard let tlm = textLayoutManager,
               let tcs = tlm.textContentManager as? NSTextContentStorage else { return nil }
-        let offset = min(selectedRange().location, max(0, (textStorage?.length ?? 1) - 1))
-        guard let docLoc = tcs.location(tcs.documentRange.location, offsetBy: offset) else { return nil }
+        let length = textStorage?.length ?? 0
+        let sel = selectedRange().location
+        let queryLoc: NSTextLocation?
+        if length == 0 || sel >= length {
+            _ = tlm.enumerateTextLayoutFragments(
+                from: tlm.documentRange.endLocation,
+                options: [.ensuresLayout, .ensuresExtraLineFragment]
+            ) { _ in false }
+            queryLoc = tlm.documentRange.endLocation
+        } else {
+            queryLoc = tcs.location(tcs.documentRange.location, offsetBy: sel)
+        }
+        guard let queryLoc else { return nil }
         var layoutRect: CGRect?
-        tlm.enumerateTextSegments(in: NSTextRange(location: docLoc), type: .standard, options: [.rangeNotRequired]) { _, f, _, _ in
-            layoutRect = f
+        tlm.enumerateTextSegments(in: NSTextRange(location: queryLoc), type: .standard, options: [.rangeNotRequired]) { _, f, _, _ in
+            if f.width >= 0, f.height > 0 { layoutRect = f }
             return false
         }
         return layoutRect?.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y)
@@ -178,10 +229,22 @@ extension NativeTextView {
 
     private func applyCaretFrame(_ indicator: NSView, rect: CGRect) {
         guard abs(indicator.frame.height - rect.height) >= 0.5
-            || abs(indicator.frame.origin.y - rect.origin.y) >= 0.5 else { return }
+            || abs(indicator.frame.origin.y - rect.origin.y) >= 0.5
+            || abs(indicator.frame.origin.x - rect.origin.x) >= 0.5 else { return }
         isApplyingCaretShift = true
         indicator.frame = rect
         isApplyingCaretShift = false
+    }
+
+    /// Reading-column centering moves this view inside the document view; AppKit
+    /// does not re-lay the insertion indicator, so snap it back into the column.
+    override func setFrameOrigin(_ newOrigin: NSPoint) {
+        let originChanged = abs(newOrigin.x - frame.origin.x) > 0.5
+            || abs(newOrigin.y - frame.origin.y) > 0.5
+        super.setFrameOrigin(newOrigin)
+        if originChanged {
+            applyBlockImageCaretPolicy()
+        }
     }
 
     /// FB22524198: AppKit drops the trailing-`\n` caret onto the previous line's top — snap it to `lastLineMaxY + paragraphSpacing` instead. (Companion to FB15131180; this one fixes Y, the other fixes height.)

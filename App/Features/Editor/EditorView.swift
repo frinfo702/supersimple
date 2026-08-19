@@ -43,8 +43,7 @@ struct EditorView: View {
             styleRevision: themeManager.styleRevision,
             documentId: note.id.uuidString,
             isEditable: true,
-            onPasteImage: model.pasteImageHandler,
-            placeholder: placeholder
+            onPasteImage: model.pasteImageHandler
         )
         .background(palette.editor)
     }
@@ -71,16 +70,6 @@ struct EditorView: View {
         guard model.currentNote() != nil else { return "" }
         let count = NoteStats.wordCount(model.currentBody)
         return count == 1 ? "1 word" : "\(count) words"
-    }
-
-    private var placeholder: NSAttributedString {
-        NSAttributedString(
-            string: "Start writing",
-            attributes: [
-                .font: themeManager.editorFont.nsFont(ofSize: themeManager.editorFontSize),
-                .foregroundColor: palette.nsMuted.withAlphaComponent(0.55),
-            ]
-        )
     }
 }
 

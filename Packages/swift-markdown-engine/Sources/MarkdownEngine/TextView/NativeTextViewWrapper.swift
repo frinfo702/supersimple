@@ -647,7 +647,9 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
             from: text,
             invalidateLayout: isNodeSwitch || rawSourceModeChanged || fontChanged
         )
-        if fontChanged {
+        // Font, document switch, and empty-note rebuilds all leave AppKit's
+        // insertion indicator at a stale frame (previous note or pre-centering).
+        if fontChanged || isNodeSwitch || text.isEmpty {
             textView.updateInsertionPointStateAndRestartTimer(true)
         }
         textView.recalcOverscroll(for: nsView)
