@@ -12,8 +12,12 @@ import AppKit
 extension NativeTextView {
     override func updateInsertionPointStateAndRestartTimer(_ restartFlag: Bool) {
         super.updateInsertionPointStateAndRestartTimer(restartFlag)
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.fixPhantomTrailingCaret()
+            self.applyBlockImageCaretPolicy()
+        }
         applyBlockImageCaretPolicy()
-        DispatchQueue.main.async { [weak self] in self?.fixPhantomTrailingCaret() }
     }
 
     func applyBlockImageCaretPolicy() {
@@ -58,7 +62,7 @@ extension NativeTextView {
 
     /// After collapsed→visible, the indicator frame stays at image height; snap it to the layout manager's actual caret rect.
     func resizeIndicatorToLayoutCaret(_ indicator: NSView) {
-        guard let r = layoutCaretSegmentRect(), r.height > 0,
+        guard let r = layoutCaretSegmentRectInView(), r.height > 0,
               indicator.frame.height > r.height + 1 else { return }
         applyCaretFrame(indicator, rect: CGRect(
             x: indicator.frame.origin.x, y: r.origin.y,
@@ -67,17 +71,26 @@ extension NativeTextView {
     }
 
     /// TextKit 2 sizes `NSTextInsertionIndicator` to the line fragment, which includes
-    /// `minimumLineHeight` extra leading — so the caret reads taller than the glyphs.
-    /// Snap height to the run's em-box and keep it at the top of the fragment.
+    /// `minimumLineHeight` extra leading. That extra sits *above* the em-box, so a
+    /// top-aligned crop leaves the caret floating over the glyphs. Pin the em-box
+    /// to the line's typographic bottom; keep AppKit's X.
     func snapInsertionIndicatorToGlyph(_ indicator: NSView) {
-        guard let r = layoutCaretSegmentRect(), r.height > 0 else { return }
         let font = fontAtCaret() ?? baseFont
         let glyphHeight = ceil(max(0, font.ascender - font.descender))
         guard glyphHeight > 1 else { return }
-        let height = min(glyphHeight, r.height)
+        let current = indicator.frame
+        let line = caretLineBoundsInView()
+        let boxHeight = min(glyphHeight, line?.height ?? current.height)
+        guard boxHeight > 1 else { return }
+        let y: CGFloat
+        if let line, line.height > 1 {
+            y = line.maxY - boxHeight
+        } else {
+            y = current.origin.y + max(0, current.height - boxHeight)
+        }
         applyCaretFrame(indicator, rect: CGRect(
-            x: indicator.frame.origin.x, y: r.origin.y,
-            width: indicator.frame.width, height: height
+            x: current.origin.x, y: y,
+            width: current.width, height: boxHeight
         ))
     }
 
@@ -88,7 +101,69 @@ extension NativeTextView {
         return ts.attribute(.font, at: idx, effectiveRange: nil) as? NSFont
     }
 
-    private func layoutCaretSegmentRect() -> CGRect? {
+    /// Typographic bounds of the caret's line, in text-view coordinates.
+    private func caretLineBoundsInView() -> CGRect? {
+        guard let tlm = textLayoutManager,
+              let tcs = tlm.textContentManager as? NSTextContentStorage,
+              let ts = textStorage else { return nil }
+        let sel = selectedRange()
+        guard sel.length == 0 else { return nil }
+        let ns = ts.string as NSString
+        let origin = textContainerOrigin
+
+        func viewRect(fragment: NSTextLayoutFragment, line: NSTextLineFragment) -> CGRect {
+            let tb = line.typographicBounds
+            return CGRect(
+                x: origin.x + fragment.layoutFragmentFrame.origin.x + tb.origin.x,
+                y: origin.y + fragment.layoutFragmentFrame.origin.y + tb.origin.y,
+                width: max(tb.width, 1),
+                height: tb.height
+            )
+        }
+
+        // Trailing extra line after a final `\n` is not a real text line fragment.
+        if ns.length > 0, sel.location == ns.length, ns.character(at: ns.length - 1) == 0x0A,
+           let trailingLoc = tcs.location(tcs.documentRange.location, offsetBy: ns.length - 1) {
+            var extra: CGRect?
+            tlm.enumerateTextLayoutFragments(from: trailingLoc, options: [.ensuresLayout]) { fragment in
+                let lastTextLine = fragment.textLineFragments.last { $0.characterRange.length > 0 }
+                    ?? fragment.textLineFragments.last
+                guard let line = lastTextLine else { return false }
+                let lineMaxY = fragment.layoutFragmentFrame.origin.y + line.typographicBounds.maxY
+                let style = ts.attribute(.paragraphStyle, at: ns.length - 1, effectiveRange: nil) as? NSParagraphStyle
+                extra = CGRect(
+                    x: origin.x,
+                    y: lineMaxY + (style?.paragraphSpacing ?? 0) + origin.y,
+                    width: 1,
+                    height: max(style?.minimumLineHeight ?? 0, line.typographicBounds.height)
+                )
+                return false
+            }
+            return extra
+        }
+
+        guard ns.length > 0 else { return nil }
+        let query = min(sel.location, ns.length - 1)
+        guard let docLoc = tcs.location(tcs.documentRange.location, offsetBy: query) else { return nil }
+        var result: CGRect?
+        tlm.enumerateTextLayoutFragments(from: docLoc, options: [.ensuresLayout]) { fragment in
+            let fragStart = tcs.offset(from: tcs.documentRange.location, to: fragment.rangeInElement.location)
+            guard fragStart != NSNotFound else { return false }
+            let local = query - fragStart
+            let line = fragment.textLineFragments.first { line in
+                let lr = line.characterRange
+                return local >= lr.location && local < lr.location + lr.length
+            } ?? fragment.textLineFragments.last
+            guard let line else { return false }
+            result = viewRect(fragment: fragment, line: line)
+            return false
+        }
+        return result
+    }
+
+    /// Caret segment in **text view** coordinates (`enumerateTextSegments` is
+    /// text-container-relative; add `textContainerOrigin` for the inset).
+    private func layoutCaretSegmentRectInView() -> CGRect? {
         guard let tlm = textLayoutManager,
               let tcs = tlm.textContentManager as? NSTextContentStorage else { return nil }
         let offset = min(selectedRange().location, max(0, (textStorage?.length ?? 1) - 1))
@@ -98,7 +173,7 @@ extension NativeTextView {
             layoutRect = f
             return false
         }
-        return layoutRect
+        return layoutRect?.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y)
     }
 
     private func applyCaretFrame(_ indicator: NSView, rect: CGRect) {
@@ -117,8 +192,8 @@ extension NativeTextView {
             observedCaretIndicator = indicator
             caretIndicatorObservation = indicator.observe(\.frame, options: [.new]) { [weak self] _, _ in
                 guard let self, !self.isApplyingCaretShift else { return }
-                self.applyBlockImageCaretPolicy()
                 self.fixPhantomTrailingCaret()
+                self.applyBlockImageCaretPolicy()
             }
         }
         guard let ts = textStorage, let indicator = observedCaretIndicator,
