@@ -64,6 +64,8 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
     /// Base font size in points. Headings, code blocks, and LaTeX are scaled
     /// off this value via ``MarkdownEditorConfiguration``.
     public var fontSize: CGFloat
+    /// Bump to restyle the document (palette change) without remounting the editor.
+    public var styleRevision: Int
     /// Opaque document identifier. Each value keeps its own undo stack and
     /// per-document editor state across switching away and back; the undo stack is
     /// dropped only if the document's text changes while it is switched away. Set a
@@ -144,6 +146,7 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         configuration: MarkdownEditorConfiguration = .default,
         fontName: String = "SF Pro",
         fontSize: CGFloat = 16,
+        styleRevision: Int = 0,
         documentId: String = "default",
         isEditable: Bool = true,
         onPasteImage: ((NSPasteboard) -> String?)? = nil,
@@ -169,6 +172,7 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         self.configuration = configuration
         self.fontName = fontName
         self.fontSize = fontSize
+        self.styleRevision = styleRevision
         self.documentId = documentId
         self.isEditable = isEditable
         self.onPasteImage = onPasteImage
@@ -551,7 +555,15 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         textView.insertionPointColor = isEditable
             ? (context.coordinator.resolvedCaretColor ?? context.coordinator.configuration.theme.bodyText)
             : .clear
-        let fontChanged = (context.coordinator.fontName != fontName) || (context.coordinator.fontSize != fontSize)
+        let styleChanged = context.coordinator.styleRevision != styleRevision
+        if styleChanged {
+            context.coordinator.styleRevision = styleRevision
+            context.coordinator.configuration.theme = configuration.theme
+            textView.configuration.theme = configuration.theme
+            context.coordinator.didInitialFormatting = false
+        }
+        let fontChanged =
+            (context.coordinator.fontName != fontName) || (context.coordinator.fontSize != fontSize) || styleChanged
         if let pendingInlineReplacement {
             if pendingInlineReplacement.documentId == documentId,
                context.coordinator.lastAppliedInlineReplacementID != pendingInlineReplacement.id {
@@ -690,6 +702,7 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         // arm the restore here or a remount would always open at the top.
         coordinator.armScrollRestore(for: documentId)
         coordinator.configuration = configuration
+        coordinator.styleRevision = styleRevision
         coordinator.lastImageFingerprint = configuration.services.images.fingerprint()
         coordinator.lastWikiFingerprint = configuration.services.wikiLinks.fingerprint()
         coordinator.onCodeBlockSelectionChange = onCodeBlockSelectionChange

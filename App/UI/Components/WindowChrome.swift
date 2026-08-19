@@ -6,18 +6,22 @@ import SwiftUI
 /// `title` is the Mission Control / window-cycle name; the titlebar itself stays hidden.
 struct WindowChrome: NSViewRepresentable {
     var title: String
+    var background: NSColor
 
     func makeNSView(context: Context) -> NSView {
         Accessor()
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
-        (nsView as? Accessor)?.title = title
-        (nsView as? Accessor)?.apply()
+        guard let accessor = nsView as? Accessor else { return }
+        accessor.title = title
+        accessor.background = background
+        accessor.apply()
     }
 
     private final class Accessor: NSView {
         var title: String = "supersimple"
+        var background: NSColor = .windowBackgroundColor
 
         override func viewDidMoveToWindow() {
             super.viewDidMoveToWindow()
@@ -37,6 +41,7 @@ struct WindowChrome: NSViewRepresentable {
             window.isMovableByWindowBackground = true
             window.toolbarStyle = .unified
             window.animations["appearance"] = NSNull()
+            window.backgroundColor = background
             stripToolbarItemChrome()
         }
 

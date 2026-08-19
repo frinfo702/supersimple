@@ -5,7 +5,13 @@ import SwiftUI
 /// Filter state lives on `AppModel` and is independent of the open note.
 struct SidebarView: View {
     @Bindable var model: AppModel
+    @Environment(ThemeManager.self) private var themeManager
+    @Environment(\.colorScheme) private var colorScheme
     @FocusState private var searchIsFocused: Bool
+
+    private var palette: PaletteColors {
+        themeManager.paletteColors(isDark: themeManager.isDark(matching: colorScheme))
+    }
 
     private var showsSearchField: Bool {
         model.searchFieldPresented || model.isSearching
@@ -23,7 +29,9 @@ struct SidebarView: View {
             noteList
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: AppTheme.Color.sidebarBackground))
+        .background(palette.background)
+        .environment(\.palette, palette)
+        .animation(nil, value: themeManager.paletteID)
         .onChange(of: model.searchFocusToken) { _, _ in
             DispatchQueue.main.async {
                 searchIsFocused = true
@@ -79,12 +87,12 @@ struct SidebarView: View {
     private var searchField: some View {
         HStack(spacing: 8) {
             SearchIcon(lineWidth: 1.4)
-                .foregroundStyle(Color.supersimpleMuted)
+                .foregroundStyle(palette.muted)
                 .frame(width: 13, height: 13)
             TextField(
                 "",
                 text: $model.searchQuery,
-                prompt: Text("Search or #tag").foregroundStyle(Color.supersimpleMuted)
+                prompt: Text("Search or #tag").foregroundStyle(palette.muted)
             )
             .textFieldStyle(.plain)
             .font(.system(size: 13))
@@ -113,7 +121,7 @@ struct SidebarView: View {
                 } label: {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 11))
-                        .foregroundStyle(Color.supersimpleMuted)
+                        .foregroundStyle(palette.muted)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Clear search")
@@ -123,7 +131,7 @@ struct SidebarView: View {
         .padding(.vertical, 6)
         .background(
             RoundedRectangle(cornerRadius: AppTheme.Metric.controlRadius, style: .continuous)
-                .fill(Color(nsColor: AppTheme.Color.editorSurface).opacity(0.7))
+                .fill(palette.editor.opacity(0.7))
         )
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
@@ -159,7 +167,7 @@ struct SidebarView: View {
                 if model.visibleNotes.isEmpty {
                     Text(model.hasActiveFilter ? "No matches" : "No notes")
                         .font(.system(size: 13))
-                        .foregroundStyle(Color.supersimpleMuted)
+                        .foregroundStyle(palette.muted)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 12)
                 } else if model.isSearching {
@@ -182,7 +190,7 @@ struct SidebarView: View {
             .padding(.bottom, 12)
         }
         .scrollContentBackground(.hidden)
-        .background(Color(nsColor: AppTheme.Color.sidebarBackground))
+        .background(palette.background)
         .accessibilityIdentifier("notes-list")
         .focusable()
         .focusEffectDisabled()
@@ -229,7 +237,7 @@ struct SidebarView: View {
         Text(title.uppercased())
             .font(.system(size: 10, weight: .semibold))
             .tracking(1.2)
-            .foregroundStyle(Color.supersimpleMuted)
+            .foregroundStyle(palette.muted)
     }
 }
 
@@ -272,6 +280,7 @@ private struct SidebarActionLabel<Icon: View>: View {
     var isSelected: Bool
     var hovering: Bool
     @ViewBuilder var icon: () -> Icon
+    @Environment(\.palette) private var palette
 
     var body: some View {
         HStack(spacing: 10) {
@@ -295,9 +304,9 @@ private struct SidebarActionLabel<Icon: View>: View {
     }
 
     private var rowFill: Color {
-        if isPrimary { return Color(nsColor: AppTheme.Color.editorSurface) }
-        if isSelected { return Color(nsColor: AppTheme.Color.selectionFill) }
-        if hovering { return Color(nsColor: AppTheme.Color.hoverFill) }
+        if isPrimary { return palette.editor }
+        if isSelected { return palette.selection }
+        if hovering { return palette.hover }
         return .clear
     }
 }
@@ -306,6 +315,7 @@ private struct NoteRow: View {
     let note: Note
     let isSelected: Bool
     @State private var hovering = false
+    @Environment(\.palette) private var palette
 
     var body: some View {
         VStack(alignment: .leading, spacing: 3) {
@@ -316,13 +326,13 @@ private struct NoteRow: View {
                 Spacer(minLength: 8)
                 Text(NoteStats.relativeUpdated(note.updatedAt))
                     .font(.system(size: 11))
-                    .foregroundStyle(Color.supersimpleMuted)
+                    .foregroundStyle(palette.muted)
                     .lineLimit(1)
             }
             if !preview.isEmpty {
                 Text(preview)
                     .font(.system(size: 12))
-                    .foregroundStyle(Color.supersimpleMuted)
+                    .foregroundStyle(palette.muted)
                     .lineLimit(1)
             }
         }
@@ -341,8 +351,8 @@ private struct NoteRow: View {
     }
 
     private var rowFill: Color {
-        if isSelected { return Color(nsColor: AppTheme.Color.selectionFill) }
-        if hovering { return Color(nsColor: AppTheme.Color.hoverFill) }
+        if isSelected { return palette.selection }
+        if hovering { return palette.hover }
         return .clear
     }
 
@@ -354,6 +364,7 @@ private struct TagChip: View {
     let count: Int
     let isSelected: Bool
     var action: () -> Void
+    @Environment(\.palette) private var palette
 
     var body: some View {
         Button(action: action) {
@@ -362,7 +373,7 @@ private struct TagChip: View {
                     .font(.system(size: 11, weight: isSelected ? .semibold : .medium))
                 Text("\(count)")
                     .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Color.supersimpleMuted)
+                    .foregroundStyle(palette.muted)
             }
             .padding(.horizontal, 9)
             .padding(.vertical, 5)
@@ -370,8 +381,8 @@ private struct TagChip: View {
                 RoundedRectangle(cornerRadius: AppTheme.Metric.controlRadius, style: .continuous)
                     .fill(
                         isSelected
-                            ? Color(nsColor: AppTheme.Color.selectionFill)
-                            : Color(nsColor: AppTheme.Color.editorSurface).opacity(0.45)
+                            ? palette.selection
+                            : palette.editor.opacity(0.45)
                     )
             )
             .foregroundStyle(Color.primary)

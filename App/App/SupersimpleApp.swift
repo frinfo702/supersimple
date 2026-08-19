@@ -40,6 +40,17 @@ struct SupersimpleApp: App {
             ThemeCommands(themeManager: themeManager)
         }
         .defaultSize(width: 1180, height: 760)
+
+        Settings {
+            SettingsView()
+                .environment(themeManager)
+                .preferredColorScheme(themeManager.preference.colorScheme)
+                .animation(nil, value: themeManager.preference)
+                .animation(nil, value: themeManager.paletteID)
+        }
+        .windowStyle(.hiddenTitleBar)
+        .windowToolbarStyle(.unified)
+        .defaultSize(width: 720, height: 680)
     }
 }
 
