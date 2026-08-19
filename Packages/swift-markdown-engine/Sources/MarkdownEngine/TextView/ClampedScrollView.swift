@@ -54,6 +54,48 @@ final class ClampedScrollView: NSScrollView {
         scrollYBeforeLiveResize = nil
     }
 
+    override func tile() {
+        super.tile()
+        reserveVerticalScrollerGutter()
+    }
+
+    /// Legacy scrollers inset the clip view only once they appear, which recenters
+    /// the reading column and makes the body jump left. Keep that gutter reserved
+    /// even while the scroller is autohidden. Overlay style takes no layout space
+    /// and is left alone.
+    private func reserveVerticalScrollerGutter() {
+        guard hasVerticalScroller, scrollerStyle == .legacy else { return }
+        let gutter = NSScroller.scrollerWidth(
+            for: verticalScroller?.controlSize ?? .regular,
+            scrollerStyle: .legacy
+        )
+        guard gutter > 0, bounds.width > gutter else { return }
+
+        let reservedMaxX = bounds.width - gutter
+        var clipFrame = contentView.frame
+        if clipFrame.maxX > reservedMaxX + 0.5 {
+            clipFrame.size.width = max(0, reservedMaxX - clipFrame.origin.x)
+            contentView.frame = clipFrame
+        }
+
+        if let scroller = verticalScroller {
+            scroller.frame = NSRect(
+                x: reservedMaxX,
+                y: clipFrame.minY,
+                width: gutter,
+                height: clipFrame.height
+            )
+        }
+
+        if hasHorizontalScroller, let horizontal = horizontalScroller {
+            var frame = horizontal.frame
+            if frame.maxX > reservedMaxX + 0.5 {
+                frame.size.width = max(0, reservedMaxX - frame.origin.x)
+                horizontal.frame = frame
+            }
+        }
+    }
+
     func clampToInsets() {
         guard !fitsContent else { return }
         guard let doc = documentView else { return }
