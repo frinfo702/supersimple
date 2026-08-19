@@ -645,8 +645,11 @@ public struct NativeTextViewWrapper: NSViewRepresentable {
         context.coordinator.rebuildTextStorageAndStyle(
             textView,
             from: text,
-            invalidateLayout: isNodeSwitch || rawSourceModeChanged
+            invalidateLayout: isNodeSwitch || rawSourceModeChanged || fontChanged
         )
+        if fontChanged {
+            textView.updateInsertionPointStateAndRestartTimer(true)
+        }
         textView.recalcOverscroll(for: nsView)
         (nsView as? ClampedScrollView)?.clampToInsets()
         // Height is measured now, so restore the saved offset; clampToInsets keeps

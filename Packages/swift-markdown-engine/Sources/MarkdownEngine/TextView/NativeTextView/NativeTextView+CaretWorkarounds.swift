@@ -43,25 +43,69 @@ extension NativeTextView {
         }
 
         for sub in indicators {
-            if !hide && resize { resizeIndicatorToLayoutCaret(sub) }
-            if sub.isHidden != hide { sub.isHidden = hide }
+            if hide {
+                if sub.isHidden != true { sub.isHidden = true }
+                continue
+            }
+            if resize {
+                resizeIndicatorToLayoutCaret(sub)
+            } else {
+                snapInsertionIndicatorToGlyph(sub)
+            }
+            if sub.isHidden != false { sub.isHidden = false }
         }
     }
 
     /// After collapsed→visible, the indicator frame stays at image height; snap it to the layout manager's actual caret rect.
     func resizeIndicatorToLayoutCaret(_ indicator: NSView) {
+        guard let r = layoutCaretSegmentRect(), r.height > 0,
+              indicator.frame.height > r.height + 1 else { return }
+        applyCaretFrame(indicator, rect: CGRect(
+            x: indicator.frame.origin.x, y: r.origin.y,
+            width: indicator.frame.width, height: r.height
+        ))
+    }
+
+    /// TextKit 2 sizes `NSTextInsertionIndicator` to the line fragment, which includes
+    /// `minimumLineHeight` extra leading — so the caret reads taller than the glyphs.
+    /// Snap height to the run's em-box and keep it at the top of the fragment.
+    func snapInsertionIndicatorToGlyph(_ indicator: NSView) {
+        guard let r = layoutCaretSegmentRect(), r.height > 0 else { return }
+        let font = fontAtCaret() ?? baseFont
+        let glyphHeight = ceil(max(0, font.ascender - font.descender))
+        guard glyphHeight > 1 else { return }
+        let height = min(glyphHeight, r.height)
+        applyCaretFrame(indicator, rect: CGRect(
+            x: indicator.frame.origin.x, y: r.origin.y,
+            width: indicator.frame.width, height: height
+        ))
+    }
+
+    private func fontAtCaret() -> NSFont? {
+        guard let ts = textStorage else { return nil }
+        if ts.length == 0 { return baseFont }
+        let idx = min(selectedRange().location, ts.length - 1)
+        return ts.attribute(.font, at: idx, effectiveRange: nil) as? NSFont
+    }
+
+    private func layoutCaretSegmentRect() -> CGRect? {
         guard let tlm = textLayoutManager,
-              let tcs = tlm.textContentManager as? NSTextContentStorage,
-              let docLoc = tcs.location(tcs.documentRange.location, offsetBy: selectedRange().location) else { return }
+              let tcs = tlm.textContentManager as? NSTextContentStorage else { return nil }
+        let offset = min(selectedRange().location, max(0, (textStorage?.length ?? 1) - 1))
+        guard let docLoc = tcs.location(tcs.documentRange.location, offsetBy: offset) else { return nil }
         var layoutRect: CGRect?
         tlm.enumerateTextSegments(in: NSTextRange(location: docLoc), type: .standard, options: [.rangeNotRequired]) { _, f, _, _ in
-            layoutRect = f; return false
+            layoutRect = f
+            return false
         }
-        guard let r = layoutRect, r.height > 0,
-              indicator.frame.height > r.height + 1 else { return }
+        return layoutRect
+    }
+
+    private func applyCaretFrame(_ indicator: NSView, rect: CGRect) {
+        guard abs(indicator.frame.height - rect.height) >= 0.5
+            || abs(indicator.frame.origin.y - rect.origin.y) >= 0.5 else { return }
         isApplyingCaretShift = true
-        indicator.frame = CGRect(x: indicator.frame.origin.x, y: r.origin.y,
-                                 width: indicator.frame.width, height: r.height)
+        indicator.frame = rect
         isApplyingCaretShift = false
     }
 

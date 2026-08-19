@@ -1,3 +1,4 @@
+import AppKit
 import Foundation
 import Testing
 
@@ -43,6 +44,82 @@ struct AppearanceSettingsTests {
         }
         #expect(EditorFontSize.clamp(16.4) == 16)
         #expect(EditorFontSize.clamp(21.6) == 22)
+
+        let system = NSFont.systemFont(ofSize: EditorFontSize.default)
+        let resolved = EditorFont.sfPro.nsFont(ofSize: EditorFontSize.default)
+        #expect(resolved.ascender - resolved.descender == system.ascender - system.descender)
+    }
+
+    @Test("Ghost glyph sits inside the macOS icon plate, not on the hem")
+    func ghostIconFitsMacIconGrid() {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("App/Resources/Assets.xcassets/AppIconGhost.imageset/icon.png")
+        guard let image = NSImage(contentsOf: url),
+            let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil),
+            let bounds = lightPixelBounds(of: cg)
+        else {
+            Issue.record("Ghost icon PNG is missing")
+            return
+        }
+
+        let width = CGFloat(cg.width)
+        let height = CGFloat(cg.height)
+        let padTop = bounds.minY / height
+        let padBottom = (height - bounds.maxY) / height
+        let padLeft = bounds.minX / width
+        let fillWidth = bounds.width / width
+
+        #expect(padTop > 0.14)
+        #expect(padBottom > 0.14)
+        #expect(padLeft > 0.14)
+        #expect(abs(padTop - padBottom) < 0.08)
+        #expect(fillWidth < 0.58)
+    }
+
+    private func lightPixelBounds(of image: CGImage) -> CGRect? {
+        let width = image.width
+        let height = image.height
+        let bytesPerRow = width * 4
+        var pixels = [UInt8](repeating: 0, count: height * bytesPerRow)
+        let space = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
+        let drawn = pixels.withUnsafeMutableBytes { raw -> Bool in
+            guard
+                let ctx = CGContext(
+                    data: raw.baseAddress,
+                    width: width,
+                    height: height,
+                    bitsPerComponent: 8,
+                    bytesPerRow: bytesPerRow,
+                    space: space,
+                    bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+                )
+            else { return false }
+            ctx.translateBy(x: 0, y: CGFloat(height))
+            ctx.scaleBy(x: 1, y: -1)
+            ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: height))
+            return true
+        }
+        guard drawn else { return nil }
+
+        var minX = width, minY = height, maxX = -1, maxY = -1
+        for y in 0..<height {
+            for x in 0..<width {
+                let offset = (y * width + x) * 4
+                if Int(pixels[offset]) + Int(pixels[offset + 1]) + Int(pixels[offset + 2]) > 40 {
+                    minX = min(minX, x)
+                    maxX = max(maxX, x)
+                    minY = min(minY, y)
+                    maxY = max(maxY, y)
+                }
+            }
+        }
+        guard maxX >= minX else { return nil }
+        return CGRect(
+            x: minX, y: minY,
+            width: maxX - minX + 1, height: maxY - minY + 1
+        )
     }
 
     @Test("App icon catalog is a closed set")
@@ -75,7 +152,7 @@ struct AppearanceSettingsTests {
         first.editorFont = .charter
         first.editorFontSize = 20
         first.appIconID = "ink"
-        #expect(first.styleRevision == 1)
+        #expect(first.styleRevision == 3)
         #expect(PaletteStore.shared.currentID == "cursor")
 
         let second = ThemeManager(defaults: defaults)

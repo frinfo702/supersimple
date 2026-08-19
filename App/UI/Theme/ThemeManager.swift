@@ -49,11 +49,17 @@ final class ThemeManager {
     }
 
     var editorFont: EditorFont {
-        didSet { defaults.set(editorFont.rawValue, forKey: Self.fontKey) }
+        didSet {
+            defaults.set(editorFont.rawValue, forKey: Self.fontKey)
+            styleRevision += 1
+        }
     }
 
     var editorFontSize: CGFloat {
-        didSet { defaults.set(editorFontSize, forKey: Self.fontSizeKey) }
+        didSet {
+            defaults.set(editorFontSize, forKey: Self.fontSizeKey)
+            styleRevision += 1
+        }
     }
 
     var appIconID: String {

@@ -2,7 +2,8 @@ import AppKit
 import Foundation
 
 /// Generates selectable app-icon imagesets: copies the original mark as Default,
-/// copies Ghost from `icon_ghost.png`, and draws a family of colored squircles.
+/// composites Ghost from `icon_ghost.png` onto a black squircle, and draws a
+/// family of colored squircles.
 
 let sizes: [(suffix: String, px: Int)] = [
     ("icon.png", 256),
@@ -93,9 +94,9 @@ func imageFromContext(_ ctx: CGContext, data: UnsafeMutablePointer<UInt8>) -> Da
     return pngData(from: image)
 }
 
-func scaledSquirclePNG(
-    from source: CGImage, px: Int, plateInset: CGFloat = 0.06, artInset: CGFloat = 0
-) -> Data? {
+/// Finished macOS-padded artwork (transparent canvas) composited on the same
+/// black squircle plate as the generated family.
+func scaledPlatePNG(from source: CGImage, px: Int, plateInset: CGFloat = 0.06) -> Data? {
     guard let (ctx, data) = makeContext(px: px) else { return nil }
     NSGraphicsContext.saveGraphicsState()
     NSGraphicsContext.current = NSGraphicsContext(cgContext: ctx, flipped: false)
@@ -104,22 +105,14 @@ func scaledSquirclePNG(
     squirclePath(in: plate).addClip()
     NSColor.black.setFill()
     NSBezierPath(rect: plate).fill()
-    // Shrink uniformly and sit on the plate bottom so cropped hems (Ghost)
-    // still meet the squircle instead of floating on a black pad.
-    let scale = 1 - 2 * artInset
-    let art = CGRect(
-        x: plate.midX - plate.width * scale / 2,
-        y: plate.minY,
-        width: plate.width * scale,
-        height: plate.height * scale
-    )
-    ctx.draw(source, in: art)
+    ctx.draw(source, in: canvas)
     NSGraphicsContext.restoreGraphicsState()
     return imageFromContext(ctx, data: data)
 }
 
 /// `icon_source.png` paints a squircle on an opaque black square. Punch the
-/// connected black padding to alpha so Settings / Dock see rounded corners.
+/// connected black padding to alpha so Settings / Dock see rounded corners
+/// (`applicationIconImage` bypasses the system mask).
 func scaledKnockoutPNG(from source: CGImage, px: Int) -> Data? {
     guard let (ctx, data) = makeContext(px: px) else { return nil }
     ctx.draw(source, in: CGRect(x: 0, y: 0, width: px, height: px))
@@ -165,12 +158,7 @@ func scaledKnockoutPNG(from source: CGImage, px: Int) -> Data? {
     return imageFromContext(ctx, data: data)
 }
 
-enum SourceIconMode {
-    case squircle(plateInset: CGFloat, artInset: CGFloat)
-    case knockoutBlack
-}
-
-func writeSourcedIcon(folder: String, source: URL, mode: SourceIconMode) throws {
+func writeSourcedIcon(folder: String, source: URL, plate: Bool = false) throws {
     guard let image = NSImage(contentsOf: source),
         let cg = image.cgImage(forProposedRect: nil, context: nil, hints: nil)
     else {
@@ -181,12 +169,7 @@ func writeSourcedIcon(folder: String, source: URL, mode: SourceIconMode) throws 
     try fileMgr.createDirectory(at: dir, withIntermediateDirectories: true)
     try writeImagesetContents(dir)
     for entry in sizes {
-        let png: Data?
-        switch mode {
-        case .squircle(let plateInset, let artInset):
-            png = scaledSquirclePNG(from: cg, px: entry.px, plateInset: plateInset, artInset: artInset)
-        case .knockoutBlack: png = scaledKnockoutPNG(from: cg, px: entry.px)
-        }
+        let png = plate ? scaledPlatePNG(from: cg, px: entry.px) : scaledKnockoutPNG(from: cg, px: entry.px)
         guard let png else {
             fputs("failed to scale \(folder) \(entry.suffix)\n", stderr)
             continue
@@ -301,11 +284,11 @@ let catalogContents = """
     """
 try catalogContents.data(using: .utf8)!.write(to: catalog.appendingPathComponent("Contents.json"))
 
-try writeSourcedIcon(folder: "AppIconDefault", source: sourceURL, mode: .knockoutBlack)
+try writeSourcedIcon(folder: "AppIconDefault", source: sourceURL)
 try writeSourcedIcon(
     folder: "AppIconGhost",
     source: scriptDir.appendingPathComponent("icon_ghost.png"),
-    mode: .squircle(plateInset: 0.06, artInset: 0.16)
+    plate: true
 )
 
 for spec in generated {

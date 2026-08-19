@@ -14,6 +14,8 @@ This is a local copy of [swift-markdown-engine](https://github.com/nodes-app/swi
   favicon arrives.
 - `NativeTextView+CmdReturn.swift`: ⌘⌫ while the editor is first responder deletes
   the current line instead of falling through to the host's Delete Note menu.
+- `NativeTextView+CaretWorkarounds.swift`: snap the TextKit 2 insertion indicator
+  to the run's em-box so extra `minimumLineHeight` leading doesn't stretch the caret.
 
 ## Upgrading
 

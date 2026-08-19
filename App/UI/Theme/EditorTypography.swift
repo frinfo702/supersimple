@@ -44,7 +44,12 @@ enum EditorFont: String, CaseIterable, Identifiable, Sendable {
     }
 
     func nsFont(ofSize size: CGFloat) -> NSFont {
-        NSFont(name: postScriptName, size: size) ?? .systemFont(ofSize: size)
+        switch self {
+        case .sfPro:
+            return .systemFont(ofSize: size)
+        default:
+            return NSFont(name: postScriptName, size: size) ?? .systemFont(ofSize: size)
+        }
     }
 
     func swiftUIFont(ofSize size: CGFloat) -> Font {
