@@ -80,7 +80,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
         var bounds = super.renderingSurfaceBounds
         // Task checkboxes too: the box draws left of the first glyph (marker
         // slot), outside the default text surface — TextKit would clip it.
-        if hasCodeBlockBackground || hasThematicBreak || hasBlockquote || hasTaskCheckbox {
+        if hasCodeBlockBackground || hasThematicBreak || hasBlockquote || hasTaskCheckbox || hasBulletMarker {
             let containerWidth = textLayoutManager?.textContainer?.size.width ?? bounds.width
             // Extend left to container edge
             bounds.origin.x = -layoutFragmentFrame.origin.x
@@ -208,6 +208,18 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
         var found = false
         ts.enumerateAttribute(.blockquoteLevel, in: range, options: []) { value, _, stop in
             if value is Int {
+                found = true
+                stop.pointee = true
+            }
+        }
+        return found
+    }
+
+    private var hasBulletMarker: Bool {
+        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return false }
+        var found = false
+        ts.enumerateAttribute(.bulletMarker, in: range, options: []) { value, _, stop in
+            if (value as? Bool) == true {
                 found = true
                 stop.pointee = true
             }
@@ -603,8 +615,11 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             guard let self, (value as? Bool) == true else { return }
             guard let pos = self.drawPosition(forDocumentCharAt: attrRange.location, point: point) else { return }
 
-            let font = (ts.attribute(.font, at: attrRange.location, effectiveRange: nil) as? NSFont)
-                ?? (self.textLayoutManager?.textContainer?.textView?.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize))
+            let bodyFont = (self.textLayoutManager?.textContainer?.textView as? NativeTextView)?.baseFont
+                ?? (self.textLayoutManager?.textContainer?.textView?.font
+                    ?? NSFont.systemFont(ofSize: NSFont.systemFontSize))
+            let runFont = ts.attribute(.font, at: attrRange.location, effectiveRange: nil) as? NSFont
+            let collapsed = (runFont?.pointSize ?? bodyFont.pointSize) < 1
             // A `.bulletMarker` range means the styler painted the raw char
             // `.clear`, so something must ALWAYS be drawn over the slot. Outside
             // a selection that's the rendered `•`; while the marker sits inside
@@ -616,15 +631,19 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             let isSelected = selectionRanges.contains(where: { NSIntersectionRange($0, attrRange).length > 0 })
             let raw = storageString.substring(with: attrRange)
             let glyph = (isSelected ? raw : "•") as NSString
-            let glyphAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: theme.bodyText]
+            let glyphAttrs: [NSAttributedString.Key: Any] = [.font: bodyFont, .foregroundColor: theme.bodyText]
 
-            let markerWidth = (raw as NSString).size(withAttributes: [.font: font]).width
+            let dashWidth = (raw as NSString).size(withAttributes: [.font: bodyFont]).width
+            let spaceWidth = (" " as NSString).size(withAttributes: [.font: bodyFont]).width
             let glyphWidth = glyph.size(withAttributes: glyphAttrs).width
-            let xOffset = max(0, (markerWidth - glyphWidth) / 2)
+            let xOffset = max(0, (dashWidth - glyphWidth) / 2)
+            // Collapsed `- ` sits at the content edge; paint the bullet in the
+            // indent slot to its left (same geometry as the hanging indent).
+            let x = collapsed ? pos.x - dashWidth - spaceWidth + xOffset : pos.x + xOffset
             // Flipped context: text origin is its top edge, baseline sits one
             // ascent below — so top = baseline − ascent aligns the glyph.
-            let topY = pos.baselineY - font.ascender
-            glyph.draw(at: CGPoint(x: pos.x + xOffset, y: topY), withAttributes: glyphAttrs)
+            let topY = pos.baselineY - bodyFont.ascender
+            glyph.draw(at: CGPoint(x: x, y: topY), withAttributes: glyphAttrs)
         }
     }
 
@@ -732,7 +751,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
 
 // MARK: - Layout Manager Delegate
 
-final class MarkdownLayoutManagerDelegate: NSObject, NSTextLayoutManagerDelegate {
+final class MarkdownLayoutManagerDelegate: NSObject, NSTextLayoutManagerDelegate, NSTextContentStorageDelegate {
     func textLayoutManager(
         _ textLayoutManager: NSTextLayoutManager,
         textLayoutFragmentFor location: any NSTextLocation,
@@ -763,5 +782,23 @@ final class MarkdownLayoutManagerDelegate: NSObject, NSTextLayoutManagerDelegate
             ])
         }
         return fragment
+    }
+
+    func textContentStorage(_ textContentStorage: NSTextContentStorage, textParagraphWith range: NSRange) -> NSTextParagraph? {
+        guard let ts = textContentStorage.textStorage,
+              range.location >= 0, NSMaxRange(range) <= ts.length else { return nil }
+        let tabWidth = tabWidth(from: textContentStorage)
+        let snippet = ts.attributedSubstring(from: range)
+        guard LinePrefixGlue.prefixLength(in: snippet.string) > 0 else { return nil }
+        let mutable = NSMutableAttributedString(attributedString: snippet)
+        guard LinePrefixGlue.apply(to: mutable, tabWidth: tabWidth) else { return nil }
+        return NSTextParagraph(attributedString: mutable)
+    }
+
+    private func tabWidth(from contentStorage: NSTextContentStorage) -> CGFloat {
+        let manager = contentStorage.textLayoutManagers.first
+        let textView = manager?.textContainer?.textView as? NativeTextView
+        return textView?.configuration.lists.indentPerLevel
+            ?? MarkdownEditorConfiguration.default.lists.indentPerLevel
     }
 }

@@ -18,6 +18,10 @@ This is a local copy of [swift-markdown-engine](https://github.com/nodes-app/swi
   to the run's em-box and pin it to the line's typographic bottom — extra
   `minimumLineHeight` leading sits above the glyphs. Do not copy segment-frame
   origin (container space) onto the indicator (view space).
+- `LinePrefixGlue.swift`: presentation-only WORD JOINER substitution for list,
+  blockquote, and indent prefix whitespace so a long unbreakable run wraps on
+  the first line instead of dropping below the marker. Hidden bullets collapse
+  `- ` into the paragraph indent so wrapped lines and the caret share the same origin.
 
 ## Upgrading
 

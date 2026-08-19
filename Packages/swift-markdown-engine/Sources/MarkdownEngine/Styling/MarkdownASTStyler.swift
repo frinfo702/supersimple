@@ -373,6 +373,15 @@ enum MarkdownASTStyler {
             return HeadingHelpers.textWidth(ctx.ns.substring(with: markerGroup), font: ctx.baseFont)
         }()
         let depthIndent = CGFloat(MarkdownLists.indentLevel(from: ws)) * ctx.config.lists.indentPerLevel
+        let bulletSyntax = NSRange(location: item.marker.location,
+                                   length: item.contentRange.location - item.marker.location)
+        // Hidden bullets collapse `- ` to ~zero advance and put that width in
+        // the paragraph indent, so first and wrapped lines share an origin.
+        // Hanging indent plus a still-present prefix is what shifted wrapped
+        // lines and the end-of-line caret.
+        let hideBullet = !item.ordered && item.checkbox == nil
+            && !NSLocationInRange(ctx.caret, bulletSyntax)
+            && !ctx.selectionIntersects(bulletSyntax)
         let ps = NSMutableParagraphStyle()
         let lineHeight = ctx.baseLineHeight + ctx.config.lists.extraLineHeight
         ps.minimumLineHeight = lineHeight
@@ -382,13 +391,16 @@ enum MarkdownASTStyler {
         ps.paragraphSpacingBefore = 0
         ps.tabStops = []
         ps.defaultTabInterval = ctx.config.lists.indentPerLevel
-        ps.firstLineHeadIndent = ctx.config.lists.indentPerLevel
+        let contentIndent = ctx.config.lists.indentPerLevel + depthIndent + markerWidth
+        ps.firstLineHeadIndent = hideBullet
+            ? ctx.config.lists.indentPerLevel + markerWidth
+            : ctx.config.lists.indentPerLevel
         // Wrapped lines hang under the first line's content (indent + marker
         // width). No checkbox-specific extra: the box is a drawn overlay that
         // doesn't change text advance, so adding it here (and only here, not to
         // firstLineHeadIndent) shifted an unchecked task's wrapped lines right
         // of its first line.
-        ps.headIndent = ctx.config.lists.indentPerLevel + depthIndent + markerWidth
+        ps.headIndent = contentIndent
         attrs.append((line, [.paragraphStyle: ps]))
 
         // 2. Marker decoration (suppressed while the caret edits the syntax).
@@ -414,10 +426,26 @@ enum MarkdownASTStyler {
                 ]))
             }
         } else if !item.ordered {
-            let syntax = NSRange(location: item.marker.location,
-                                 length: item.contentRange.location - item.marker.location)
-            if NSLocationInRange(ctx.caret, syntax) { return }
-            attrs.append((item.marker, [.bulletMarker: true, .foregroundColor: NSColor.clear]))
+            if NSLocationInRange(ctx.caret, bulletSyntax) { return }
+            if hideBullet {
+                attrs.append((item.marker, [
+                    .bulletMarker: true,
+                    .foregroundColor: NSColor.clear,
+                    .font: ctx.inlineMarkerFont,
+                    .kern: -ctx.inlineMarkerFont.pointSize,
+                ]))
+                let spacer = NSRange(location: NSMaxRange(item.marker),
+                                     length: max(0, item.contentRange.location - NSMaxRange(item.marker)))
+                if spacer.length > 0 {
+                    attrs.append((spacer, [
+                        .foregroundColor: NSColor.clear,
+                        .font: ctx.inlineMarkerFont,
+                        .kern: -ctx.inlineMarkerFont.pointSize,
+                    ]))
+                }
+            } else {
+                attrs.append((item.marker, [.bulletMarker: true, .foregroundColor: NSColor.clear]))
+            }
         } else if orderedOverlayActive, let displayNumber {
             // Hide the ENTIRE source marker (digits + dot) as one unit and paint
             // the whole display marker "N." over it, so the dot travels with the
