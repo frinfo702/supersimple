@@ -8,10 +8,11 @@ import SwiftUI
 struct TopBar: ToolbarContent {
     @Bindable var model: AppModel
     var isDark: Bool
+    var palette: PaletteColors
     @Environment(ThemeManager.self) private var themeManager
     @Environment(AppUpdater.self) private var updater
 
-    private var muted: Color { AppTheme.mutedColor(isDark: isDark) }
+    private var muted: Color { palette.muted }
 
     var body: some ToolbarContent {
         // One item (not a growing stack of items) so macOS sizes the slot for
@@ -138,6 +139,7 @@ struct ContentView: View {
     @State private var appLaunchTask: Task<Void, Never>?
 
     private var isDark: Bool { themeManager.isDark(matching: colorScheme) }
+    private var palette: PaletteColors { themeManager.paletteColors(isDark: isDark) }
 
     var body: some View {
         Group {
@@ -157,12 +159,14 @@ struct ContentView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: AppTheme.Color.background))
-        .tint(.supersimpleAccent)
-        .toolbar { TopBar(model: model, isDark: isDark) }
-        .toolbarBackground(AppTheme.backgroundColor(isDark: isDark), for: .windowToolbar)
-        .background(WindowChrome(title: windowTitle))
+        .background(palette.background)
+        .tint(palette.accent)
+        .environment(\.palette, palette)
+        .toolbar { TopBar(model: model, isDark: isDark, palette: palette) }
+        .toolbarBackground(palette.background, for: .windowToolbar)
+        .background(WindowChrome(title: windowTitle, background: palette.nsBackground))
         .animation(nil, value: themeManager.preference)
+        .animation(nil, value: themeManager.paletteID)
         .onAppear {
             if appLaunchTask == nil {
                 appLaunchTask = Task { await model.bootstrap() }

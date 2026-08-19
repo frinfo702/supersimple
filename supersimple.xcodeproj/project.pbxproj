@@ -17,20 +17,25 @@
 		45866057297972557FBFBCA7 /* NoteRecencyGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = F40B77214A55275DF8977211 /* NoteRecencyGroup.swift */; };
 		4AAB69C0B7C1120587B9150C /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FA4917AA8AFCFD7E1E952AD /* ContentView.swift */; };
 		56CE689B1FBE96551A47030B /* MarkdownEngine in Frameworks */ = {isa = PBXBuildFile; productRef = F63F4B23BF2EB69355738DE1 /* MarkdownEngine */; };
+		621738EA594E075E3B75A701 /* AppIconOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1E1E324589111405A97284 /* AppIconOption.swift */; };
 		62A6EBB69ADEB23FFD352AF4 /* MarkdownEngineLatex in Frameworks */ = {isa = PBXBuildFile; productRef = 574E0DC4D79106D424F96D2F /* MarkdownEngineLatex */; };
 		7050887B5CCE0DF269821C72 /* AppBundleInstallerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FFA8CE0E90CD09DD259CD8 /* AppBundleInstallerTests.swift */; };
+		8275BCB4BA82A558F2E6CC6E /* AppearanceSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D79E6663399201E241CD4C /* AppearanceSettingsTests.swift */; };
 		8A333A14EFBD621403AD3640 /* SupersimpleUpdater.app in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = D422B2FA546462BD6941BF2A /* SupersimpleUpdater.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		8DB20AA1ED612D1DE0B527A1 /* GeistMono.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1A8A5098809F4EF931DED0F4 /* GeistMono.ttf */; };
 		9164CAE29549E33199E4DE8E /* ThemeCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */; };
 		970E53D34EEA43F5A8288D81 /* WindowChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D52CF398C51C27B1282D75C /* WindowChrome.swift */; };
 		9CD355F5F13E815A054F4E5D /* SupersimpleUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC02340F436B5F0721F130D1 /* SupersimpleUpdater.swift */; };
 		9D3307BB19BF5568C5B7F868 /* SupersimpleCore in Frameworks */ = {isa = PBXBuildFile; productRef = AD01F469D880EDEF7D47834E /* SupersimpleCore */; };
+		A1AFBCA2F9AF81FF5952B28A /* EditorTypography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E8C52478FBE3B2A1EE283BD /* EditorTypography.swift */; };
 		A25CBCCDB8F32192852B8D96 /* AppUpdaterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B5590BE343F38F278F31CC5 /* AppUpdaterTests.swift */; };
 		A7DDEE8CC9C8D519FDAD555A /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637D22A7341BBADF047DF9F6 /* AppModelTests.swift */; };
 		A965689EF507898F3E2EF21B /* SupersimpleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */; };
 		B2ED1BBFE2D902D3D9500E9C /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62BC1A8D2178CDBFA86142BB /* AppTheme.swift */; };
 		B406A05B88773A7F065CEB6A /* AppUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29AC3EE0C4D902C22D99F38F /* AppUpdater.swift */; };
+		B8CB4008CBF25485BF0588C5 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D9A159CD940CBFE79F8D818 /* SettingsView.swift */; };
 		BF31B866A8162104F210E0F5 /* FaviconService.swift in Sources */ = {isa = PBXBuildFile; fileRef = E44268CB09A660B95EBCA712 /* FaviconService.swift */; };
+		C043CD6DFBFF54AF29D26A68 /* ColorTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DA148CA014441FCAD940A9 /* ColorTheme.swift */; };
 		C13CA269CD80545CDDED1BA2 /* PendingUpdateInstall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 653479FFD8F94AB26A8F716D /* PendingUpdateInstall.swift */; };
 		C794FA9B0F44F271C5313763 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FF15FA9B631FA47690BF74A /* AppModel.swift */; };
 		DB9513E2393E5059A929F047 /* PendingUpdateInstall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 653479FFD8F94AB26A8F716D /* PendingUpdateInstall.swift */; };
@@ -86,8 +91,10 @@
 		29AC3EE0C4D902C22D99F38F /* AppUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdater.swift; sourceTree = "<group>"; };
 		2C9CE6E095CC7CB793813737 /* AppBundleInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBundleInstaller.swift; sourceTree = "<group>"; };
 		2D52CF398C51C27B1282D75C /* WindowChrome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WindowChrome.swift; sourceTree = "<group>"; };
+		2D9A159CD940CBFE79F8D818 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersimpleApp.swift; sourceTree = "<group>"; };
 		36777A37D6601ACFD8813534 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		3E8C52478FBE3B2A1EE283BD /* EditorTypography.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorTypography.swift; sourceTree = "<group>"; };
 		3FA4917AA8AFCFD7E1E952AD /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		3FF15FA9B631FA47690BF74A /* AppModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppModel.swift; sourceTree = "<group>"; };
 		446DDC1536D6EB8106031BC9 /* SidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SidebarView.swift; sourceTree = "<group>"; };
@@ -103,17 +110,20 @@
 		8C3B6C8592BA4AB3F51AB499 /* supersimpleUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		8C3C369BC4DD2868AD5632C0 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		906F2D47A23E7FDAA0E1A35E /* ImageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ImageStore.swift; sourceTree = "<group>"; };
+		92DA148CA014441FCAD940A9 /* ColorTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ColorTheme.swift; sourceTree = "<group>"; };
 		9B5590BE343F38F278F31CC5 /* AppUpdaterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdaterTests.swift; sourceTree = "<group>"; };
 		B47DE2CE54F87F1D7E7C3DA3 /* EditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditorView.swift; sourceTree = "<group>"; };
 		B8FFA8CE0E90CD09DD259CD8 /* AppBundleInstallerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBundleInstallerTests.swift; sourceTree = "<group>"; };
 		C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeCommands.swift; sourceTree = "<group>"; };
+		CC1E1E324589111405A97284 /* AppIconOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconOption.swift; sourceTree = "<group>"; };
 		D422B2FA546462BD6941BF2A /* SupersimpleUpdater.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SupersimpleUpdater.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E44268CB09A660B95EBCA712 /* FaviconService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaviconService.swift; sourceTree = "<group>"; };
 		E52E7AD4D9C61D126880708B /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 		EC02340F436B5F0721F130D1 /* SupersimpleUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersimpleUpdater.swift; sourceTree = "<group>"; };
 		F40B77214A55275DF8977211 /* NoteRecencyGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteRecencyGroup.swift; sourceTree = "<group>"; };
+		F7D79E6663399201E241CD4C /* AppearanceSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsTests.swift; sourceTree = "<group>"; };
 		FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		"TEMP_EF2887FE-4C8D-4E55-A778-682C1A8D60A8" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
+		"TEMP_9ACBDDE1-CCAA-447F-B05E-A8A093394521" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -151,6 +161,7 @@
 			children = (
 				A315A49DBBE60BFDBA267123 /* Editor */,
 				9DC95DB0734FF9ABEC1189E6 /* Library */,
+				81A52360EE86A5E996E8C100 /* Settings */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -194,11 +205,22 @@
 		7C07ADFE3965687F7EC7930D /* Theme */ = {
 			isa = PBXGroup;
 			children = (
+				CC1E1E324589111405A97284 /* AppIconOption.swift */,
 				62BC1A8D2178CDBFA86142BB /* AppTheme.swift */,
+				92DA148CA014441FCAD940A9 /* ColorTheme.swift */,
+				3E8C52478FBE3B2A1EE283BD /* EditorTypography.swift */,
 				C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */,
 				5A7F5E8CF87F9CE35E40084A /* ThemeManager.swift */,
 			);
 			path = Theme;
+			sourceTree = "<group>";
+		};
+		81A52360EE86A5E996E8C100 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				2D9A159CD940CBFE79F8D818 /* SettingsView.swift */,
+			);
+			path = Settings;
 			sourceTree = "<group>";
 		};
 		8AF8FE6BEA1A86D0DAC99FBF /* UI */ = {
@@ -214,6 +236,7 @@
 			isa = PBXGroup;
 			children = (
 				B8FFA8CE0E90CD09DD259CD8 /* AppBundleInstallerTests.swift */,
+				F7D79E6663399201E241CD4C /* AppearanceSettingsTests.swift */,
 				637D22A7341BBADF047DF9F6 /* AppModelTests.swift */,
 				9B5590BE343F38F278F31CC5 /* AppUpdaterTests.swift */,
 			);
@@ -462,6 +485,7 @@
 				7050887B5CCE0DF269821C72 /* AppBundleInstallerTests.swift in Sources */,
 				A7DDEE8CC9C8D519FDAD555A /* AppModelTests.swift in Sources */,
 				A25CBCCDB8F32192852B8D96 /* AppUpdaterTests.swift in Sources */,
+				8275BCB4BA82A558F2E6CC6E /* AppearanceSettingsTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -488,10 +512,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				DD57B5ABC49EF0C1EF2CFB74 /* AppBundleInstaller.swift in Sources */,
+				621738EA594E075E3B75A701 /* AppIconOption.swift in Sources */,
 				C794FA9B0F44F271C5313763 /* AppModel.swift in Sources */,
 				B2ED1BBFE2D902D3D9500E9C /* AppTheme.swift in Sources */,
 				B406A05B88773A7F065CEB6A /* AppUpdater.swift in Sources */,
+				C043CD6DFBFF54AF29D26A68 /* ColorTheme.swift in Sources */,
 				4AAB69C0B7C1120587B9150C /* ContentView.swift in Sources */,
+				A1AFBCA2F9AF81FF5952B28A /* EditorTypography.swift in Sources */,
 				E836B0648BB415F0B0B67B07 /* EditorView.swift in Sources */,
 				BF31B866A8162104F210E0F5 /* FaviconService.swift in Sources */,
 				EB199922E2AC8A65FCACA04D /* ImageStore.swift in Sources */,
@@ -500,6 +527,7 @@
 				3807F6FEA88ADF5648BED01D /* NoteStats.swift in Sources */,
 				DB9513E2393E5059A929F047 /* PendingUpdateInstall.swift in Sources */,
 				00D9968516FA9AB4F913A40B /* SVGIcons.swift in Sources */,
+				B8CB4008CBF25485BF0588C5 /* SettingsView.swift in Sources */,
 				1DFA51B809AEC2578A5B24A0 /* SidebarView.swift in Sources */,
 				A965689EF507898F3E2EF21B /* SupersimpleApp.swift in Sources */,
 				9164CAE29549E33199E4DE8E /* ThemeCommands.swift in Sources */,

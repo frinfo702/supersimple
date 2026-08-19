@@ -8,17 +8,23 @@ import SwiftUI
 /// Concentrates the engine's pre-1.0 API in one place.
 struct EditorView: View {
     @Bindable var model: AppModel
+    @Environment(ThemeManager.self) private var themeManager
+    @Environment(\.colorScheme) private var colorScheme
+
+    private var palette: PaletteColors {
+        themeManager.paletteColors(isDark: themeManager.isDark(matching: colorScheme))
+    }
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
-            Color(nsColor: AppTheme.Color.editorSurface)
+            palette.editor
             if let note = model.currentNote() {
                 liveEditor(for: note)
             }
             wordCountOverlay
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Color(nsColor: AppTheme.Color.editorSurface))
+        .background(palette.editor)
         .background(EditorFocusBeacon(token: model.editorFocusToken))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("editor-surface")
@@ -28,15 +34,19 @@ struct EditorView: View {
         NativeTextViewWrapper(
             text: binding(for: note),
             configuration: EditorConfiguration.build(
-                imageStore: model.imageStore, faviconService: model.faviconService),
-            fontName: "SF Pro",
-            fontSize: AppTheme.Metric.bodyFontSize,
+                imageStore: model.imageStore,
+                faviconService: model.faviconService,
+                palette: palette
+            ),
+            fontName: themeManager.editorFont.postScriptName,
+            fontSize: themeManager.editorFontSize,
+            styleRevision: themeManager.styleRevision,
             documentId: note.id.uuidString,
             isEditable: true,
             onPasteImage: model.pasteImageHandler,
-            placeholder: Self.placeholder
+            placeholder: placeholder
         )
-        .background(Color(nsColor: AppTheme.Color.editorSurface))
+        .background(palette.editor)
     }
 
     private func binding(for note: Note) -> Binding<String> {
@@ -49,7 +59,7 @@ struct EditorView: View {
     private var wordCountOverlay: some View {
         Text(wordLabel)
             .font(.system(size: 11, weight: .medium))
-            .foregroundStyle(Color.supersimpleMuted)
+            .foregroundStyle(palette.muted)
             .padding(.trailing, 16)
             .padding(.bottom, 10)
             .allowsHitTesting(false)
@@ -63,29 +73,33 @@ struct EditorView: View {
         return count == 1 ? "1 word" : "\(count) words"
     }
 
-    private static let placeholder: NSAttributedString = {
+    private var placeholder: NSAttributedString {
         NSAttributedString(
             string: "Start writing",
             attributes: [
-                .font: NSFont.systemFont(ofSize: AppTheme.Metric.bodyFontSize),
-                .foregroundColor: AppTheme.Color.mutedText.withAlphaComponent(0.55),
+                .font: themeManager.editorFont.nsFont(ofSize: themeManager.editorFontSize),
+                .foregroundColor: palette.nsMuted.withAlphaComponent(0.55),
             ]
         )
-    }()
+    }
 }
 
 /// Concentrates engine configuration (theme + services + typography).
 enum EditorConfiguration {
-    static func build(imageStore: ImageStore, faviconService: FaviconService) -> MarkdownEditorConfiguration {
+    static func build(
+        imageStore: ImageStore,
+        faviconService: FaviconService,
+        palette: PaletteColors
+    ) -> MarkdownEditorConfiguration {
         var config = MarkdownEditorConfiguration.default
 
         var theme = MarkdownEditorTheme.default
-        theme.bodyText = AppTheme.Color.editorText
-        theme.mutedText = AppTheme.Color.mutedText
-        theme.disabledText = AppTheme.Color.mutedText.withAlphaComponent(0.65)
-        theme.headingMarker = AppTheme.Color.mutedText
-        theme.link = AppTheme.Color.accent
-        theme.incompleteLink = AppTheme.Color.accent.withAlphaComponent(0.7)
+        theme.bodyText = palette.nsText
+        theme.mutedText = palette.nsMuted
+        theme.disabledText = palette.nsMuted.withAlphaComponent(0.65)
+        theme.headingMarker = palette.nsMuted
+        theme.link = palette.nsAccent
+        theme.incompleteLink = palette.nsAccent.withAlphaComponent(0.7)
         config.theme = theme
 
         config.services = MarkdownEditorServices(

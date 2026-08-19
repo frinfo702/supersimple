@@ -110,6 +110,18 @@ final class SupersimpleUITests: XCTestCase {
         XCTAssertTrue(app.buttons["new-note-button"].exists)
     }
 
+    @MainActor
+    func testSettingsOpensWithCommandComma() throws {
+        let app = launchedApp()
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 5))
+        app.typeKey(",", modifierFlags: .command)
+        let settings = app.descendants(matching: .any)["settings-root"]
+        XCTAssertTrue(settings.waitForExistence(timeout: 5), "Settings should open from ⌘,")
+        XCTAssertTrue(app.descendants(matching: .any)["settings-theme-grid"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["settings-font-row"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["settings-icon-grid"].exists)
+    }
+
     // MARK: - Screenshot capture
 
     @MainActor
