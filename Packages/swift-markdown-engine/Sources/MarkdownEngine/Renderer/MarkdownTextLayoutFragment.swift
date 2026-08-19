@@ -56,6 +56,15 @@ public extension NSAttributedString.Key {
     static let markdownCodeBlockBackground = NSAttributedString.Key("MarkdownCodeBlockBackground")
 }
 
+/// Vertical placement for painted overlays (`•`, `a.`) on a TextKit line box.
+/// Extra `minimumLineHeight` leading sits above the glyphs, so the em-box is
+/// pinned to the typographic bottom — matching the caret crop.
+enum OverlayGlyphGeometry {
+    static func textTopY(lineMaxY: CGFloat, font: NSFont) -> CGFloat {
+        lineMaxY + font.descender - font.ascender
+    }
+}
+
 final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
 
     /// Horizontal space (points) each blockquote nesting level occupies —
@@ -640,9 +649,18 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             // Collapsed `- ` sits at the content edge; paint the bullet in the
             // indent slot to its left (same geometry as the hanging indent).
             let x = collapsed ? pos.x - dashWidth - spaceWidth + xOffset : pos.x + xOffset
-            // Flipped context: text origin is its top edge, baseline sits one
-            // ascent below — so top = baseline − ascent aligns the glyph.
-            let topY = pos.baselineY - bodyFont.ascender
+            // Flipped context: text origin is its top edge. A collapsed 0.1pt
+            // marker's `locationForCharacter` baseline sits at the line-box
+            // bottom (no body descent), so the overlay looked like a period.
+            // Pin the body-sized `•` to the line's typographic em-box — extra
+            // `minimumLineHeight` leading sits above, same as the caret crop.
+            let localIndex = attrRange.location - range.location
+            let topY: CGFloat
+            if let bounds = self.lineBounds(forLocalIndex: localIndex, point: point) {
+                topY = OverlayGlyphGeometry.textTopY(lineMaxY: bounds.maxY, font: bodyFont)
+            } else {
+                topY = pos.baselineY - bodyFont.ascender
+            }
             glyph.draw(at: CGPoint(x: x, y: topY), withAttributes: glyphAttrs)
         }
     }
@@ -678,7 +696,13 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             let raw = storageString.substring(with: attrRange)
             let glyph = (isSelected ? raw : number) as NSString
             let glyphAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: theme.bodyText]
-            let topY = pos.baselineY - font.ascender
+            let localIndex = attrRange.location - range.location
+            let topY: CGFloat
+            if let bounds = self.lineBounds(forLocalIndex: localIndex, point: point) {
+                topY = OverlayGlyphGeometry.textTopY(lineMaxY: bounds.maxY, font: font)
+            } else {
+                topY = pos.baselineY - font.ascender
+            }
             glyph.draw(at: CGPoint(x: pos.x, y: topY), withAttributes: glyphAttrs)
         }
     }

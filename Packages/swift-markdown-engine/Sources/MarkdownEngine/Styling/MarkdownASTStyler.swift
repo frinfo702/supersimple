@@ -247,7 +247,10 @@ enum MarkdownASTStyler {
         var counters: [Int: Int] = [:]
         for item in runLines.reversed() {                    // replay top-to-bottom
             if let number = item.number {
-                counters[item.indent] = (counters[item.indent] ?? number) + 1
+                let start = OrderedListMarkerFormat.runStart(
+                    indent: item.indent, literal: number, existing: counters[item.indent]
+                )
+                counters[item.indent] = start + 1
             } else {
                 counters[item.indent] = nil
             }
@@ -290,7 +293,9 @@ enum MarkdownASTStyler {
                             counters = seedOrderedCounters(above: item.marker.location, in: ns)
                             needsSeed = false
                         }
-                        let n = counters[item.indent] ?? literal
+                        let n = OrderedListMarkerFormat.runStart(
+                            indent: item.indent, literal: literal, existing: counters[item.indent]
+                        )
                         result[item.marker.location] = n
                         counters[item.indent] = n + 1
                     } else {
@@ -346,33 +351,35 @@ enum MarkdownASTStyler {
             markerGroup = NSRange(location: item.marker.location,
                                   length: item.contentRange.location - item.marker.location)
         }
-        // An ordered item whose displayed number differs from its source digit
-        // gets its WHOLE marker overlaid (below); the hanging indent must then
-        // measure the DISPLAY marker so wrapped lines align at any digit count.
-        // False while the caret reveals the marker (edit at raw width) and for
-        // tasks (the checkbox branch owns those).
+        // Overlay when the painted marker differs from source: positional
+        // renumber (`2.` showing as `3.`) OR outline style at nested depth
+        // (`1.` showing as `a.` / `i.`). Off while the caret/selection reveals
+        // the raw digits (edit at source width).
         let orderedSyntax = NSRange(location: item.marker.location,
                                     length: item.contentRange.location - item.marker.location)
-        // Also off while the marker is inside a selection: the painter reveals the
-        // raw source digits there, so the slot must revert to raw width (else a
-        // kerned slot leaves a gap/overlap over the raw digits).
-        let orderedOverlayActive = item.ordered && item.checkbox == nil && item.number != nil
-            && displayNumber != nil && displayNumber != item.number
+        let depth = MarkdownLists.indentLevel(from: ws)
+        let orderedPunct = item.ordered && item.marker.length > 0
+            ? ctx.ns.substring(with: NSRange(location: NSMaxRange(item.marker) - 1, length: 1))
+            : "."
+        let displayMarker: String? = {
+            guard item.ordered, item.checkbox == nil, let displayNumber else { return nil }
+            return OrderedListMarkerFormat.marker(number: displayNumber, depth: depth, punct: orderedPunct)
+        }()
+        let sourceMarker = item.ordered ? ctx.ns.substring(with: item.marker) : ""
+        let orderedOverlayActive = displayMarker != nil
+            && displayMarker != sourceMarker
             && !MarkdownStyler.caretRevealsOrderedMarker(caret: ctx.caret, syntax: orderedSyntax)
             && !ctx.selectionIntersects(orderedSyntax)
-        // Keep the source punctuation (`.` or `)`) when overlaying, so a paren list stays a paren list.
-        let orderedPunct = orderedOverlayActive && item.marker.length > 0
-            ? ctx.ns.substring(with: NSRange(location: NSMaxRange(item.marker) - 1, length: 1)) : "."
-        // Via the memoized measure — list markers are a tiny repeated set (`- `, `1. `).
+        // Via the memoized measure — list markers are a tiny repeated set (`- `, `1. `, `a. `).
         let markerWidth: CGFloat = {
-            if orderedOverlayActive, let displayNumber {
+            if orderedOverlayActive, let displayMarker {
                 let gap = ctx.ns.substring(with: NSRange(location: NSMaxRange(item.marker),
                                                          length: item.contentRange.location - NSMaxRange(item.marker)))
-                return HeadingHelpers.textWidth("\(displayNumber)\(orderedPunct)" + gap, font: ctx.baseFont)
+                return HeadingHelpers.textWidth(displayMarker + gap, font: ctx.baseFont)
             }
             return HeadingHelpers.textWidth(ctx.ns.substring(with: markerGroup), font: ctx.baseFont)
         }()
-        let depthIndent = CGFloat(MarkdownLists.indentLevel(from: ws)) * ctx.config.lists.indentPerLevel
+        let depthIndent = CGFloat(depth) * ctx.config.lists.indentPerLevel
         let bulletSyntax = NSRange(location: item.marker.location,
                                    length: item.contentRange.location - item.marker.location)
         // Hidden bullets collapse `- ` to ~zero advance and put that width in
@@ -446,20 +453,20 @@ enum MarkdownASTStyler {
             } else {
                 attrs.append((item.marker, [.bulletMarker: true, .foregroundColor: NSColor.clear]))
             }
-        } else if orderedOverlayActive, let displayNumber {
+        } else if orderedOverlayActive, let displayMarker {
             // Hide the ENTIRE source marker (digits + dot) as one unit and paint
-            // the whole display marker "N." over it, so the dot travels with the
-            // digits. Kern the slot to the display marker's width (horizontal
-            // only — a scaled font would inflate the marker ascent and push the
+            // the whole display marker over it, so the punctuation travels with
+            // the label. Kern the slot to the display width (horizontal only —
+            // a scaled font would inflate the marker ascent and push the
             // content baseline down under the pinned line height); spread across
             // all marker chars so every glyph advance stays positive even when
-            // the number shrinks (10 → 9).
-            let sourceW = (ctx.ns.substring(with: item.marker) as NSString)
+            // the label shrinks (`10.` → `a.`).
+            let sourceW = (sourceMarker as NSString)
                 .size(withAttributes: [.font: ctx.baseFont]).width
-            let displayW = ("\(displayNumber)\(orderedPunct)" as NSString)
+            let displayW = (displayMarker as NSString)
                 .size(withAttributes: [.font: ctx.baseFont]).width
             var markerAttrs: [NSAttributedString.Key: Any] = [
-                .orderedMarker: "\(displayNumber)\(orderedPunct)", .foregroundColor: NSColor.clear,
+                .orderedMarker: displayMarker, .foregroundColor: NSColor.clear,
             ]
             if abs(displayW - sourceW) > 0.01 {
                 markerAttrs[.kern] = (displayW - sourceW) / CGFloat(max(1, item.marker.length))

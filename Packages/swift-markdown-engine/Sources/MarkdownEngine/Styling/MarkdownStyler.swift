@@ -404,8 +404,9 @@ extension MarkdownStyler {
             guard let scalar = UnicodeScalar(UInt32(codeUnit)) else { return false }
             return CharacterSet.whitespacesAndNewlines.contains(scalar)
         }.count
-        let contentEnd = NSMaxRange(token.contentRange)
-        let anchorLocation = min(token.contentRange.location + leadingWhitespaceUnits, contentEnd - 1)
+        guard let anchorLocation = collapsedImageAnchorLocation(
+            token: token, rawContent: rawContent, textLength: ctx.nsText.length
+        ) else { return }
 
         var paragraphAttributes: [StyledRange] = []
         ctx.nsText.enumerateSubstrings(in: paraRange, options: .byParagraphs) { _, _, enclosingRange, _ in
@@ -417,7 +418,7 @@ extension MarkdownStyler {
         }
         attrs.append(contentsOf: paragraphAttributes)
 
-        if leadingWhitespaceUnits > 0 {
+        if token.contentRange.length > 0, leadingWhitespaceUnits > 0 {
             let leadingRange = NSRange(location: token.contentRange.location, length: leadingWhitespaceUnits)
             let leadingText = ctx.nsText.substring(with: leadingRange)
             attrs.append((leadingRange, [
@@ -427,21 +428,9 @@ extension MarkdownStyler {
             ]))
         }
 
-        let anchorRange = NSRange(location: anchorLocation, length: 1)
-        let anchorChar = ctx.nsText.substring(with: anchorRange)
-        var anchorAttrs: [NSAttributedString.Key: Any] = [
-            .latexImage: image,
-            .latexBounds: NSValue(rect: imageBounds),
-            .latexIsBlock: true,
-            .foregroundColor: NSColor.clear,
-            .font: ctx.latexMarkerFont,
-            .kern: advanceWidth - HeadingHelpers.textWidth(anchorChar, font: ctx.latexMarkerFont)
-        ]
-        for (key, value) in extraAnchorAttrs { anchorAttrs[key] = value }
-        attrs.append((anchorRange, anchorAttrs))
-
+        let contentEnd = NSMaxRange(token.contentRange)
         let trailingStart = anchorLocation + 1
-        let trailingLength = contentEnd - trailingStart
+        let trailingLength = token.contentRange.length > 0 ? contentEnd - trailingStart : 0
         if trailingLength > 0 {
             let trailingRange = NSRange(location: trailingStart, length: trailingLength)
             let trailingText = ctx.nsText.substring(with: trailingRange)
@@ -463,6 +452,21 @@ extension MarkdownStyler {
             ]))
         }
 
+        // Plant the image last so overlapping marker kern (empty-alt `![](url)`
+        // anchors on `!`) cannot zero out the image's reserved advance.
+        let anchorRange = NSRange(location: anchorLocation, length: 1)
+        let anchorChar = ctx.nsText.substring(with: anchorRange)
+        var anchorAttrs: [NSAttributedString.Key: Any] = [
+            .latexImage: image,
+            .latexBounds: NSValue(rect: imageBounds),
+            .latexIsBlock: true,
+            .foregroundColor: NSColor.clear,
+            .font: ctx.latexMarkerFont,
+            .kern: advanceWidth - HeadingHelpers.textWidth(anchorChar, font: ctx.latexMarkerFont)
+        ]
+        for (key, value) in extraAnchorAttrs { anchorAttrs[key] = value }
+        attrs.append((anchorRange, anchorAttrs))
+
         let preTokenLength = token.range.location - paraRange.location
         if preTokenLength > 0 {
             let preTokenRange = NSRange(location: paraRange.location, length: preTokenLength)
@@ -473,6 +477,27 @@ extension MarkdownStyler {
                 .kern: -HeadingHelpers.textWidth(preTokenText, font: ctx.latexMarkerFont)
             ]))
         }
+    }
+
+    /// Character that carries the collapsed image. Empty-alt `![](url)` has a
+    /// zero-length content range, so the `!` of the token is the plant point.
+    static func collapsedImageAnchorLocation(
+        token: MarkdownToken,
+        rawContent: String,
+        textLength: Int
+    ) -> Int? {
+        let leadingWhitespaceUnits = rawContent.utf16.prefix { codeUnit in
+            guard let scalar = UnicodeScalar(UInt32(codeUnit)) else { return false }
+            return CharacterSet.whitespacesAndNewlines.contains(scalar)
+        }.count
+        if token.contentRange.length > 0 {
+            let contentEnd = NSMaxRange(token.contentRange)
+            let loc = min(token.contentRange.location + leadingWhitespaceUnits, contentEnd - 1)
+            guard loc >= 0, loc < textLength else { return nil }
+            return loc
+        }
+        guard token.range.length > 0, token.range.location < textLength else { return nil }
+        return token.range.location
     }
 }
 

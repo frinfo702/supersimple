@@ -5,8 +5,9 @@ This is a local copy of [swift-markdown-engine](https://github.com/nodes-app/swi
 
 ## Local modifications
 
-- Local `MarkdownEngineTests` cover Tab indent and `LinePrefixGlue` (upstream
-  tests were not vendored).
+- Local `MarkdownEngineTests` cover Tab indent, `LinePrefixGlue`, overlay
+  glyph baseline, and nested ordered-list outline markers (upstream tests
+  were not vendored).
 - Fenced code blocks use `.markdownCodeBlockBackground` instead of `.backgroundColor`,
   so AppKit doesn't double-composite the translucent fill on the glyph box / ``` fences.
 - `MarkdownASTStyler.swift`: inactive `[text](url)` links reserve the hidden `[`
@@ -24,6 +25,13 @@ This is a local copy of [swift-markdown-engine](https://github.com/nodes-app/swi
   on the first line instead of dropping below the marker. Leading indent tabs
   are left intact so Tab indent keeps its tab-stop width. Hidden bullets collapse
   `- ` into the paragraph indent so wrapped lines and the caret share the same origin.
+  Collapsed bullets pin the painted `•` to the line's body em-box so a newly
+  continued empty `- ` item does not draw the dot on the 0.1pt marker baseline.
+- Nested ordered lists overlay outline markers by indent: `1, 2, …` → `a, b, …`
+  → `i, ii, iii, …` → `1, 2, …`. Nested runs restart at 1 (`2.` after Tab is `a.`,
+  not `b.`). Source stays Markdown digits.
+- `EmbeddedImageProvider.didLoadNotification` restyles when a remote `![](url)`
+  image arrives. Empty-alt images plant on `!` so the overlay has an anchor.
 
 ## Upgrading
 

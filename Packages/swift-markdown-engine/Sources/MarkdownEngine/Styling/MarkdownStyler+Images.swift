@@ -37,7 +37,7 @@ extension MarkdownStyler {
                 continue
             }
             let urlRange = NSRange(location: urlStart, length: urlLength)
-            let url = ctx.nsText.substring(with: urlRange)
+            let url = imageDestination(from: ctx.nsText.substring(with: urlRange))
             let isActive = ctx.activeTokenIndices.contains(idx)
 
             let request = EmbeddedImageRequest(name: url)
@@ -108,6 +108,19 @@ extension MarkdownStyler {
             }
         }
         return attrs
+    }
+
+    /// First whitespace-separated token of a markdown image destination,
+    /// stripping optional `<…>` wrapping.
+    static func imageDestination(from raw: String) -> String {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        if s.hasPrefix("<"), s.hasSuffix(">"), s.count >= 2 {
+            s = String(s.dropFirst().dropLast())
+        }
+        if let first = s.split(whereSeparator: { $0.isWhitespace }).first {
+            s = String(first)
+        }
+        return s
     }
 
     // MARK: Image Embeds ![[Name]]

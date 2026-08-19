@@ -77,4 +77,14 @@ extension NativeTextViewCoordinator {
         let fullRange = NSRange(location: 0, length: (tv.string as NSString).length)
         restyleTextView(tv, paragraphCandidates: [fullRange])
     }
+
+    @objc func handleRemoteImageLoaded(_ notification: Notification) {
+        guard let tv = textView else { return }
+        if let tlm = tv.textLayoutManager {
+            tlm.invalidateLayout(for: tlm.documentRange)
+        }
+        lastImageFingerprint = configuration.services.images.fingerprint()
+        let fullRange = NSRange(location: 0, length: (tv.string as NSString).length)
+        restyleTextView(tv, paragraphCandidates: [fullRange])
+    }
 }

@@ -83,6 +83,14 @@ public protocol EmbeddedImageProvider: Sendable {
     /// a different value invalidates the engine's image cache. Embedders
     /// typically combine the IDs of all known images.
     func fingerprint() -> AnyHashable
+
+    /// Posted when an asynchronously fetched image becomes available so the
+    /// editor can restyle. `nil` when the provider is purely synchronous.
+    var didLoadNotification: Notification.Name? { get }
+}
+
+public extension EmbeddedImageProvider {
+    var didLoadNotification: Notification.Name? { nil }
 }
 
 /// What the engine asks an `EmbeddedImageProvider` for.

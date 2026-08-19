@@ -54,6 +54,7 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
             subscribeToBusNotifications(replacing: oldValue.services.bus)
             subscribeToAppearanceNotification()
             subscribeToFaviconNotification()
+            subscribeToEmbeddedImageNotification()
             // Precompiled registry for the per-keystroke parse path — deriving
             // it from the configuration on every keystroke would rebuild the
             // delimiter arrays + fingerprint string each time.
@@ -73,6 +74,7 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
     private var busObservers: [NSObjectProtocol] = []
     private var registeredAppearanceObserverName: Notification.Name?
     private var registeredFaviconObserverName: Notification.Name?
+    private var registeredImageObserverName: Notification.Name?
     weak var textView: NSTextView?
     /// Owns the scroll-away header (build, content refresh, collapse/expand,
     /// teardown). Created on first reconcile with a non-nil header.
@@ -295,6 +297,7 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
         // Init + didSet share this helper so the observer tracks whichever service is current.
         subscribeToAppearanceNotification()
         subscribeToFaviconNotification()
+        subscribeToEmbeddedImageNotification()
     }
 
     /// SwiftUI recreates the representable's Binding each update. The coordinator
@@ -338,6 +341,24 @@ public final class NativeTextViewCoordinator: NSObject, NSTextViewDelegate {
             object: nil
         )
         registeredFaviconObserverName = name
+    }
+
+    /// Restyle when a remote `![](url)` image arrives (same path as favicons).
+    private func subscribeToEmbeddedImageNotification() {
+        let target = configuration.services.images.didLoadNotification
+        if registeredImageObserverName == target { return }
+        if let current = registeredImageObserverName {
+            NotificationCenter.default.removeObserver(self, name: current, object: nil)
+        }
+        registeredImageObserverName = nil
+        guard let name = target else { return }
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleRemoteImageLoaded(_:)),
+            name: name,
+            object: nil
+        )
+        registeredImageObserverName = name
     }
 
     /// Subscribe to whichever bus notification names the current configuration
