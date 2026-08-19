@@ -34,6 +34,7 @@
 		A25CBCCDB8F32192852B8D96 /* AppUpdaterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B5590BE343F38F278F31CC5 /* AppUpdaterTests.swift */; };
 		A7DDEE8CC9C8D519FDAD555A /* AppModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 637D22A7341BBADF047DF9F6 /* AppModelTests.swift */; };
 		A965689EF507898F3E2EF21B /* SupersimpleApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */; };
+		B16EB491F0BC270772F304EF /* ColorTheme+Terminal.swift in Sources */ = {isa = PBXBuildFile; fileRef = DD04B2D729C1464CBD40D964 /* ColorTheme+Terminal.swift */; };
 		B2ED1BBFE2D902D3D9500E9C /* AppTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 62BC1A8D2178CDBFA86142BB /* AppTheme.swift */; };
 		B34DE7707FBD4A5D5F0F6261 /* SplitResizeHandle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F0E36FED5D7F1ACC4B039FFE /* SplitResizeHandle.swift */; };
 		B406A05B88773A7F065CEB6A /* AppUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = 29AC3EE0C4D902C22D99F38F /* AppUpdater.swift */; };
@@ -43,6 +44,7 @@
 		C13CA269CD80545CDDED1BA2 /* PendingUpdateInstall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 653479FFD8F94AB26A8F716D /* PendingUpdateInstall.swift */; };
 		C794FA9B0F44F271C5313763 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FF15FA9B631FA47690BF74A /* AppModel.swift */; };
 		C9F243FBE74F842975D10ED4 /* TerminalSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13C45E29CC9C2416620015AC /* TerminalSession.swift */; };
+		CCB967BBFF546642010714DC /* GhosttyTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = 41D7612FE648B1AA6A7663B4 /* GhosttyTerminal */; };
 		DB9513E2393E5059A929F047 /* PendingUpdateInstall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 653479FFD8F94AB26A8F716D /* PendingUpdateInstall.swift */; };
 		DD57B5ABC49EF0C1EF2CFB74 /* AppBundleInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9CE6E095CC7CB793813737 /* AppBundleInstaller.swift */; };
 		E836B0648BB415F0B0B67B07 /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47DE2CE54F87F1D7E7C3DA3 /* EditorView.swift */; };
@@ -124,6 +126,7 @@
 		C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeCommands.swift; sourceTree = "<group>"; };
 		CC1E1E324589111405A97284 /* AppIconOption.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppIconOption.swift; sourceTree = "<group>"; };
 		D422B2FA546462BD6941BF2A /* SupersimpleUpdater.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SupersimpleUpdater.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DD04B2D729C1464CBD40D964 /* ColorTheme+Terminal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ColorTheme+Terminal.swift"; sourceTree = "<group>"; };
 		E44268CB09A660B95EBCA712 /* FaviconService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaviconService.swift; sourceTree = "<group>"; };
 		E52E7AD4D9C61D126880708B /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 		EA3EE4C0A864F7BDB1B6908E /* SandboxContainerMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SandboxContainerMigration.swift; sourceTree = "<group>"; };
@@ -132,7 +135,7 @@
 		F40B77214A55275DF8977211 /* NoteRecencyGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteRecencyGroup.swift; sourceTree = "<group>"; };
 		F7D79E6663399201E241CD4C /* AppearanceSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsTests.swift; sourceTree = "<group>"; };
 		FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		"TEMP_D1F9D342-5EF2-4302-86F0-59361D883106" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
+		"TEMP_FFB54587-CB24-4F6B-90C5-0B8089EC702F" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -152,6 +155,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9D3307BB19BF5568C5B7F868 /* SupersimpleCore in Frameworks */,
+				CCB967BBFF546642010714DC /* GhosttyTerminal in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -229,6 +233,7 @@
 				CC1E1E324589111405A97284 /* AppIconOption.swift */,
 				62BC1A8D2178CDBFA86142BB /* AppTheme.swift */,
 				92DA148CA014441FCAD940A9 /* ColorTheme.swift */,
+				DD04B2D729C1464CBD40D964 /* ColorTheme+Terminal.swift */,
 				3E8C52478FBE3B2A1EE283BD /* EditorTypography.swift */,
 				C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */,
 				5A7F5E8CF87F9CE35E40084A /* ThemeManager.swift */,
@@ -428,6 +433,7 @@
 			name = supersimpleTests;
 			packageProductDependencies = (
 				AD01F469D880EDEF7D47834E /* SupersimpleCore */,
+				41D7612FE648B1AA6A7663B4 /* GhosttyTerminal */,
 			);
 			productName = supersimpleTests;
 			productReference = FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */;
@@ -540,6 +546,7 @@
 				C794FA9B0F44F271C5313763 /* AppModel.swift in Sources */,
 				B2ED1BBFE2D902D3D9500E9C /* AppTheme.swift in Sources */,
 				B406A05B88773A7F065CEB6A /* AppUpdater.swift in Sources */,
+				B16EB491F0BC270772F304EF /* ColorTheme+Terminal.swift in Sources */,
 				C043CD6DFBFF54AF29D26A68 /* ColorTheme.swift in Sources */,
 				4AAB69C0B7C1120587B9150C /* ContentView.swift in Sources */,
 				A1AFBCA2F9AF81FF5952B28A /* EditorTypography.swift in Sources */,
@@ -940,6 +947,11 @@
 		28CE08F4153B4EF6060AC482 /* SupersimpleCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SupersimpleCore;
+		};
+		41D7612FE648B1AA6A7663B4 /* GhosttyTerminal */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 46782C24B5BE2B7557A1BFD7 /* XCRemoteSwiftPackageReference "libghostty-spm" */;
+			productName = GhosttyTerminal;
 		};
 		574E0DC4D79106D424F96D2F /* MarkdownEngineLatex */ = {
 			isa = XCSwiftPackageProductDependency;

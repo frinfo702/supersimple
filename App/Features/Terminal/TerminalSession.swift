@@ -2,6 +2,7 @@ import AppKit
 import Combine
 import Foundation
 import GhosttyTerminal
+import SwiftUI
 
 /// Owns the libghostty `TerminalView` so a login shell can outlive SwiftUI
 /// hierarchy diffs (sidebar show/hide) and panel hide/show.
@@ -18,11 +19,16 @@ final class TerminalSession: ObservableObject {
     /// reparent this view instead of tearing down the PTY.
     private(set) var terminalView: TerminalView?
     private var isRestarting = false
+    private var appliedTheme = ColorTheme.current.terminalTheme()
+    private var appliedColorScheme: ColorScheme = .light
     private let toggleMonitor = ToggleShortcutMonitor()
 
-    func prepare() {
+    func prepare(colorScheme: ColorScheme) {
         guard context == nil else { return }
+        appliedTheme = ColorTheme.current.terminalTheme()
+        appliedColorScheme = colorScheme
         let state = makeContext()
+        state.adopt(colorScheme: colorScheme)
         let view = TerminalView(frame: NSRect(x: 0, y: 0, width: 800, height: 220))
         view.delegate = state
         view.controller = state.controller
@@ -49,7 +55,7 @@ final class TerminalSession: ObservableObject {
         context?.onClose = nil
         if terminalView == nil {
             context = nil
-            prepare()
+            prepare(colorScheme: appliedColorScheme)
             return
         }
         // A fresh controller defaults to `.light`; carry the active scheme over
@@ -95,8 +101,16 @@ final class TerminalSession: ObservableObject {
         view.displayIfNeeded()
     }
 
+    /// Push the active palette into Ghostty and resolve light/dark from SwiftUI.
+    func applyAppearance(_ theme: TerminalTheme, colorScheme: ColorScheme) {
+        appliedTheme = theme
+        appliedColorScheme = colorScheme
+        context?.setTheme(theme)
+        context?.adopt(colorScheme: colorScheme)
+    }
+
     private func makeContext() -> TerminalViewState {
-        let controller = TerminalController { builder in
+        let controller = TerminalController(theme: appliedTheme) { builder in
             builder.withCustom("shell-integration", "none")
             // Host shortcut: hide the panel. Ghostty would otherwise consume ⌘J.
             builder.withCustom("keybind", "super+j=unbind")

@@ -31,15 +31,25 @@ struct TerminalPanel: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("terminal-panel")
         .onAppear {
-            session.context?.adopt(colorScheme: colorScheme)
+            syncAppearance()
             focusTerminalIfNeeded()
         }
-        .onChange(of: colorScheme) { _, scheme in
-            session.context?.adopt(colorScheme: scheme)
+        .onChange(of: colorScheme) { _, _ in
+            syncAppearance()
+        }
+        .onChange(of: palette) { _, _ in
+            syncAppearance()
         }
         .onChange(of: focusToken) { _, _ in
             focusTerminalIfNeeded()
         }
+    }
+
+    private func syncAppearance() {
+        session.applyAppearance(
+            ColorTheme.named(palette.themeID).terminalTheme(),
+            colorScheme: colorScheme
+        )
     }
 
     private func focusTerminalIfNeeded() {

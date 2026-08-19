@@ -183,12 +183,12 @@ struct ContentView: View {
                 model.toggleTerminal()
             }
             if model.terminalVisible {
-                terminalSession.prepare()
+                terminalSession.prepare(colorScheme: colorScheme)
             }
         }
         .onChange(of: model.terminalVisible) { _, visible in
             if visible {
-                terminalSession.prepare()
+                terminalSession.prepare(colorScheme: colorScheme)
             }
         }
         .onChange(of: model.sidebarVisible) { _, _ in

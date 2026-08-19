@@ -30,6 +30,66 @@ struct ColorTheme: Identifiable, Equatable, Sendable {
         var swiftUI: Color {
             Color(red: r, green: g, blue: b, opacity: a)
         }
+
+        var hex: String {
+            func byte(_ channel: CGFloat) -> UInt8 {
+                UInt8((min(max(channel, 0), 1) * 255).rounded())
+            }
+            return String(format: "#%02X%02X%02X", byte(r), byte(g), byte(b))
+        }
+
+        func blended(onto base: RGB) -> RGB {
+            let alpha = min(max(a, 0), 1)
+            return RGB(
+                r * alpha + base.r * (1 - alpha),
+                g * alpha + base.g * (1 - alpha),
+                b * alpha + base.b * (1 - alpha)
+            )
+        }
+
+        func mixed(toward other: RGB, amount: CGFloat) -> RGB {
+            let t = min(max(amount, 0), 1)
+            return RGB(
+                r + (other.r - r) * t,
+                g + (other.g - g) * t,
+                b + (other.b - b) * t
+            )
+        }
+
+        /// WCAG relative luminance in sRGB.
+        var relativeLuminance: CGFloat {
+            func linear(_ channel: CGFloat) -> CGFloat {
+                let x = min(max(channel, 0), 1)
+                return x <= 0.04045 ? x / 12.92 : pow((x + 0.055) / 1.055, 2.4)
+            }
+            return 0.2126 * linear(r) + 0.7152 * linear(g) + 0.0722 * linear(b)
+        }
+
+        func contrastRatio(against other: RGB) -> CGFloat {
+            let lighter = relativeLuminance + 0.05
+            let darker = other.relativeLuminance + 0.05
+            return max(lighter, darker) / min(lighter, darker)
+        }
+
+        /// Mix toward black or white until `minimum` contrast against `background`.
+        func ensuringContrast(against background: RGB, minimum: CGFloat) -> RGB {
+            if contrastRatio(against: background) >= minimum { return self }
+            let ink = background.relativeLuminance > 0.5 ? RGB(0, 0, 0) : RGB(1, 1, 1)
+            var low: CGFloat = 0
+            var high: CGFloat = 1
+            var best = ink
+            for _ in 0..<16 {
+                let mid = (low + high) / 2
+                let candidate = mixed(toward: ink, amount: mid)
+                if candidate.contrastRatio(against: background) >= minimum {
+                    best = candidate
+                    high = mid
+                } else {
+                    low = mid
+                }
+            }
+            return best
+        }
     }
 
     struct Tokens: Equatable, Sendable {

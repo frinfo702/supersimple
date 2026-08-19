@@ -75,6 +75,8 @@ targets:
     dependencies:
       - target: supersimple
       - package: SupersimpleCore
+      - package: GhosttyKit
+        product: GhosttyTerminal
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.frinfo702.supersimpleTests

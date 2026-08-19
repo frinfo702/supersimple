@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import GhosttyTerminal
 import Testing
 
 @testable import supersimple
@@ -171,6 +172,60 @@ struct AppearanceSettingsTests {
         #expect(darkCursor.themeID == "cursor")
         #expect(darkDefault.accent != darkCursor.accent)
         #expect(darkDefault.background != darkCursor.background)
+    }
+
+    @Test("Terminal chrome follows each palette's editor and text tokens")
+    func terminalThemeFollowsPalette() {
+        for theme in ColorTheme.all {
+            let terminal = theme.terminalTheme()
+            #expect(terminal.dark.rendered.contains("background = \(theme.dark.editor.hex)"))
+            #expect(terminal.dark.rendered.contains("foreground = \(theme.dark.text.hex)"))
+            #expect(terminal.dark.rendered.contains("cursor-color = \(theme.dark.accent.hex)"))
+            #expect(terminal.light.rendered.contains("background = \(theme.light.editor.hex)"))
+            #expect(terminal.light.rendered.contains("foreground = \(theme.light.text.hex)"))
+            #expect(terminal.light.rendered.contains("cursor-color = \(theme.light.accent.hex)"))
+            #expect(terminal.dark != terminal.light)
+        }
+        #expect(ColorTheme.named("default").terminalTheme() != ColorTheme.named("nord").terminalTheme())
+    }
+
+    @Test("ANSI black and bright-black stay readable on the terminal background")
+    func terminalCommentColorsContrast() {
+        let floor = ColorTheme.terminalCommentContrast
+        for theme in ColorTheme.all {
+            for isDark in [false, true] {
+                let tokens = theme.tokens(isDark: isDark)
+                let black = tokens.terminalBlack()
+                let comment = tokens.terminalBrightBlack()
+                #expect(black.contrastRatio(against: tokens.editor) >= floor)
+                #expect(comment.contrastRatio(against: tokens.editor) >= floor)
+                #expect(black.hex != tokens.editor.hex)
+                #expect(black.hex != tokens.background.hex)
+
+                let rendered = (isDark ? theme.terminalTheme().dark : theme.terminalTheme().light).rendered
+                #expect(rendered.contains("palette = 0=\(black.hex)"))
+                #expect(rendered.contains("palette = 8=\(comment.hex)"))
+                #expect(rendered.contains("minimum-contrast = 3"))
+            }
+        }
+    }
+
+    @Test("Near-black on the editor surface is lifted to comment contrast")
+    func ensuringContrastLiftsFaintInk() {
+        let editor = ColorTheme.named("default").dark.editor
+        let faint = ColorTheme.named("default").dark.background
+        #expect(faint.contrastRatio(against: editor) < ColorTheme.terminalCommentContrast)
+        let lifted = faint.ensuringContrast(
+            against: editor,
+            minimum: ColorTheme.terminalCommentContrast
+        )
+        #expect(lifted.contrastRatio(against: editor) >= ColorTheme.terminalCommentContrast)
+    }
+
+    @Test("RGB hex rounds to 8-bit sRGB")
+    func rgbHexEncoding() {
+        #expect(ColorTheme.RGB(hex: 0x1A1B26).hex == "#1A1B26")
+        #expect(ColorTheme.RGB(0, 0, 0, 0.5).blended(onto: ColorTheme.RGB(1, 1, 1)).hex == "#808080")
     }
 
     @Test("Unknown persisted values fall back to defaults")
