@@ -143,24 +143,21 @@ struct ContentView: View {
     private var palette: PaletteColors { themeManager.paletteColors(isDark: isDark) }
 
     var body: some View {
-        VStack(spacing: 0) {
-            Group {
-                if model.sidebarVisible {
-                    HSplitView {
-                        SidebarView(model: model)
-                            .frame(
-                                minWidth: AppTheme.Metric.sidebarMinWidth,
-                                idealWidth: model.sidebarWidth,
-                                maxWidth: AppTheme.Metric.sidebarMaxWidth
-                            )
-                            .background(sidebarWidthReader)
-                        editorColumn
-                    }
-                } else {
+        Group {
+            if model.sidebarVisible {
+                HSplitView {
+                    SidebarView(model: model)
+                        .frame(
+                            minWidth: AppTheme.Metric.sidebarMinWidth,
+                            idealWidth: model.sidebarWidth,
+                            maxWidth: AppTheme.Metric.sidebarMaxWidth
+                        )
+                        .background(sidebarWidthReader)
                     editorColumn
                 }
+            } else {
+                editorColumn
             }
-            terminalStrip
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
@@ -207,13 +204,22 @@ struct ContentView: View {
     }
 
     private var editorColumn: some View {
-        EditorView(model: model)
-            .frame(
-                minWidth: AppTheme.Metric.editorMinWidth,
-                maxWidth: .infinity,
-                maxHeight: .infinity
-            )
-            .layoutPriority(1)
+        VStack(spacing: 0) {
+            EditorView(model: model)
+                .frame(
+                    minWidth: AppTheme.Metric.editorMinWidth,
+                    maxWidth: .infinity,
+                    maxHeight: .infinity
+                )
+                .layoutPriority(1)
+            terminalStrip
+        }
+        .frame(
+            minWidth: AppTheme.Metric.editorMinWidth,
+            maxWidth: .infinity,
+            maxHeight: .infinity
+        )
+        .layoutPriority(1)
     }
 
     @ViewBuilder
