@@ -5,7 +5,8 @@ This is a local copy of [swift-markdown-engine](https://github.com/nodes-app/swi
 
 ## Local modifications
 
-- Removed the `MarkdownEngineTests` target (no test sources are vendored).
+- Local `MarkdownEngineTests` cover Tab indent and `LinePrefixGlue` (upstream
+  tests were not vendored).
 - Fenced code blocks use `.markdownCodeBlockBackground` instead of `.backgroundColor`,
   so AppKit doesn't double-composite the translucent fill on the glyph box / ``` fences.
 - `MarkdownASTStyler.swift`: inactive `[text](url)` links reserve the hidden `[`
@@ -18,9 +19,10 @@ This is a local copy of [swift-markdown-engine](https://github.com/nodes-app/swi
   to the run's em-box and pin it to the line's typographic bottom — extra
   `minimumLineHeight` leading sits above the glyphs. Do not copy segment-frame
   origin (container space) onto the indicator (view space).
-- `LinePrefixGlue.swift`: presentation-only WORD JOINER substitution for list,
-  blockquote, and indent prefix whitespace so a long unbreakable run wraps on
-  the first line instead of dropping below the marker. Hidden bullets collapse
+- `LinePrefixGlue.swift`: presentation-only WORD JOINER substitution for the
+  trailing space after a list/blockquote marker so a long unbreakable run wraps
+  on the first line instead of dropping below the marker. Leading indent tabs
+  are left intact so Tab indent keeps its tab-stop width. Hidden bullets collapse
   `- ` into the paragraph indent so wrapped lines and the caret share the same origin.
 
 ## Upgrading

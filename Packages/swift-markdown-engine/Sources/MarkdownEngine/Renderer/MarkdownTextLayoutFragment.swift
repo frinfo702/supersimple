@@ -787,18 +787,10 @@ final class MarkdownLayoutManagerDelegate: NSObject, NSTextLayoutManagerDelegate
     func textContentStorage(_ textContentStorage: NSTextContentStorage, textParagraphWith range: NSRange) -> NSTextParagraph? {
         guard let ts = textContentStorage.textStorage,
               range.location >= 0, NSMaxRange(range) <= ts.length else { return nil }
-        let tabWidth = tabWidth(from: textContentStorage)
         let snippet = ts.attributedSubstring(from: range)
         guard LinePrefixGlue.prefixLength(in: snippet.string) > 0 else { return nil }
         let mutable = NSMutableAttributedString(attributedString: snippet)
-        guard LinePrefixGlue.apply(to: mutable, tabWidth: tabWidth) else { return nil }
+        guard LinePrefixGlue.apply(to: mutable) else { return nil }
         return NSTextParagraph(attributedString: mutable)
-    }
-
-    private func tabWidth(from contentStorage: NSTextContentStorage) -> CGFloat {
-        let manager = contentStorage.textLayoutManagers.first
-        let textView = manager?.textContainer?.textView as? NativeTextView
-        return textView?.configuration.lists.indentPerLevel
-            ?? MarkdownEditorConfiguration.default.lists.indentPerLevel
     }
 }
