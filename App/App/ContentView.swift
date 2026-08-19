@@ -137,26 +137,30 @@ struct ContentView: View {
     @Environment(ThemeManager.self) private var themeManager
     @Environment(\.colorScheme) private var colorScheme
     @State private var appLaunchTask: Task<Void, Never>?
+    @StateObject private var terminalSession = TerminalSession()
 
     private var isDark: Bool { themeManager.isDark(matching: colorScheme) }
     private var palette: PaletteColors { themeManager.paletteColors(isDark: isDark) }
 
     var body: some View {
-        Group {
-            if model.sidebarVisible {
-                HSplitView {
-                    SidebarView(model: model)
-                        .frame(
-                            minWidth: AppTheme.Metric.sidebarMinWidth,
-                            idealWidth: model.sidebarWidth,
-                            maxWidth: AppTheme.Metric.sidebarMaxWidth
-                        )
-                        .background(sidebarWidthReader)
+        VStack(spacing: 0) {
+            Group {
+                if model.sidebarVisible {
+                    HSplitView {
+                        SidebarView(model: model)
+                            .frame(
+                                minWidth: AppTheme.Metric.sidebarMinWidth,
+                                idealWidth: model.sidebarWidth,
+                                maxWidth: AppTheme.Metric.sidebarMaxWidth
+                            )
+                            .background(sidebarWidthReader)
+                        editorColumn
+                    }
+                } else {
                     editorColumn
                 }
-            } else {
-                editorColumn
             }
+            terminalStrip
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
@@ -170,6 +174,14 @@ struct ContentView: View {
         .onAppear {
             if appLaunchTask == nil {
                 appLaunchTask = Task { await model.bootstrap() }
+            }
+            if model.terminalVisible {
+                terminalSession.prepare()
+            }
+        }
+        .onChange(of: model.terminalVisible) { _, visible in
+            if visible {
+                terminalSession.prepare()
             }
         }
         .confirmationDialog(
@@ -202,6 +214,26 @@ struct ContentView: View {
                 maxHeight: .infinity
             )
             .layoutPriority(1)
+    }
+
+    @ViewBuilder
+    private var terminalStrip: some View {
+        @Bindable var bindableModel = model
+        if let context = terminalSession.context {
+            TerminalPanel(
+                context: context,
+                height: $bindableModel.terminalHeight,
+                visible: model.terminalVisible,
+                focusToken: model.terminalFocusToken,
+                palette: palette
+            )
+            .frame(height: model.terminalVisible ? model.terminalHeight : 0)
+            .clipped()
+            .opacity(model.terminalVisible ? 1 : 0)
+            .allowsHitTesting(model.terminalVisible)
+            .accessibilityHidden(!model.terminalVisible)
+            .id(ObjectIdentifier(context))
+        }
     }
 
     private var windowTitle: String {
@@ -279,6 +311,10 @@ struct AppCommands: Commands {
                 model.focusSearch()
             }
             .keyboardShortcut("l")
+            Button("Toggle Terminal") {
+                model.toggleTerminal()
+            }
+            .keyboardShortcut("j")
         }
     }
 

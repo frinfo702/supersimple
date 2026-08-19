@@ -4,8 +4,8 @@ A minimalist, super-lightweight macOS notes app with an Obsidian-style **live Ma
 preview**, native LaTeX rendering, and full-text search. Inspired by the clean, restrained
 aesthetic of Superlogical — no clutter, no redundant toolbars.
 
-Built entirely with native Apple frameworks (SwiftUI + AppKit/TextKit 2). No Electron,
-no `WKWebView`, no JavaScript runtime.
+Built with native Apple frameworks (SwiftUI + AppKit/TextKit 2) and **libghostty**
+for the integrated terminal. No Electron, no `WKWebView`, no JavaScript runtime.
 
 ![macOS](https://img.shields.io/badge/macOS-14%2B-lightgrey)
 
@@ -31,6 +31,10 @@ no `WKWebView`, no JavaScript runtime.
   from Google's favicon service).
 - **Minimal design** — hidden navbar title, standard traffic lights, subtle warm accent,
   near-black theme, and dark/light/system appearance.
+- **Integrated terminal** — `⌘J` opens a bottom panel backed by
+  [libghostty](https://github.com/ghostty-org/ghostty). It runs your macOS login shell
+  (`$SHELL`) in the home directory, with no Ghostty config file and no shell-integration
+  scripts.
 
 ## Requirements
 
@@ -43,7 +47,7 @@ no `WKWebView`, no JavaScript runtime.
 ```
 App/                       macOS app
   App/                     entry point, AppModel (single @Observable state holder)
-  Features/                Library (sidebar), Editor (live preview), etc.
+  Features/                Library (sidebar), Editor (live preview), Terminal, etc.
   Resources/               Info.plist, entitlements, Geist Mono font, asset catalog
   UI/Theme/                design tokens (near-black palette, accent)
 Packages/SupersimpleCore/  platform-neutral library (maintainable, testable in isolation)
@@ -65,6 +69,10 @@ Scripts/                   build.sh, format.sh, generate_icon.swift
   fenced-code ``` markers are always hidden (they previously flipped color with the caret,
   which looked broken). Its pre-1.0 API is isolated behind `EditorView`.
 - Markdown files are the source of truth; the SQLite DB is rebuildable on demand.
+- The terminal embeds [libghostty](https://github.com/Lakr233/libghostty-spm) (`GhosttyTerminal`
+  1.3.2) with the exec/PTY backend. The app is **unsandboxed** so the login shell has a
+  normal home directory, PATH, and filesystem. Existing notes from the old sandbox
+  container are copied once into `~/Library/Application Support/Supersimple/`.
 
 ## Building
 
@@ -124,6 +132,7 @@ replaces the app bundle, and relaunches.
 - `⌘N` new note
 - `⌘S` save now
 - `⌥⌘S` toggle sidebar
+- `⌘J` toggle terminal
 
 ## Dependencies
 
@@ -131,4 +140,5 @@ replaces the app bundle, and relaunches.
 | --- | --- | --- |
 | [swift-markdown-engine](https://github.com/nodes-app/swift-markdown-engine) 0.12.0 (vendored) | TextKit 2 live-preview editor | Apache-2.0 |
 | [SwiftMath](https://github.com/mgriebling/SwiftMath) | Native LaTeX typesetting | 2-Clause BSD |
+| [libghostty](https://github.com/ghostty-org/ghostty) via [libghostty-spm](https://github.com/Lakr233/libghostty-spm) 1.3.2 | Embedded terminal (Metal) | MIT |
 | [Geist Mono](https://vercel.com/font) | Code-block monospace font | SIL OFL 1.1 |

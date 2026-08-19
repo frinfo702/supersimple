@@ -399,6 +399,39 @@ struct AppModelTests {
         model.closeSearch()
         #expect(!model.searchFieldPresented)
     }
+
+    @Test("Toggle terminal shows and hides the panel")
+    func toggleTerminal() throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+
+        #expect(!model.terminalVisible)
+        model.toggleTerminal()
+        #expect(model.terminalVisible)
+        #expect(model.terminalFocusToken == 1)
+        model.toggleTerminal()
+        #expect(!model.terminalVisible)
+        #expect(model.editorFocusToken == 1)
+    }
+
+    @Test("Terminal height is clamped to the design range")
+    func terminalHeightClamps() throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+
+        model.terminalHeight = 10
+        #expect(model.terminalHeight == AppTheme.Metric.terminalMinHeight)
+        model.terminalHeight = 900
+        #expect(model.terminalHeight == AppTheme.Metric.terminalMaxHeight)
+    }
 }
 
 @Suite("FaviconService")
@@ -506,5 +539,51 @@ struct ThemeManagerTests {
         #expect(manager.preference == .dark)
         manager.setPreferenceImmediately(.light)
         #expect(manager.preference == .light)
+    }
+}
+
+@Suite("SandboxContainerMigration")
+struct SandboxContainerMigrationTests {
+    @Test("Copies notes out of the sandbox container when the destination is empty")
+    func copiesWhenDestinationEmpty() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sandbox-migrate-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let home = root.appendingPathComponent("home")
+        let destination = root.appendingPathComponent("Support/Supersimple")
+        let container = SandboxContainerMigration.containerApplicationSupport(home: home)
+        let notes = container.appendingPathComponent("Notes", isDirectory: true)
+        try FileManager.default.createDirectory(at: notes, withIntermediateDirectories: true)
+        try Data("# Hello\n".utf8).write(to: notes.appendingPathComponent("note.md"))
+
+        SandboxContainerMigration.migrateIfNeeded(to: destination, home: home)
+
+        let copied = destination.appendingPathComponent("Notes/note.md")
+        #expect(FileManager.default.fileExists(atPath: copied.path))
+        #expect(try String(contentsOf: copied, encoding: .utf8).contains("Hello"))
+    }
+
+    @Test("Leaves an existing unsandboxed library untouched")
+    func skipsWhenDestinationHasNotes() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("sandbox-migrate-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let home = root.appendingPathComponent("home")
+        let destination = root.appendingPathComponent("Support/Supersimple")
+        let destNotes = destination.appendingPathComponent("Notes", isDirectory: true)
+        try FileManager.default.createDirectory(at: destNotes, withIntermediateDirectories: true)
+        try Data("# Keep\n".utf8).write(to: destNotes.appendingPathComponent("keep.md"))
+
+        let container = SandboxContainerMigration.containerApplicationSupport(home: home)
+            .appendingPathComponent("Notes", isDirectory: true)
+        try FileManager.default.createDirectory(at: container, withIntermediateDirectories: true)
+        try Data("# Old\n".utf8).write(to: container.appendingPathComponent("old.md"))
+
+        SandboxContainerMigration.migrateIfNeeded(to: destination, home: home)
+
+        #expect(FileManager.default.fileExists(atPath: destNotes.appendingPathComponent("keep.md").path))
+        #expect(!FileManager.default.fileExists(atPath: destNotes.appendingPathComponent("old.md").path))
     }
 }

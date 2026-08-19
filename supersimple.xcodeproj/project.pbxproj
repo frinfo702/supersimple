@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		00D9968516FA9AB4F913A40B /* SVGIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4E4E3A695A1A592C185A3819 /* SVGIcons.swift */; };
 		1DFA51B809AEC2578A5B24A0 /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 446DDC1536D6EB8106031BC9 /* SidebarView.swift */; };
+		2EC7A7880B30F8247635FDD7 /* TerminalPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0536B8CEC6E0FCB4C8A7B783 /* TerminalPanel.swift */; };
 		33481172F99C6D9423CAA52F /* AppBundleInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9CE6E095CC7CB793813737 /* AppBundleInstaller.swift */; };
 		3807F6FEA88ADF5648BED01D /* NoteStats.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8442FD7B2968A92BD6C95C03 /* NoteStats.swift */; };
 		39F2E8A9B7A786AB3D4D6372 /* SupersimpleCore in Frameworks */ = {isa = PBXBuildFile; productRef = 28CE08F4153B4EF6060AC482 /* SupersimpleCore */; };
@@ -19,12 +20,14 @@
 		56CE689B1FBE96551A47030B /* MarkdownEngine in Frameworks */ = {isa = PBXBuildFile; productRef = F63F4B23BF2EB69355738DE1 /* MarkdownEngine */; };
 		621738EA594E075E3B75A701 /* AppIconOption.swift in Sources */ = {isa = PBXBuildFile; fileRef = CC1E1E324589111405A97284 /* AppIconOption.swift */; };
 		62A6EBB69ADEB23FFD352AF4 /* MarkdownEngineLatex in Frameworks */ = {isa = PBXBuildFile; productRef = 574E0DC4D79106D424F96D2F /* MarkdownEngineLatex */; };
+		66AF55163312673D7D295B54 /* GhosttyTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = DC9F16AB2A2EDDE7AFFBCAFC /* GhosttyTerminal */; };
 		7050887B5CCE0DF269821C72 /* AppBundleInstallerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FFA8CE0E90CD09DD259CD8 /* AppBundleInstallerTests.swift */; };
 		8275BCB4BA82A558F2E6CC6E /* AppearanceSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D79E6663399201E241CD4C /* AppearanceSettingsTests.swift */; };
 		8A333A14EFBD621403AD3640 /* SupersimpleUpdater.app in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = D422B2FA546462BD6941BF2A /* SupersimpleUpdater.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		8DB20AA1ED612D1DE0B527A1 /* GeistMono.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1A8A5098809F4EF931DED0F4 /* GeistMono.ttf */; };
 		9164CAE29549E33199E4DE8E /* ThemeCommands.swift in Sources */ = {isa = PBXBuildFile; fileRef = C03ABCCBC0F1C617CC9BB324 /* ThemeCommands.swift */; };
 		970E53D34EEA43F5A8288D81 /* WindowChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2D52CF398C51C27B1282D75C /* WindowChrome.swift */; };
+		97AF5F2F78AF0252CDE1B8EB /* SandboxContainerMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA3EE4C0A864F7BDB1B6908E /* SandboxContainerMigration.swift */; };
 		9CD355F5F13E815A054F4E5D /* SupersimpleUpdater.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC02340F436B5F0721F130D1 /* SupersimpleUpdater.swift */; };
 		9D3307BB19BF5568C5B7F868 /* SupersimpleCore in Frameworks */ = {isa = PBXBuildFile; productRef = AD01F469D880EDEF7D47834E /* SupersimpleCore */; };
 		A1AFBCA2F9AF81FF5952B28A /* EditorTypography.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E8C52478FBE3B2A1EE283BD /* EditorTypography.swift */; };
@@ -38,6 +41,7 @@
 		C043CD6DFBFF54AF29D26A68 /* ColorTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92DA148CA014441FCAD940A9 /* ColorTheme.swift */; };
 		C13CA269CD80545CDDED1BA2 /* PendingUpdateInstall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 653479FFD8F94AB26A8F716D /* PendingUpdateInstall.swift */; };
 		C794FA9B0F44F271C5313763 /* AppModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FF15FA9B631FA47690BF74A /* AppModel.swift */; };
+		C9F243FBE74F842975D10ED4 /* TerminalSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13C45E29CC9C2416620015AC /* TerminalSession.swift */; };
 		DB9513E2393E5059A929F047 /* PendingUpdateInstall.swift in Sources */ = {isa = PBXBuildFile; fileRef = 653479FFD8F94AB26A8F716D /* PendingUpdateInstall.swift */; };
 		DD57B5ABC49EF0C1EF2CFB74 /* AppBundleInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C9CE6E095CC7CB793813737 /* AppBundleInstaller.swift */; };
 		E836B0648BB415F0B0B67B07 /* EditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B47DE2CE54F87F1D7E7C3DA3 /* EditorView.swift */; };
@@ -85,8 +89,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		0536B8CEC6E0FCB4C8A7B783 /* TerminalPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalPanel.swift; sourceTree = "<group>"; };
 		07908A4E24E57D67ACB88BE5 /* supersimple.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = supersimple.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		08C3404FB831A9B8678E717D /* Supersimple.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Supersimple.entitlements; sourceTree = "<group>"; };
+		13C45E29CC9C2416620015AC /* TerminalSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TerminalSession.swift; sourceTree = "<group>"; };
 		1A8A5098809F4EF931DED0F4 /* GeistMono.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = GeistMono.ttf; sourceTree = "<group>"; };
 		29AC3EE0C4D902C22D99F38F /* AppUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppUpdater.swift; sourceTree = "<group>"; };
 		2C9CE6E095CC7CB793813737 /* AppBundleInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppBundleInstaller.swift; sourceTree = "<group>"; };
@@ -119,11 +125,12 @@
 		D422B2FA546462BD6941BF2A /* SupersimpleUpdater.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SupersimpleUpdater.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E44268CB09A660B95EBCA712 /* FaviconService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaviconService.swift; sourceTree = "<group>"; };
 		E52E7AD4D9C61D126880708B /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
+		EA3EE4C0A864F7BDB1B6908E /* SandboxContainerMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SandboxContainerMigration.swift; sourceTree = "<group>"; };
 		EC02340F436B5F0721F130D1 /* SupersimpleUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersimpleUpdater.swift; sourceTree = "<group>"; };
 		F40B77214A55275DF8977211 /* NoteRecencyGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteRecencyGroup.swift; sourceTree = "<group>"; };
 		F7D79E6663399201E241CD4C /* AppearanceSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsTests.swift; sourceTree = "<group>"; };
 		FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		"TEMP_9ACBDDE1-CCAA-447F-B05E-A8A093394521" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
+		"TEMP_7C17042F-C0A4-400C-BE22-684D6962653F" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -134,6 +141,7 @@
 				39F2E8A9B7A786AB3D4D6372 /* SupersimpleCore in Frameworks */,
 				56CE689B1FBE96551A47030B /* MarkdownEngine in Frameworks */,
 				62A6EBB69ADEB23FFD352AF4 /* MarkdownEngineLatex in Frameworks */,
+				66AF55163312673D7D295B54 /* GhosttyTerminal in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -162,6 +170,7 @@
 				A315A49DBBE60BFDBA267123 /* Editor */,
 				9DC95DB0734FF9ABEC1189E6 /* Library */,
 				81A52360EE86A5E996E8C100 /* Settings */,
+				790F869443F01059B394AB8E /* Terminal */,
 			);
 			path = Features;
 			sourceTree = "<group>";
@@ -200,6 +209,15 @@
 				1A8A5098809F4EF931DED0F4 /* GeistMono.ttf */,
 			);
 			path = Fonts;
+			sourceTree = "<group>";
+		};
+		790F869443F01059B394AB8E /* Terminal */ = {
+			isa = PBXGroup;
+			children = (
+				0536B8CEC6E0FCB4C8A7B783 /* TerminalPanel.swift */,
+				13C45E29CC9C2416620015AC /* TerminalSession.swift */,
+			);
+			path = Terminal;
 			sourceTree = "<group>";
 		};
 		7C07ADFE3965687F7EC7930D /* Theme */ = {
@@ -263,6 +281,7 @@
 				906F2D47A23E7FDAA0E1A35E /* ImageStore.swift */,
 				8442FD7B2968A92BD6C95C03 /* NoteStats.swift */,
 				653479FFD8F94AB26A8F716D /* PendingUpdateInstall.swift */,
+				EA3EE4C0A864F7BDB1B6908E /* SandboxContainerMigration.swift */,
 				2ED2905149C64AC964B579B3 /* SupersimpleApp.swift */,
 			);
 			path = App;
@@ -367,6 +386,7 @@
 				28CE08F4153B4EF6060AC482 /* SupersimpleCore */,
 				F63F4B23BF2EB69355738DE1 /* MarkdownEngine */,
 				574E0DC4D79106D424F96D2F /* MarkdownEngineLatex */,
+				DC9F16AB2A2EDDE7AFFBCAFC /* GhosttyTerminal */,
 			);
 			productName = supersimple;
 			productReference = 07908A4E24E57D67ACB88BE5 /* supersimple.app */;
@@ -448,6 +468,7 @@
 			mainGroup = 3815FA73802B1F0D77F4955F;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				46782C24B5BE2B7557A1BFD7 /* XCRemoteSwiftPackageReference "libghostty-spm" */,
 				2534CE66A37D7FF7CFC16CB2 /* XCLocalSwiftPackageReference "Packages/swift-markdown-engine" */,
 				82AE72BB421E290672303FDA /* XCLocalSwiftPackageReference "Packages/swift-markdown-engine" */,
 				19AFD8BF545EDA2DB3B7B628 /* XCLocalSwiftPackageReference "Packages/SupersimpleCore" */,
@@ -527,9 +548,12 @@
 				3807F6FEA88ADF5648BED01D /* NoteStats.swift in Sources */,
 				DB9513E2393E5059A929F047 /* PendingUpdateInstall.swift in Sources */,
 				00D9968516FA9AB4F913A40B /* SVGIcons.swift in Sources */,
+				97AF5F2F78AF0252CDE1B8EB /* SandboxContainerMigration.swift in Sources */,
 				B8CB4008CBF25485BF0588C5 /* SettingsView.swift in Sources */,
 				1DFA51B809AEC2578A5B24A0 /* SidebarView.swift in Sources */,
 				A965689EF507898F3E2EF21B /* SupersimpleApp.swift in Sources */,
+				2EC7A7880B30F8247635FDD7 /* TerminalPanel.swift in Sources */,
+				C9F243FBE74F842975D10ED4 /* TerminalSession.swift in Sources */,
 				9164CAE29549E33199E4DE8E /* ThemeCommands.swift in Sources */,
 				43CAD5F67985F9829DEF5FFB /* ThemeManager.swift in Sources */,
 				970E53D34EEA43F5A8288D81 /* WindowChrome.swift in Sources */,
@@ -897,6 +921,17 @@
 		};
 /* End XCLocalSwiftPackageReference section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		46782C24B5BE2B7557A1BFD7 /* XCRemoteSwiftPackageReference "libghostty-spm" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Lakr233/libghostty-spm";
+			requirement = {
+				kind = exactVersion;
+				version = 1.3.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		28CE08F4153B4EF6060AC482 /* SupersimpleCore */ = {
 			isa = XCSwiftPackageProductDependency;
@@ -909,6 +944,11 @@
 		AD01F469D880EDEF7D47834E /* SupersimpleCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = SupersimpleCore;
+		};
+		DC9F16AB2A2EDDE7AFFBCAFC /* GhosttyTerminal */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 46782C24B5BE2B7557A1BFD7 /* XCRemoteSwiftPackageReference "libghostty-spm" */;
+			productName = GhosttyTerminal;
 		};
 		F63F4B23BF2EB69355738DE1 /* MarkdownEngine */ = {
 			isa = XCSwiftPackageProductDependency;

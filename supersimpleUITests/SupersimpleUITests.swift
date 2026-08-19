@@ -122,6 +122,20 @@ final class SupersimpleUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["settings-icon-grid"].exists)
     }
 
+    @MainActor
+    func testCommandJRevealsTerminal() throws {
+        let app = launchedApp()
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 5))
+        XCTAssertFalse(app.descendants(matching: .any)["terminal-panel"].exists)
+
+        app.typeKey("j", modifierFlags: .command)
+        let panel = app.descendants(matching: .any)["terminal-panel"]
+        XCTAssertTrue(panel.waitForExistence(timeout: 10), "Terminal panel should open from ⌘J")
+
+        app.typeKey("j", modifierFlags: .command)
+        XCTAssertFalse(panel.isHittable, "Terminal panel should not stay hittable after a second ⌘J")
+    }
+
     // MARK: - Screenshot capture
 
     @MainActor

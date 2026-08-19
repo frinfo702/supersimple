@@ -66,6 +66,9 @@ enum AppTheme {
         static let sidebarMinWidth: CGFloat = 200
         static let sidebarMaxWidth: CGFloat = 340
         static let editorMinWidth: CGFloat = 560
+        static let terminalHeight: CGFloat = 220
+        static let terminalMinHeight: CGFloat = 120
+        static let terminalMaxHeight: CGFloat = 480
         static let readingWidth: CGFloat = 640
         static let hairlineWidth: CGFloat = 0.5
         static let controlRadius: CGFloat = 8
