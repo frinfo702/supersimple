@@ -137,26 +137,34 @@ struct ContentView: View {
     @Environment(ThemeManager.self) private var themeManager
     @Environment(\.colorScheme) private var colorScheme
     @State private var appLaunchTask: Task<Void, Never>?
+    @StateObject private var terminalSession = TerminalSession()
 
     private var isDark: Bool { themeManager.isDark(matching: colorScheme) }
     private var palette: PaletteColors { themeManager.paletteColors(isDark: isDark) }
 
     var body: some View {
-        Group {
-            if model.sidebarVisible {
-                HSplitView {
-                    SidebarView(model: model)
-                        .frame(
-                            minWidth: AppTheme.Metric.sidebarMinWidth,
-                            idealWidth: model.sidebarWidth,
-                            maxWidth: AppTheme.Metric.sidebarMaxWidth
-                        )
-                        .background(sidebarWidthReader)
-                    editorColumn
-                }
-            } else {
-                editorColumn
-            }
+        @Bindable var bindableModel = model
+        HStack(spacing: 0) {
+            SidebarView(model: model)
+                .frame(width: model.sidebarVisible ? model.sidebarWidth : 0)
+                .frame(maxHeight: .infinity)
+                .clipped()
+                .opacity(model.sidebarVisible ? 1 : 0)
+                .allowsHitTesting(model.sidebarVisible)
+                .accessibilityHidden(!model.sidebarVisible)
+            SplitResizeHandle(
+                value: $bindableModel.sidebarWidth,
+                hairline: palette.hairline,
+                axis: .leadingWidth
+            )
+            .frame(width: model.sidebarVisible ? 6 : 0)
+            .frame(maxHeight: .infinity)
+            .allowsHitTesting(model.sidebarVisible)
+            .accessibilityHidden(!model.sidebarVisible)
+            .accessibilityIdentifier("sidebar-resize-handle")
+            .accessibilityLabel("Resize sidebar")
+            editorColumn
+                .id("editor-column")
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
@@ -171,6 +179,25 @@ struct ContentView: View {
             if appLaunchTask == nil {
                 appLaunchTask = Task { await model.bootstrap() }
             }
+            terminalSession.installToggleShortcut {
+                model.toggleTerminal()
+            }
+            if model.terminalVisible {
+                terminalSession.prepare()
+            }
+        }
+        .onChange(of: model.terminalVisible) { _, visible in
+            if visible {
+                terminalSession.prepare()
+            }
+        }
+        .onChange(of: model.sidebarVisible) { _, _ in
+            DispatchQueue.main.async {
+                terminalSession.refreshLayout()
+            }
+        }
+        .onChange(of: model.sidebarWidth) { _, _ in
+            terminalSession.refreshLayout()
         }
         .confirmationDialog(
             "Delete this note?",
@@ -195,34 +222,45 @@ struct ContentView: View {
     }
 
     private var editorColumn: some View {
-        EditorView(model: model)
-            .frame(
-                minWidth: AppTheme.Metric.editorMinWidth,
-                maxWidth: .infinity,
-                maxHeight: .infinity
+        VStack(spacing: 0) {
+            EditorView(model: model)
+                .frame(
+                    minWidth: AppTheme.Metric.editorMinWidth,
+                    maxWidth: .infinity,
+                    maxHeight: .infinity
+                )
+                .layoutPriority(1)
+            terminalStrip
+        }
+        .frame(
+            minWidth: AppTheme.Metric.editorMinWidth,
+            maxWidth: .infinity,
+            maxHeight: .infinity
+        )
+        .layoutPriority(1)
+    }
+
+    @ViewBuilder
+    private var terminalStrip: some View {
+        @Bindable var bindableModel = model
+        if terminalSession.context != nil {
+            TerminalPanel(
+                session: terminalSession,
+                height: $bindableModel.terminalHeight,
+                visible: model.terminalVisible,
+                focusToken: model.terminalFocusToken,
+                palette: palette
             )
-            .layoutPriority(1)
+            .frame(height: model.terminalVisible ? model.terminalHeight : 0)
+            .clipped()
+            .opacity(model.terminalVisible ? 1 : 0)
+            .allowsHitTesting(model.terminalVisible)
+            .accessibilityHidden(!model.terminalVisible)
+        }
     }
 
     private var windowTitle: String {
         model.currentNote()?.title ?? "supersimple"
-    }
-
-    private var sidebarWidthReader: some View {
-        GeometryReader { geo in
-            Color.clear.preference(key: SidebarWidthKey.self, value: geo.size.width)
-        }
-        .onPreferenceChange(SidebarWidthKey.self) { width in
-            guard width > 1, abs(width - model.sidebarWidth) > 1 else { return }
-            model.sidebarWidth = width
-        }
-    }
-}
-
-private struct SidebarWidthKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
     }
 }
 
@@ -279,6 +317,10 @@ struct AppCommands: Commands {
                 model.focusSearch()
             }
             .keyboardShortcut("l")
+            Button("Toggle Terminal") {
+                model.toggleTerminal()
+            }
+            .keyboardShortcut("j")
         }
     }
 

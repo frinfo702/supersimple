@@ -63,6 +63,28 @@ final class AppModel {
         }
     }
 
+    /// Whether the libghostty login-shell panel is shown.
+    var terminalVisible: Bool {
+        didSet {
+            userDefaults.set(terminalVisible, forKey: "terminalVisible")
+        }
+    }
+
+    /// User-resized terminal panel height, clamped to the design range.
+    var terminalHeight: CGFloat {
+        didSet {
+            let clamped = Self.clampTerminalHeight(terminalHeight)
+            if clamped != terminalHeight {
+                terminalHeight = clamped
+                return
+            }
+            userDefaults.set(Double(clamped), forKey: "terminalHeight")
+        }
+    }
+
+    /// Bumped to move keyboard focus into the terminal surface.
+    private(set) var terminalFocusToken: UInt = 0
+
     /// True while the library search field should stay on screen (empty query included).
     private(set) var searchFieldPresented = false
     /// Bumped to move keyboard focus into the library search field.
@@ -74,6 +96,9 @@ final class AppModel {
     private var saveTask: Task<Void, Never>?
     private var isDirty = false
     private let autosaveDebounce: Duration = .milliseconds(350)
+    /// Production storage only — tests pass directory overrides and must not
+    /// copy the user's real sandbox container into the temp fixture.
+    private let migratesSandboxContainer: Bool
 
     // MARK: - Init / bootstrap
 
@@ -103,6 +128,14 @@ final class AppModel {
         } else {
             sidebarWidth = AppTheme.Metric.sidebarWidth
         }
+        terminalVisible = self.userDefaults.object(forKey: "terminalVisible") as? Bool ?? false
+        if let storedHeight = self.userDefaults.object(forKey: "terminalHeight") as? Double {
+            terminalHeight = Self.clampTerminalHeight(CGFloat(storedHeight))
+        } else {
+            terminalHeight = AppTheme.Metric.terminalHeight
+        }
+
+        migratesSandboxContainer = notesDirectoryOverride == nil && appSupportURLOverride == nil
 
         if let override = notesDirectoryOverride {
             notesDirectory = override
@@ -137,6 +170,10 @@ final class AppModel {
     func bootstrap() async {
         guard !isBootstrapLoaded else { return }
         isBootstrapLoaded = true
+
+        if migratesSandboxContainer {
+            SandboxContainerMigration.migrateIfNeeded(to: appSupportURL)
+        }
 
         let directory = notesDirectory
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -253,6 +290,15 @@ final class AppModel {
 
     func focusEditor() {
         editorFocusToken &+= 1
+    }
+
+    func toggleTerminal() {
+        terminalVisible.toggle()
+        if terminalVisible {
+            terminalFocusToken &+= 1
+        } else {
+            focusEditor()
+        }
     }
 
     func requestDelete(_ note: Note? = nil) {
@@ -533,6 +579,10 @@ final class AppModel {
 
     static func clampSidebarWidth(_ width: CGFloat) -> CGFloat {
         min(max(width, AppTheme.Metric.sidebarMinWidth), AppTheme.Metric.sidebarMaxWidth)
+    }
+
+    static func clampTerminalHeight(_ height: CGFloat) -> CGFloat {
+        min(max(height, AppTheme.Metric.terminalMinHeight), AppTheme.Metric.terminalMaxHeight)
     }
 
     func closeSearch() {

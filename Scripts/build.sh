@@ -62,8 +62,9 @@ if [ ! -d "$APP_PATH" ]; then
   exit 1
 fi
 
-# Sign the nested updater first *without* the app sandbox entitlements, then the
-# outer app. `--deep` on the outer bundle would sandbox the helper and block installs.
+# Sign the nested updater first *without* the app entitlements, then the
+# outer app. `--deep` on the outer bundle would apply the main app's
+# entitlements to the helper.
 HELPER_PATH="$APP_PATH/Contents/PlugIns/SupersimpleUpdater.app"
 if [ -d "$HELPER_PATH" ]; then
   codesign --force --sign - --options runtime "$HELPER_PATH" >/dev/null
