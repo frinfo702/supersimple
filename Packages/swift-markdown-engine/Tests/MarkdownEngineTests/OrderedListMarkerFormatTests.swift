@@ -83,6 +83,19 @@ struct OrderedListMarkerFormatTests {
         #expect(OrderedListMarkerFormat.runStart(indent: 1, literal: 2, existing: 3) == 3)
     }
 
+    @Test("Outdent from i. to one tab shows a. then b., not i.")
+    func outdentFromRomanShowsAlphabetic() {
+        let text = "1. parent\n\t2. child\n\t3. deep"
+        let attrs = MarkdownASTStyler.styleAttributes(
+            text: text,
+            fontName: "Helvetica",
+            fontSize: 16,
+            caretLocation: -1
+        )
+        let markers = attrs.compactMap { $0.attributes[.orderedMarker] as? String }
+        #expect(markers == ["a.", "b."])
+    }
+
     @Test("Top-level 1. matching its display number is not overlaid")
     func matchingTopLevelHasNoOverlay() {
         let text = "1. one\n2. two"

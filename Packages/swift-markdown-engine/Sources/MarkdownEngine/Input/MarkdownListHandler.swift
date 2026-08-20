@@ -324,4 +324,116 @@ struct MarkdownLists {
 
         return true
     }
+
+    // MARK: - Backspace outdent
+
+    enum ListOutdentResult {
+        case outdented
+        case atTopLevel
+        case notAList
+    }
+
+    /// Remove one indent unit from the current list line. Shift-Tab and
+    /// Backspace-on-empty-item share this so nested `a.` returns to `2.`
+    /// instead of eating the marker's trailing space and leaving a tab + `2.`
+    /// paragraph whose display no longer matches its depth.
+    @discardableResult
+    static func outdentCurrentListLine(textView: NSTextView) -> ListOutdentResult {
+        let nsText = textView.string as NSString
+        let caretLoc = textView.selectedRange().location
+        let lineRange = nsText.lineRange(for: NSRange(location: min(caretLoc, nsText.length), length: 0))
+        let line = nsText.substring(with: lineRange)
+
+        let pattern = #"^([\t ]*)((\d+)\.|[-•*+])\s"#
+        let regex = try? NSRegularExpression(pattern: pattern)
+        guard let regex,
+              let match = regex.firstMatch(in: line, range: NSRange(location: 0, length: line.utf16.count))
+        else { return .notAList }
+
+        let wsRangeLocal = match.range(at: 1)
+        let wsString = (line as NSString).substring(with: wsRangeLocal)
+        let wsDocStart = lineRange.location + wsRangeLocal.location
+        let depth = MarkdownLists.indentLevel(from: wsString)
+        let markerString = (line as NSString).substring(with: match.range(at: 2))
+        let isLegacyBulletGlyph = markerString.first == "•"
+        let minDepth = isLegacyBulletGlyph ? 1 : 0
+        guard depth > minDepth, wsRangeLocal.length > 0 else { return .atTopLevel }
+
+        if wsString.hasPrefix("\t") {
+            MarkdownLists.performEdit(textView, replace: NSRange(location: wsDocStart, length: 1), with: "")
+            textView.setSelectedRange(NSRange(location: max(0, caretLoc - 1), length: 0))
+            return .outdented
+        }
+        var removeCount = 0
+        for ch in wsString {
+            if ch == " " && removeCount < 2 { removeCount += 1 } else { break }
+        }
+        if removeCount == 0 { removeCount = min(2, wsRangeLocal.length) }
+        MarkdownLists.performEdit(textView, replace: NSRange(location: wsDocStart, length: removeCount), with: "")
+        textView.setSelectedRange(NSRange(location: max(0, caretLoc - removeCount), length: 0))
+        return .outdented
+    }
+
+    /// Backspace on an empty list item (or at content start) outdents one
+    /// level. Default Backspace would delete the space after `2.`, which
+    /// drops the line out of the list while leaving the indent tab — nested
+    /// visually, but showing the raw `2.` instead of `a.`.
+    /// Returns `true` when the key was consumed.
+    static func handleBackspace(textView: NSTextView, isInsideCodeBlock: Bool? = nil) -> Bool {
+        let sel = textView.selectedRange()
+        guard sel.length == 0 else { return false }
+
+        let activeConfig = (textView as? NativeTextView)?.configuration ?? .default
+        guard activeConfig.lists.helpersEnabled else { return false }
+
+        let isInCodeBlock = isInsideCodeBlock ?? (
+            textView.string.contains("`")
+                ? MarkdownDetection.isInsideCodeBlock(location: sel.location, in: textView.string)
+                : false
+        )
+        guard !isInCodeBlock else { return false }
+
+        let nsText = textView.string as NSString
+        let caret = min(sel.location, nsText.length)
+        let lineRange = nsText.lineRange(for: NSRange(location: caret, length: 0))
+        let line = nsText.substring(with: lineRange)
+        let lineNS = line as NSString
+        let lineUTF16 = lineNS.length
+        guard let match = listRegex.firstMatch(
+            in: line, range: NSRange(location: 0, length: lineUTF16)
+        ) else { return false }
+
+        let prefixLength = match.range.length
+        let hasNewline = lineUTF16 > 0 && {
+            let last = lineNS.character(at: lineUTF16 - 1)
+            return last == 0x0A || last == 0x0D
+        }()
+        let bodyLength = hasNewline ? lineUTF16 - 1 : lineUTF16
+        guard prefixLength <= bodyLength else { return false }
+        let content = lineNS.substring(
+            with: NSRange(location: prefixLength, length: bodyLength - prefixLength)
+        )
+        let contentIsEmpty = content.trimmingCharacters(in: .whitespaces).isEmpty
+        let caretLocal = caret - lineRange.location
+        let atContentStart = caretLocal == prefixLength
+        let atEmptyItemEnd = contentIsEmpty
+            && caretLocal >= prefixLength
+            && caretLocal <= bodyLength
+        guard atContentStart || atEmptyItemEnd else { return false }
+
+        switch outdentCurrentListLine(textView: textView) {
+        case .outdented:
+            return true
+        case .atTopLevel:
+            guard contentIsEmpty else { return false }
+            _ = removeLinePrefixAndExit(
+                textView: textView,
+                currentLineRange: lineRange,
+                prefixLength: prefixLength
+            )
+            return true
+        case .notAList:
+            return false
+        }
+    }
 }

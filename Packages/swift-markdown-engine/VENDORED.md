@@ -29,7 +29,9 @@ This is a local copy of [swift-markdown-engine](https://github.com/nodes-app/swi
   continued empty `- ` item does not draw the dot on the 0.1pt marker baseline.
 - Nested ordered lists overlay outline markers by indent: `1, 2, …` → `a, b, …`
   → `i, ii, iii, …` → `1, 2, …`. Nested runs restart at 1 (`2.` after Tab is `a.`,
-  not `b.`). Source stays Markdown digits.
+  not `b.`). Source stays Markdown digits. Backspace on an empty nested item
+  outdents one level (same as ⇧⇥) so the overlay tracks depth; default Backspace
+  would delete the marker's trailing space and leave a tab + raw `2.`.
 - `EmbeddedImageProvider.didLoadNotification` restyles when a remote `![](url)`
   image arrives. Empty-alt images plant on `!` so the overlay has an anchor.
 

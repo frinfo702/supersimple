@@ -51,6 +51,64 @@ struct ListTabIndentTests {
         #expect(MarkdownLists.indentLevel(from: "  ") == 1)
     }
 
+    @Test("Backspace on an empty nested ordered item outdents instead of eating the marker space")
+    func backspaceOutdentsEmptyNestedOrderedItem() {
+        let text = "1. parent\n\t2. "
+        let textView = makeTextView(text, caret: (text as NSString).length)
+        #expect(MarkdownLists.handleBackspace(textView: textView) == true)
+        #expect(textView.string == "1. parent\n2. ")
+        let markers = MarkdownASTStyler.styleAttributes(
+            text: textView.string,
+            fontName: "Helvetica",
+            fontSize: 16,
+            caretLocation: -1
+        ).compactMap { $0.attributes[.orderedMarker] as? String }
+        #expect(markers.isEmpty)
+    }
+
+    @Test("Tab then Backspace restores a top-level 2. not a.")
+    func tabThenBackspaceRestoresDecimalMarker() {
+        let text = "1. parent\n2. "
+        let textView = makeTextView(text, caret: (text as NSString).length)
+        #expect(MarkdownLists.handleInsertion(
+            textView: textView,
+            affectedCharRange: textView.selectedRange(),
+            replacementString: "\t"
+        ) == false)
+        #expect(textView.string == "1. parent\n\t2. ")
+        #expect(MarkdownLists.handleBackspace(textView: textView) == true)
+        #expect(textView.string == "1. parent\n2. ")
+        let markers = MarkdownASTStyler.styleAttributes(
+            text: textView.string,
+            fontName: "Helvetica",
+            fontSize: 16,
+            caretLocation: -1
+        ).compactMap { $0.attributes[.orderedMarker] as? String }
+        #expect(markers.isEmpty)
+    }
+
+    @Test("Backspace on a double-nested empty item drops one level to a. then b.")
+    func backspaceDropsOneNestLevel() {
+        let text = "1. parent\n\t2. child\n\t\t3. "
+        let textView = makeTextView(text, caret: (text as NSString).length)
+        #expect(MarkdownLists.handleBackspace(textView: textView) == true)
+        #expect(textView.string == "1. parent\n\t2. child\n\t3. ")
+        let markers = MarkdownASTStyler.styleAttributes(
+            text: textView.string,
+            fontName: "Helvetica",
+            fontSize: 16,
+            caretLocation: -1
+        ).compactMap { $0.attributes[.orderedMarker] as? String }
+        #expect(markers == ["a.", "b."])
+    }
+
+    @Test("Backspace inside list item text is not consumed")
+    func backspaceInListContentIsNotConsumed() {
+        let textView = makeTextView("1. hello", caret: 8)
+        #expect(MarkdownLists.handleBackspace(textView: textView) == false)
+        #expect(textView.string == "1. hello")
+    }
+
     private func makeTextView(_ string: String, caret: Int) -> NSTextView {
         let textView = NSTextView(usingTextLayoutManager: true)
         textView.string = string
