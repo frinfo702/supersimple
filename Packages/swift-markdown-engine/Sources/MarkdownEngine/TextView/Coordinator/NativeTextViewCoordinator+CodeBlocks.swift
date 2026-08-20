@@ -14,6 +14,9 @@ import AppKit
 
 extension NativeTextViewCoordinator {
     func updateCodeBlockSelection(textView: NSTextView, parsed: ParsedDocument? = nil) {
+        // Frame-change observers fire from `textView.string =` mid-rebuild, while
+        // the overlay cache still belongs to the previous document.
+        guard !isRebuildingDocument else { return }
         guard let textContainer = textView.textContainer else {
             onCodeBlockSelectionChange?([])
             return
@@ -29,6 +32,7 @@ extension NativeTextViewCoordinator {
         }
 
         let nsText = textView.string as NSString
+        let docLength = nsText.length
         let scrollOffset = textView.enclosingScrollView?.contentView.bounds.origin ?? .zero
 
         // Identical inputs → identical selections. The delegate path calls
@@ -75,6 +79,9 @@ extension NativeTextViewCoordinator {
 
         let selections: [CodeBlockSelection] = cachedCodeBlockTokens.compactMap { originalIndex, token in
             guard !activeTokenIndices.contains(originalIndex) else { return nil }
+            // Stale tokens from a previous (longer) document survive a node
+            // switch until the next parsed pass; substring-with-range traps.
+            guard token.range.isWithin(docLength), token.contentRange.isWithin(docLength) else { return nil }
             if let visibleRange, NSIntersectionRange(token.range, visibleRange).length == 0 { return nil }
             guard var boundingRect = textView.viewRect(forCharacterRange: token.range, using: layoutBridge) else { return nil }
 
@@ -90,5 +97,12 @@ extension NativeTextViewCoordinator {
         }
 
         onCodeBlockSelectionChange?(selections)
+    }
+}
+
+extension NSRange {
+    /// True when `NSString.substring(with:)` on a string of `length` would succeed.
+    func isWithin(_ length: Int) -> Bool {
+        location != NSNotFound && location >= 0 && NSMaxRange(self) <= length
     }
 }

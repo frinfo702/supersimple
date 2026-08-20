@@ -48,6 +48,11 @@ extension NativeTextViewCoordinator {
         // the ensureLayout below rebuilds from scratch anyway. This rebuild's own
         // ensureLayout IS that one-shot per-document layout.
         didEnsureLayoutForCurrentDocument = true
+        // Drop overlay ranges before mutating storage. Frame-change observers
+        // (new-note restack, `textView.string =`) otherwise substring the
+        // previous document's code-block ranges against the new, often empty, text.
+        cachedCodeBlockTokens = []
+        lastCodeSelKey = nil
         if textView.string != displayText {
             textView.string = displayText
             parseGeneration &+= 1
@@ -186,6 +191,10 @@ extension NativeTextViewCoordinator {
             previousCaretLocation = finalSelection.location
             previousSelectedRange = finalSelection
         }
+
+        // Reseed after the new parse so post-rebuild frame/scroll observers
+        // (which call this without `parsed`) have ranges that match storage.
+        cachedCodeBlockTokens = parsedForReplay?.codeBlockTokensWithIndices ?? []
 
         // Reconcile wide-table overlays after layout settles.
         if let nativeTextView = textView as? NativeTextView {
