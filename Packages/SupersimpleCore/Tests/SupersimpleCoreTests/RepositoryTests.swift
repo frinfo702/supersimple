@@ -83,15 +83,15 @@ struct NoteRepositoryTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let repo = NoteRepository(root: root)
         let id = UUID()
-        _ = try await repo.write(id: id, body: "# Title\nSome body #swift")
-        var summaries = try await repo.listSummaries()
+        _ = try repo.write(id: id, body: "# Title\nSome body #swift")
+        let summaries = try repo.listSummaries()
         #expect(summaries?.count == 1)
         let summary = try #require(summaries?.first)
         #expect(summary.id == id)
         #expect(summary.title == "Title")
         // In-memory list must be summaries, but we still need a way to retrieve the body
         // on demand:
-        if case .content(let content) = await repo.load(id: id) {
+        if case .content(let content) = repo.load(id: id) {
             #expect(content.body.contains("Some body"))
             #expect(content.summary.tags.contains(Tag(name: "swift")))
             // The summary stored no body text.
@@ -108,14 +108,14 @@ struct NoteRepositoryTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let repo = NoteRepository(root: root)
         let id = UUID()
-        let record = try await repo.write(id: id, body: "version 1")
+        let record = try repo.write(id: id, body: "version 1")
 
         // Simulate an external edit.
         try "external".write(
             to: LibraryLayout(root: root).noteURL(for: id),
             atomically: true, encoding: .utf8)
 
-        let result = try await repo.save(id: id, body: "version 2", expected: record)
+        let result = try repo.save(id: id, body: "version 2", expected: record)
         guard case .conflict = result else {
             Issue.record("expected a conflict when saved against a stale record")
             return
@@ -132,17 +132,59 @@ struct NoteRepositoryTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let repo = NoteRepository(root: root)
         let id = UUID()
-        let record = try await repo.write(id: id, body: "# Note\nbody")
-        let result = try await repo.save(id: id, body: "# Note\nbody2", expected: record)
+        let record = try repo.write(id: id, body: "# Note\nbody")
+        let result = try repo.save(id: id, body: "# Note\nbody2", expected: record)
         guard case .written(let landed) = result else {
             Issue.record("expected written result")
             return
         }
         #expect(landed.fileSize > 0)
-        if case .content(let content) = await repo.load(id: id) {
+        if case .content(let content) = repo.load(id: id) {
             #expect(content.body == "# Note\nbody2")
         } else {
             Issue.record("expected to load updated content")
+        }
+    }
+
+    @Test("Save preserves creation date and unmanaged frontmatter")
+    func savePreservesMetadata() throws {
+        let root = try tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = NoteRepository(root: root)
+        let created = Date(timeIntervalSince1970: 1_700_000_000.123)
+        let note = Note(
+            createdAt: created,
+            updatedAt: created,
+            body: "# Original",
+            extraFields: ["aliases: [sample]", "cssclasses: [wide]"]
+        )
+        let record = try repo.write(note: note)
+
+        _ = try repo.save(id: note.id, body: "# Updated", expected: record)
+
+        let text = try String(contentsOf: LibraryLayout(root: root).noteURL(for: note.id), encoding: .utf8)
+        let decoded = try FrontmatterCodec.decode(text)
+        #expect(decoded.metadata.createdAt == created)
+        #expect(decoded.metadata.extraFields == note.extraFields)
+    }
+
+    @Test("Save without a baseline never overwrites an existing note")
+    func missingBaselineConflicts() throws {
+        let root = try tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = NoteRepository(root: root)
+        let id = UUID()
+        _ = try repo.write(id: id, body: "original")
+
+        let result = try repo.save(id: id, body: "replacement", expected: nil)
+        guard case .conflict = result else {
+            Issue.record("expected a conflict without a baseline record")
+            return
+        }
+        if case .content(let content) = repo.load(id: id) {
+            #expect(content.body == "original")
+        } else {
+            Issue.record("expected the original note to remain")
         }
     }
 
@@ -152,8 +194,8 @@ struct NoteRepositoryTests {
         defer { try? FileManager.default.removeItem(at: root) }
         let repo = NoteRepository(root: root)
         let id = UUID()
-        _ = try await repo.write(id: id, body: "content")
-        let deleted = await repo.delete(id: id)
+        _ = try repo.write(id: id, body: "content")
+        let deleted = repo.delete(id: id)
         #expect(deleted)
         #expect(!LibraryLayout(root: root).fileExists(id: id))
     }
@@ -229,5 +271,40 @@ struct LibraryMigratorTests {
         let migrator = LibraryMigrator()
         let report = try await migrator.migrate(notesSource: notes, imagesSource: nil, layout: layout)
         #expect(report.problems.contains { $0.kind == .duplicateID })
+
+        let migratedURLs = try NoteFileManager().enumerateNoteURLs(in: layout.notesDirectory)
+        let documents = try migratedURLs.map {
+            try FrontmatterCodec.decode(String(contentsOf: $0, encoding: .utf8))
+        }
+        #expect(documents.count == 2)
+        #expect(Set(documents.map(\.metadata.id)).count == 2)
+        #expect(Set(documents.map(\.body)) == ["dup 0", "dup 1"])
+        for url in migratedURLs {
+            let document = try FrontmatterCodec.decode(String(contentsOf: url, encoding: .utf8))
+            #expect(url.deletingPathExtension().lastPathComponent == document.metadata.id.uuidString)
+        }
+    }
+
+    @Test("Adds stable frontmatter while migrating a plain Markdown file")
+    func plainMarkdownGetsCanonicalID() async throws {
+        let root = try tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let source = root.appendingPathComponent("legacy", isDirectory: true)
+        try FileManager.default.createDirectory(at: source, withIntermediateDirectories: true)
+        try "# Plain\nbody".write(
+            to: source.appendingPathComponent("plain.md"), atomically: true, encoding: .utf8)
+
+        let layout = LibraryLayout(root: root.appendingPathComponent("dest", isDirectory: true))
+        let migrator = LibraryMigrator()
+        _ = try await migrator.migrate(notesSource: source, imagesSource: nil, layout: layout)
+
+        let url = try #require(try NoteFileManager().enumerateNoteURLs(in: layout.notesDirectory).first)
+        let document = try FrontmatterCodec.decode(String(contentsOf: url, encoding: .utf8))
+        #expect(url.deletingPathExtension().lastPathComponent == document.metadata.id.uuidString)
+        #expect(document.body == "# Plain\nbody")
+
+        let retry = try await migrator.migrate(notesSource: source, imagesSource: nil, layout: layout)
+        #expect(retry.skipped == 1)
+        #expect(try NoteFileManager().enumerateNoteURLs(in: layout.notesDirectory).count == 1)
     }
 }

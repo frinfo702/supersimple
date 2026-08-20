@@ -1,5 +1,4 @@
 import AppKit
-import SupersimpleCore
 import SwiftUI
 
 /// Settings opened from the app menu (⌘,) — same chrome as the main window.
@@ -161,11 +160,7 @@ struct SettingsView: View {
     }
 
     private var notesPathDescription: String {
-        let defaultRoot = FileManager.default.urls(
-            for: .applicationSupportDirectory, in: .userDomainMask)[0]
-            .appendingPathComponent("Supersimple", isDirectory: true)
-        let root = model.libraryRootPath.map { URL(fileURLWithPath: $0, isDirectory: true) } ?? defaultRoot
-        return root.appendingPathComponent(LibraryLayout.notesDirectoryName, isDirectory: true).path
+        model.notesDirectory.path
     }
 
     // MARK: - Theme

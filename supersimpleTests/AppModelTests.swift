@@ -273,6 +273,106 @@ struct AppModelTests {
         #expect(FileManager.default.fileExists(atPath: LibraryLayout(root: newRoot).noteURL(for: firstID).path))
     }
 
+    @Test("Using the default library flushes the current edit before migration")
+    func useDefaultFlushesBeforeSwitch() async throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let customRoot = dir.appendingPathComponent("Custom", isDirectory: true)
+        try FileManager.default.createDirectory(at: customRoot, withIntermediateDirectories: true)
+        let appSupport = dir.appendingPathComponent("AppSupport", isDirectory: true)
+        let suiteName = "supersimple-tests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.set(customRoot.path, forKey: "libraryRootPath")
+        let model = AppModel(
+            notesDirectoryOverride: LibraryLayout(root: customRoot).notesDirectory,
+            appSupportURLOverride: appSupport,
+            userDefaults: defaults
+        )
+        defer {
+            model.shutdown()
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        await model.bootstrap()
+        let id = try #require(model.currentNoteID)
+        model.noteBodyEdited("# Unsaved\nMust be migrated.", for: id)
+
+        await model.useDefaultLibraryLocation()
+
+        let target = LibraryLayout(root: appSupport).noteURL(for: id)
+        let migrated = try String(contentsOf: target, encoding: .utf8)
+        #expect(migrated.contains("Must be migrated."))
+        #expect(model.libraryRootPath == nil)
+    }
+
+    @Test("Pasted images follow the selected library attachment folder")
+    func attachmentsFollowLibrarySwitch() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+
+        let firstName = try #require(model.imageStore.savePastedImage(Data([0x01, 0x02]), ext: "png"))
+        let newRoot = dir.appendingPathComponent("Portable", isDirectory: true)
+        await model.switchLibrary(to: newRoot)
+
+        let attachments = LibraryLayout(root: newRoot).attachmentsDirectory
+        #expect(FileManager.default.fileExists(atPath: attachments.appendingPathComponent(firstName).path))
+
+        let secondName = try #require(model.imageStore.savePastedImage(Data([0x03, 0x04]), ext: "png"))
+        #expect(FileManager.default.fileExists(atPath: attachments.appendingPathComponent(secondName).path))
+    }
+
+    @Test("Autosave refuses to overwrite an externally changed note")
+    func externalEditCreatesSaveConflict() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+        let id = try #require(model.currentNoteID)
+        let url = LibraryLayout(root: dir).noteURL(for: id)
+
+        model.noteBodyEdited("local edit", for: id)
+        let external = MarkdownDocument(
+            metadata: NoteMetadata(id: id, createdAt: Date(), updatedAt: Date(), tags: []),
+            body: "external edit"
+        )
+        try external.fullText.write(to: url, atomically: true, encoding: .utf8)
+
+        #expect(!model.flushNow())
+        let landed = try String(contentsOf: url, encoding: .utf8)
+        #expect(landed.contains("external edit"))
+        #expect(!landed.contains("local edit"))
+    }
+
+    @Test("An unavailable persisted library is not replaced with the default library")
+    func unavailableLibraryDoesNotFallBack() async throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+        let missingRoot = dir.appendingPathComponent("Unmounted", isDirectory: true)
+        let suiteName = "supersimple-tests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defaults.set(missingRoot.path, forKey: "libraryRootPath")
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let model = AppModel(
+            appSupportURLOverride: dir.appendingPathComponent("AppSupport", isDirectory: true),
+            userDefaults: defaults
+        )
+        defer { model.shutdown() }
+
+        await model.bootstrap()
+
+        #expect(model.notesDirectory == LibraryLayout(root: missingRoot).notesDirectory)
+        #expect(model.notes.isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: missingRoot.path))
+    }
+
     @Test("Search finds a note after save")
     func searchAfterSave() async throws {
         let dir = try makeTempDir()
@@ -380,6 +480,27 @@ struct AppModelTests {
         // The sibling tag must survive (this regressed to `#other`/`other` logic before).
         #expect(remaining.contains("#obsidian"))
         #expect(model.currentNote()?.tags.contains(Tag(name: "obsidian")) == true)
+    }
+
+    @Test("Removing a tag preserves unrelated Markdown spaces")
+    func removeTagPreservesMarkdownSpaces() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+
+        let body = "Aligned  text #swift\nhard break  \nnext"
+        model.noteBodyEdited(body, for: model.currentNoteID!)
+        model.flushNow()
+        model.toggleTagForCurrentNote(Tag(name: "swift"))
+        model.flushNow()
+
+        let edited = try #require(model.currentNote()?.body)
+        #expect(edited.contains("Aligned  text"))
+        #expect(edited.contains("hard break  \nnext"))
     }
 
     @Test("Exports the note body and a sanitized filename")

@@ -3,7 +3,7 @@ import Foundation
 import MarkdownEngine
 
 /// Stores pasted images on disk and serves them to the Markdown engine's
-/// `![[name]]` image embeds. Images live in `<appSupport>/Images/`.
+/// `![[name]]` image embeds. Images live in the active library's `Attachments/` folder.
 /// HTTP(S) / `file:` destinations for `![](url)` are fetched asynchronously
 /// and cached in memory; a notification restyles the editor when they land.
 final class ImageStore: @unchecked Sendable {
@@ -11,7 +11,7 @@ final class ImageStore: @unchecked Sendable {
 
     var didLoadNotification: Notification.Name? { Self.remoteImageLoaded }
 
-    private let imagesDir: URL
+    private var imagesDir: URL
     /// Guards the bookkeeping sets/counters. Image caches use `NSCache` (thread-safe,
     /// bounded) so the hot paths never hold the lock during decode.
     private let lock = NSLock()
@@ -31,9 +31,8 @@ final class ImageStore: @unchecked Sendable {
     private static let maxRemoteBytes = 20 * 1024 * 1024
     private let session = URLSession.shared
 
-    init(appSupport: URL) {
-        imagesDir = appSupport.appendingPathComponent("Images", isDirectory: true)
-        try? FileManager.default.createDirectory(at: imagesDir, withIntermediateDirectories: true)
+    init(imagesDirectory: URL) {
+        imagesDir = imagesDirectory
         cache = NSCache()
         cache.totalCostLimit = 64 * 1024 * 1024
         remoteCache = NSCache()
@@ -42,11 +41,31 @@ final class ImageStore: @unchecked Sendable {
         failedCache.countLimit = 256
     }
 
+    /// Backward-compatible initializer used by focused ImageStore tests.
+    convenience init(appSupport: URL) {
+        self.init(imagesDirectory: appSupport.appendingPathComponent("Images", isDirectory: true))
+    }
+
+    /// Redirects local image reads and writes after the active library changes.
+    func useImagesDirectory(_ directory: URL) {
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        lock.lock()
+        imagesDir = directory
+        contentGeneration &+= 1
+        lock.unlock()
+        // A filename can exist in two libraries with different contents.
+        cache.removeAllObjects()
+    }
+
     /// Saves pasted image data and returns the embed name to insert as `![[name]]`.
     func savePastedImage(_ data: Data, ext: String) -> String? {
         let name = UUID().uuidString + "." + ext
-        let url = imagesDir.appendingPathComponent(name)
+        lock.lock()
+        let directory = imagesDir
+        lock.unlock()
+        let url = directory.appendingPathComponent(name)
         do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
             try data.write(to: url)
         } catch {
             return nil
@@ -64,7 +83,10 @@ final class ImageStore: @unchecked Sendable {
     func image(for name: String) -> NSImage? {
         let key = name as NSString
         if let cached = cache.object(forKey: key) { return cached }
-        let url = imagesDir.appendingPathComponent(name)
+        lock.lock()
+        let directory = imagesDir
+        lock.unlock()
+        let url = directory.appendingPathComponent(name)
         guard let img = NSImage(contentsOf: url) else { return nil }
         // A lazy fill does NOT bump contentGeneration (typing must not restyle the doc).
         cache.setObject(img, forKey: key, cost: estimatedCost(of: img))
@@ -133,10 +155,10 @@ final class ImageStore: @unchecked Sendable {
             self.inFlight.remove(key)
             self.lock.unlock()
             if let image {
-                self.remoteCache.setObject(image, forKey: nsKey, cost: data?.count ?? 0)
+                self.remoteCache.setObject(image, forKey: key as NSString, cost: data?.count ?? 0)
                 self.bumpGenerationAndNotify(key: key)
             } else {
-                self.failedCache.setObject(true, forKey: nsKey)
+                self.failedCache.setObject(true, forKey: key as NSString)
             }
         }
         task.resume()

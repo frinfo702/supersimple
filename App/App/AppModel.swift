@@ -17,6 +17,9 @@ final class AppModel {
     static let log = Logger(subsystem: "com.frinfo702.supersimple", category: "AppModel")
 
     private let fileManager = NoteFileManager()
+    private var repository: NoteRepository
+    /// Last known on-disk revision for each loaded note. Saves must match this record.
+    private var fileRecordsByID: [UUID: FileRecord] = [:]
     private var searchIndex: NoteSearchIndex?
     /// Directory of `.md` note files. Skewed toward a user-chosen library root, but
     /// defaults (and stays backward compatible) with `Application Support/Supersimple/Notes`.
@@ -163,19 +166,20 @@ final class AppModel {
                 .appendingPathComponent("Supersimple", isDirectory: true)
         }
 
+        let initialNotesDirectory: URL
         if let override = notesDirectoryOverride {
-            notesDirectory = override
-        } else if let stored = self.userDefaults.string(forKey: Self.libraryRootKey),
-            !stored.isEmpty,
-            FileManager.default.fileExists(atPath: stored)
-        {
+            initialNotesDirectory = override
+        } else if let stored = self.userDefaults.string(forKey: Self.libraryRootKey), !stored.isEmpty {
             // A user-chosen library folder (iCloud Drive, mounted volume, …).
-            notesDirectory = LibraryLayout(root: URL(fileURLWithPath: stored, isDirectory: true)).notesDirectory
+            initialNotesDirectory = LibraryLayout(root: URL(fileURLWithPath: stored, isDirectory: true)).notesDirectory
         } else {
             // Default: the classic Application Support location.
-            notesDirectory = LibraryLayout(root: appSupportURL).notesDirectory
+            initialNotesDirectory = LibraryLayout(root: appSupportURL).notesDirectory
         }
-        imageStore = ImageStore(appSupport: appSupportURL)
+        notesDirectory = initialNotesDirectory
+        let initialLayout = LibraryLayout(root: initialNotesDirectory.deletingLastPathComponent())
+        repository = NoteRepository(layout: initialLayout, fileManager: fileManager)
+        imageStore = ImageStore(imagesDirectory: initialLayout.attachmentsDirectory)
     }
 
     // MARK: - Library location
@@ -211,9 +215,41 @@ final class AppModel {
     /// (Re)loads the current `notesDirectory` into memory and rebuilds the index. Also
     /// called after the user switches the library folder.
     @MainActor
-    private func loadLibrary() async {
+    @discardableResult
+    private func loadLibrary(resetSelection: Bool = false) async -> Bool {
         let directory = notesDirectory
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let root = directory.deletingLastPathComponent()
+        // A persisted external location must not be recreated when its volume is absent.
+        if libraryRootPath != nil, !FileManager.default.fileExists(atPath: root.path) {
+            Self.log.error("Library root is unavailable at \(root.path, privacy: .public)")
+            return false
+        }
+        do {
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            try libraryLayout.createIfNeeded()
+        } catch {
+            Self.log.error(
+                "Library unavailable at \(directory.path): \(error.localizedDescription, privacy: .public)")
+            return false
+        }
+
+        // Move pre-folder-library pasted images into the active library once. The source
+        // remains untouched, so an interrupted migration can be retried safely.
+        let legacyImages = appSupportURL.appendingPathComponent("Images", isDirectory: true)
+        if FileManager.default.fileExists(atPath: legacyImages.path),
+            legacyImages.standardizedFileURL != libraryLayout.attachmentsDirectory.standardizedFileURL
+        {
+            let migrator = LibraryMigrator()
+            do {
+                let report = try await migrator.migrateAttachments(from: legacyImages, layout: libraryLayout)
+                if !report.problems.isEmpty {
+                    Self.log.error("Legacy attachment migration reported \(report.problems.count) problem(s)")
+                }
+            } catch {
+                Self.log.error(
+                    "Legacy attachment migration failed: \(error.localizedDescription, privacy: .public)")
+            }
+        }
         let appSupport = appSupportURL
 
         let started = DispatchTime.now()
@@ -225,13 +261,18 @@ final class AppModel {
             // NOT an empty library: do not fabricate a note the user will lose.
             Self.log.error(
                 "Library unavailable at \(directory.path): \(error.localizedDescription, privacy: .public)")
-            notes = []
-            searchIndex = nil
+            return false
+        }
+        if resetSelection {
+            cancelPendingSave()
             currentNoteID = nil
             currentBody = ""
-            return
+            wordCountCache = 0
+            dirtyNoteIDs.removeAll()
+            clearLibraryFilter()
         }
         notes = load.notes
+        fileRecordsByID = load.fileRecords
         searchIndex = await Self.rebuildIndex(notes: load.notes, appSupport: appSupport)
 
         let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started.uptimeNanoseconds) / 1_000_000
@@ -243,6 +284,7 @@ final class AppModel {
         } else if currentNoteID == nil {
             open(notes[0])
         }
+        return true
     }
 
     // MARK: - Library switching
@@ -271,19 +313,26 @@ final class AppModel {
 
     /// Migrates notes (+ pasted images) into a new root and switches the library there.
     @MainActor
-    func switchLibrary(to root: URL) async {
+    @discardableResult
+    func switchLibrary(to root: URL) async -> Bool {
+        guard flushNow() else {
+            Self.log.error("Refusing to change library: unsaved edits could not be flushed.")
+            presentLibraryError("The current note could not be saved.")
+            return false
+        }
+
         let layout = LibraryLayout(root: root)
         do {
             try layout.createIfNeeded()
         } catch {
             Self.log.error("Could not create library at \(root.path): \(error.localizedDescription, privacy: .public)")
             presentLibraryError("The folder could not be created.")
-            return
+            return false
         }
 
         let migrator = LibraryMigrator()
         let sourceNotes = notesDirectory
-        let sourceImages = appSupportURL.appendingPathComponent("Images", isDirectory: true)
+        let sourceImages = libraryLayout.attachmentsDirectory
         let report: MigrationReport
         do {
             report = try await migrator.migrate(
@@ -294,27 +343,32 @@ final class AppModel {
         } catch {
             Self.log.error("Library migration failed: \(error.localizedDescription, privacy: .public)")
             presentLibraryError("The notes could not be copied to that folder.")
-            return
+            return false
         }
         migrationReport = report
 
-        userDefaults.set(root.path, forKey: Self.libraryRootKey)
+        let previousDirectory = notesDirectory
+        let previousRepository = repository
         notesDirectory = layout.notesDirectory
-        // Drop the current selection; it likely belongs to the previous library.
-        currentNoteID = nil
-        currentBody = ""
-        searchIndex = nil
-        await loadLibrary()
+        repository = NoteRepository(layout: layout, fileManager: fileManager)
+        guard await loadLibrary(resetSelection: true) else {
+            notesDirectory = previousDirectory
+            repository = previousRepository
+            presentLibraryError("The selected library could not be opened.")
+            return false
+        }
+        imageStore.useImagesDirectory(layout.attachmentsDirectory)
+        userDefaults.set(root.path, forKey: Self.libraryRootKey)
+        return true
     }
 
     /// Reverts to the built-in Application Support location (migrating the current notes).
     @MainActor
     func useDefaultLibraryLocation() async {
-        if let current = libraryRootPath, current == appSupportURL.path {
-            return
+        guard libraryRootPath != nil else { return }
+        if await switchLibrary(to: appSupportURL) {
+            userDefaults.removeObject(forKey: Self.libraryRootKey)
         }
-        await switchLibrary(to: appSupportURL)
-        userDefaults.removeObject(forKey: Self.libraryRootKey)
     }
 
     func revealLibraryInFinder() {
@@ -336,6 +390,7 @@ final class AppModel {
     /// Result of a load, keeping "empty" (valid) distinct from "unavailable" (an error).
     private struct LoadOutcome {
         var notes: [Note]
+        var fileRecords: [UUID: FileRecord]
         var duplicateIDsEncountered: Int
     }
 
@@ -347,7 +402,7 @@ final class AppModel {
         fileManager: NoteFileManager
     ) async throws -> LoadOutcome {
         let urls = try fileManager.enumerateNoteURLs(in: directory)
-        var byID: [UUID: Note] = [:]
+        var byID: [UUID: (note: Note, record: FileRecord?)] = [:]
         for fileURL in urls {
             guard let text = try? fileManager.read(at: fileURL),
                 let doc = try? FrontmatterCodec.decode(text)
@@ -360,10 +415,22 @@ final class AppModel {
                 body: doc.body,
                 extraFields: doc.metadata.extraFields
             )
-            byID[note.id] = note
+            let record = fileManager.fileRecord(at: fileURL)
+            if let existing = byID[note.id], existing.note.updatedAt >= note.updatedAt {
+                continue
+            }
+            byID[note.id] = (note, record)
         }
-        let loaded = byID.values.sorted { $0.updatedAt > $1.updatedAt }
-        return LoadOutcome(notes: Array(loaded), duplicateIDsEncountered: urls.count - loaded.count)
+        let loaded = byID.values.sorted { $0.note.updatedAt > $1.note.updatedAt }
+        var records: [UUID: FileRecord] = [:]
+        for value in loaded {
+            if let record = value.record { records[value.note.id] = record }
+        }
+        return LoadOutcome(
+            notes: loaded.map(\.note),
+            fileRecords: records,
+            duplicateIDsEncountered: urls.count - loaded.count
+        )
     }
 
     private nonisolated static func rebuildIndex(
@@ -498,7 +565,7 @@ final class AppModel {
             // user actively confirmed.
             flushNow()
         }
-        guard let url = fileURL(for: note.id) else { return }
+        guard let url = fileRecordsByID[note.id]?.url ?? fileURL(for: note.id) else { return }
         do {
             try fileManager.delete(at: url)
         } catch {
@@ -507,6 +574,7 @@ final class AppModel {
         }
         try? searchIndex?.delete(noteID: note.id)
         dirtyNoteIDs.remove(note.id)
+        fileRecordsByID.removeValue(forKey: note.id)
 
         let wasSelected = currentNoteID == note.id
         let index = notes.firstIndex(where: { $0.id == note.id })
@@ -651,10 +719,9 @@ final class AppModel {
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return line }
         let ns = line as NSString
         let range = NSRange(location: 0, length: ns.length)
-        // Keep the preceding char; drop the token + trailing space. Then trim any double
-        // space the removal may have created at the leading boundary.
+        // Keep the preceding character and remove only the token plus one adjacent trailing
+        // space. Unrelated spacing is Markdown content and must remain byte-for-byte intact.
         return regex.stringByReplacingMatches(in: line, range: range, withTemplate: "$1")
-            .replacingOccurrences(of: "  ", with: " ")
     }
 
     // MARK: - Persistence
@@ -667,10 +734,16 @@ final class AppModel {
     /// index failure is logged but does not discard the document on disk.
     @discardableResult
     func persist(_ note: Note) -> Bool {
-        let doc = FrontmatterCodec.document(note: note)
-        guard let url = fileURL(for: note.id) else { return true }
         do {
-            try fileManager.write(doc.fullText, to: url)
+            let result = try repository.save(note: note, expected: fileRecordsByID[note.id])
+            switch result {
+            case .written(let landed):
+                fileRecordsByID[note.id] = landed
+            case .conflict:
+                Self.log.error(
+                    "Refusing to overwrite externally changed note \(note.id, privacy: .public)")
+                return false
+            }
         } catch {
             Self.log.error("Failed to persist note \(note.id): \(error.localizedDescription, privacy: .public)")
             return false
