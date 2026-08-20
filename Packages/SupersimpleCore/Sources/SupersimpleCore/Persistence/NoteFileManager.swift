@@ -1,9 +1,28 @@
+import CryptoKit
 import Foundation
 
 public enum NoteFileError: Error, Sendable, Equatable {
     case invalidPath
     case writeFailed(underlying: String)
     case readFailed(underlying: String)
+    case directoryUnavailable(underlying: String)
+}
+
+/// Static snapshot of a file's identity at read time. Used to detect external edits
+/// (another editor, iCloud sync, a second app instance) before overwriting.
+public struct FileRecord: Equatable, Hashable, Sendable {
+    public let url: URL
+    public let fileSize: Int64
+    public let modificationDate: Date
+    /// Hex SHA-256 of the raw file bytes.
+    public let contentHash: String
+
+    public init(url: URL, fileSize: Int64, modificationDate: Date, contentHash: String) {
+        self.url = url
+        self.fileSize = fileSize
+        self.modificationDate = modificationDate
+        self.contentHash = contentHash
+    }
 }
 
 /// Responsibilities for reading and writing `.md` documents to and from a notes directory,
@@ -56,15 +75,14 @@ public final class NoteFileManager: @unchecked Sendable {
     }
 
     /// Writes `text` to `url` atomically and synchronizes the result to stable storage.
+    ///
+    /// User documents (as opposed to the derived search cache) are intentionally *not*
+    /// excluded from backup: this app's Markdown files are the source of truth and should
+    /// be recoverable through normal backup mechanisms.
     public func write(_ text: String, to url: URL) throws {
         createDirectoryIfNeeded(at: url.deletingLastPathComponent())
         do {
             try text.write(to: url, atomically: true, encoding: .utf8)
-            // Ensure the write reaches stable storage before the caller reports success.
-            var mutable = url
-            var resourceValues = URLResourceValues()
-            resourceValues.isExcludedFromBackup = true
-            try? mutable.setResourceValues(resourceValues)
             synchronizeFile(at: url)
         } catch {
             throw NoteFileError.writeFailed(underlying: String(describing: error))
@@ -114,5 +132,59 @@ public final class NoteFileManager: @unchecked Sendable {
                 options: [.skipsHiddenFiles]
             )) ?? []
         return urls.filter { $0.pathExtension.lowercased() == "md" }
+    }
+
+    /// Throwing enumeration that distinguishes a genuinely empty directory from an
+    /// unavailable one (missing mount, revoked permission, I/O failure). Callers must
+    /// not treat these the same way — an unavailable library is not "no notes".
+    public func enumerateNoteURLs(in notesDirectory: URL) throws -> [URL] {
+        lock.lock()
+        defer { lock.unlock() }
+        do {
+            let urls = try fileManager.contentsOfDirectory(
+                at: notesDirectory,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )
+            return urls.filter { $0.pathExtension.lowercased() == "md" }
+        } catch {
+            // A directory that does not exist yet is "empty", not an error — the parent
+            // chain is creatable. Any other failure (mount gone, permission denied) means
+            // the library is genuinely unavailable and must be surfaced, not swept under
+            // "no notes".
+            if !fileManager.fileExists(atPath: notesDirectory.path) {
+                return []
+            }
+            throw NoteFileError.directoryUnavailable(underlying: String(describing: error))
+        }
+    }
+
+    /// Captures the identity of the file at `url`, or `nil` when it is absent/invalid.
+    public func fileRecord(at url: URL) -> FileRecord? {
+        lock.lock()
+        defer { lock.unlock() }
+        return Self.record(at: url, fileManager: fileManager)
+    }
+
+    fileprivate static func record(at url: URL, fileManager: FileManager) -> FileRecord? {
+        guard let values = try? url.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey]) else {
+            return nil
+        }
+        guard let data = try? Data(contentsOf: url) else { return nil }
+        let digest = SHA256.hash(data: data)
+        let hash = digest.map { String(format: "%02x", $0) }.joined()
+        return FileRecord(
+            url: url,
+            fileSize: Int64(data.count),
+            modificationDate: values.contentModificationDate ?? Date.distantPast,
+            contentHash: hash
+        )
+    }
+
+    /// Whether two records describe identical file contents (hash is authoritative,
+    /// robust against clock-skewed modification dates).
+    public static func contentsMatch(_ lhs: FileRecord?, _ rhs: FileRecord?) -> Bool {
+        guard let lhs, let rhs else { return lhs == nil && rhs == nil }
+        return lhs.contentHash == rhs.contentHash
     }
 }

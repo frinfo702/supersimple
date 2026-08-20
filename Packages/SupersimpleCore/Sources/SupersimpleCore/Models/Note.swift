@@ -33,6 +33,11 @@ public struct Note: Identifiable, Hashable, Sendable {
     /// Derives the display title from the first Markdown heading, falling back to a placeholder.
     /// The body is inspected lazily; the result is not cached in the model.
     public var title: String {
+        Self.title(from: body)
+    }
+
+    /// Derives the display title from a body string without constructing a `Note`.
+    public static func title(from body: String) -> String {
         let trimmed = body.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return "Untitled" }
 
@@ -55,5 +60,16 @@ public struct Note: Identifiable, Hashable, Sendable {
             if !first.isEmpty { return String(first.prefix(60)) }
         }
         return "Untitled"
+    }
+
+    /// One-line preview: the first non-heading, non-blank body line.
+    public static func preview(from body: String) -> String {
+        for line in body.split(separator: "\n", omittingEmptySubsequences: true) {
+            let trimmed = line.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty { continue }
+            if trimmed.hasPrefix("#") { continue }
+            return String(trimmed.prefix(120))
+        }
+        return ""
     }
 }
