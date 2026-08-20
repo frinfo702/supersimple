@@ -156,6 +156,123 @@ struct AppModelTests {
         #expect(model.currentNote() == nil)
     }
 
+    @Test("Loading two files with the same frontmatter id deduplicates instead of crashing")
+    func duplicateNoteIDsDoNotCrashSearch() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+
+        // Two distinct files sharing one frontmatter UUID (e.g. from a bad migration or
+        // external copy). The loader must collapse these into one note, not crash when a
+        // search joins by a unique-ID dictionary.
+        let sharedID = UUID()
+        let notes = LibraryLayout(root: dir).notesDirectory
+        try FileManager.default.createDirectory(at: notes, withIntermediateDirectories: true)
+        for (i, title) in ["# First", "# Second"].enumerated() {
+            let doc = MarkdownDocument(
+                metadata: NoteMetadata(id: sharedID, createdAt: Date(), updatedAt: Date(), tags: []),
+                body: title
+            )
+            try doc.fullText.write(
+                to: notes.appendingPathComponent("shared-\(i).md"), atomically: true, encoding: .utf8)
+        }
+
+        await model.bootstrap()
+        // Exactly one note wins (deduplication by id).
+        #expect(model.notes.count == 1)
+        #expect(model.notes.first?.id == sharedID)
+
+        model.searchQuery = "First"
+        model.performSearch()
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while model.searchResults.isEmpty, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        // visibleNotes uses a last-write-wins dictionary, so this never traps.
+        #expect(model.visibleNotes.count >= 0)
+    }
+
+    @Test("Clearing the search invalidates an in-flight result")
+    func clearSearchDropsStaleResults() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+
+        model.searchQuery = "crumble"
+        model.performSearch()
+        // Clear before the detached query can finish; the stale completion must be dropped.
+        model.clearLibraryFilter()
+        try await Task.sleep(for: .milliseconds(100))
+        #expect(model.searchResults.isEmpty)
+        #expect(!model.isSearching)
+    }
+
+    @Test("Persisted library root redirects the notes directory into the chosen folder")
+    func persistedLibraryRootRedirectsNotes() async throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let appSupport = dir.appendingPathComponent("AppSupport")
+        let chosenRoot = dir.appendingPathComponent("Chosen")
+        try FileManager.default.createDirectory(at: chosenRoot, withIntermediateDirectories: true)
+        let suiteName = "supersimple-tests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        // Persist a chosen library root, then build a model (no overrides) so it must honor it.
+        defaults.set(chosenRoot.path, forKey: "libraryRootPath")
+        let model = AppModel(
+            notesDirectoryOverride: nil,
+            appSupportURLOverride: appSupport,
+            userDefaults: defaults
+        )
+        let expected = LibraryLayout(root: chosenRoot).notesDirectory
+        #expect(model.notesDirectory == expected)
+        model.shutdown()
+    }
+
+    @Test("Switching libraries migrates notes into the new folder and loads them")
+    func switchLibraryMigratesAndLoads() async throws {
+        let dir = try makeTempDir()
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let notesDir = dir.appendingPathComponent("Notes")
+        let appSupport = dir.appendingPathComponent("AppSupport")
+        let suiteName = "supersimple-tests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        let model = AppModel(
+            notesDirectoryOverride: notesDir,
+            appSupportURLOverride: appSupport,
+            userDefaults: defaults
+        )
+        defer {
+            model.shutdown()
+            defaults.removePersistentDomain(forName: suiteName)
+        }
+
+        await model.bootstrap()
+        model.noteBodyEdited("# First\nbody", for: model.currentNoteID!)
+        model.flushNow()
+        let firstID = try #require(model.currentNoteID)
+        #expect(model.notes.count == 1)
+
+        // Choose a fresh folder; migration copies the note there, then the model reloads.
+        let newRoot = dir.appendingPathComponent("Library-\(UUID().uuidString)")
+        await model.switchLibrary(to: newRoot)
+
+        #expect(model.notesDirectory == LibraryLayout(root: newRoot).notesDirectory)
+        #expect(model.libraryRootPath == newRoot.path)
+        #expect(model.notes.count >= 1)
+        #expect(FileManager.default.fileExists(atPath: LibraryLayout(root: newRoot).noteURL(for: firstID).path))
+    }
+
     @Test("Search finds a note after save")
     func searchAfterSave() async throws {
         let dir = try makeTempDir()
@@ -241,6 +358,28 @@ struct AppModelTests {
         model.toggleTagForCurrentNote(Tag(name: "swift"))
         model.flushNow()
         #expect(model.currentNote()?.body.contains("#swift") == true)
+    }
+
+    @Test("Removing one tag leaves neighbouring tags intact")
+    func removeTagPreservesSiblings() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+
+        model.noteBodyEdited("# Notes\n#swift #obsidian", for: model.currentNoteID!)
+        model.flushNow()
+
+        model.toggleTagForCurrentNote(Tag(name: "swift"))
+        model.flushNow()
+        let remaining = model.currentNote()?.body ?? ""
+        #expect(!remaining.contains("#swift"))
+        // The sibling tag must survive (this regressed to `#other`/`other` logic before).
+        #expect(remaining.contains("#obsidian"))
+        #expect(model.currentNote()?.tags.contains(Tag(name: "obsidian")) == true)
     }
 
     @Test("Exports the note body and a sanitized filename")
@@ -432,6 +571,24 @@ struct AppModelTests {
         model.terminalHeight = 900
         #expect(model.terminalHeight == AppTheme.Metric.terminalMaxHeight)
     }
+
+    @Test("Word count is cached and follows edits and note switches")
+    func wordCountCacheTracksBody() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+
+        let id = try #require(model.currentNoteID)
+        model.noteBodyEdited("one two three", for: id)
+        #expect(model.currentWordCount == 3)
+
+        model.noteBodyEdited("one two three four five", for: id)
+        #expect(model.currentWordCount == 5)
+    }
 }
 
 @Suite("FaviconService")
@@ -452,6 +609,28 @@ struct FaviconServiceTests {
     func ignoresPlainText() {
         let hosts = FaviconService.hosts(in: "hello world, no urls here")
         #expect(hosts.isEmpty)
+    }
+}
+
+@Suite("ImageStore fingerprint")
+struct ImageStoreFingerprintTests {
+    @Test("Fingerprint is stable until a paste lands, then changes")
+    func fingerprintStability() throws {
+        let appSupport = FileManager.default.temporaryDirectory
+            .appendingPathComponent("supersimple-img-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: appSupport) }
+        let store = ImageStore(appSupport: appSupport)
+
+        // Repeated reads must not change: the wrapper calls this every editor update, and
+        // a busy signal would restyle the whole document while typing.
+        let before = store.fingerprint()
+        #expect(store.fingerprint() == before)
+
+        // A pasted image lands -> the set changed -> fingerprint must change.
+        let png = Data([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A])
+        _ = store.savePastedImage(png, ext: "png")
+        let after = store.fingerprint()
+        #expect(after != before)
     }
 }
 

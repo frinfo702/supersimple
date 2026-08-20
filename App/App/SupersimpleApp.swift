@@ -23,7 +23,6 @@ struct SupersimpleApp: App {
                 }
                 .task {
                     appDelegate.model = model
-                    await model.bootstrap()
                 }
                 .task {
                     await updater.checkAndDownloadIfNeeded()
@@ -44,6 +43,7 @@ struct SupersimpleApp: App {
         Settings {
             SettingsView()
                 .environment(themeManager)
+                .environment(model)
                 .preferredColorScheme(themeManager.preference.colorScheme)
                 .animation(nil, value: themeManager.preference)
                 .animation(nil, value: themeManager.paletteID)

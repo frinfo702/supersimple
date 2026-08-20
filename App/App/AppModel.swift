@@ -18,9 +18,13 @@ final class AppModel {
 
     private let fileManager = NoteFileManager()
     private var searchIndex: NoteSearchIndex?
-    private let notesDirectory: URL
+    /// Directory of `.md` note files. Skewed toward a user-chosen library root, but
+    /// defaults (and stays backward compatible) with `Application Support/Supersimple/Notes`.
+    private(set) var notesDirectory: URL
     private let appSupportURL: URL
     private let userDefaults: UserDefaults
+    /// Remaining folder-library layout for the current notes root.
+    var libraryLayout: LibraryLayout { LibraryLayout(root: notesDirectory.deletingLastPathComponent()) }
     /// Stores pasted images and serves them to the editor's `![[name]]` embeds.
     let imageStore: ImageStore
     /// Fetches and caches site favicons for links.
@@ -34,6 +38,16 @@ final class AppModel {
     var currentNoteID: UUID?
     /// The live body text backed by the editor binding.
     var currentBody: String = ""
+    /// Cached word count for the current body, so the status overlay does not re-scan the
+    /// whole document on every SwiftUI recompute.
+    private(set) var currentWordCount: Int = 0
+    private var wordCountCache: Int = 0 {
+        didSet {
+            if wordCountCache != currentWordCount {
+                currentWordCount = wordCountCache
+            }
+        }
+    }
 
     /// Search UI state. Independent of the open note; opening a row does not clear this.
     var searchQuery: String = ""
@@ -94,7 +108,12 @@ final class AppModel {
 
     private var isBootstrapLoaded = false
     private var saveTask: Task<Void, Never>?
-    private var isDirty = false
+    /// IDs of notes with edits that have not yet been durably persisted. Per-note (not a
+    /// single global flag) so a failed save on one note can never mark a *different* note
+    /// as clean, and dirty state follows the note across selection switches.
+    private var dirtyNoteIDs: Set<UUID> = []
+    /// Monotonic token so a slow older search cannot overwrite a newer one's results.
+    private var searchGeneration: UInt = 0
     private let autosaveDebounce: Duration = .milliseconds(350)
     /// Production storage only — tests pass directory overrides and must not
     /// copy the user's real sandbox container into the temp fixture.
@@ -137,24 +156,36 @@ final class AppModel {
 
         migratesSandboxContainer = notesDirectoryOverride == nil && appSupportURLOverride == nil
 
-        if let override = notesDirectoryOverride {
-            notesDirectory = override
-        } else {
-            let base = FileManager.default.urls(
-                for: .applicationSupportDirectory,
-                in: .userDomainMask
-            )[0].appendingPathComponent("Supersimple", isDirectory: true)
-            notesDirectory = base.appendingPathComponent("Notes", isDirectory: true)
-        }
-
         if let override = appSupportURLOverride {
             appSupportURL = override
         } else {
-            appSupportURL = FileManager.default.urls(
-                for: .applicationSupportDirectory, in: .userDomainMask
-            )[0].appendingPathComponent("Supersimple", isDirectory: true)
+            appSupportURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+                .appendingPathComponent("Supersimple", isDirectory: true)
+        }
+
+        if let override = notesDirectoryOverride {
+            notesDirectory = override
+        } else if let stored = self.userDefaults.string(forKey: Self.libraryRootKey),
+            !stored.isEmpty,
+            FileManager.default.fileExists(atPath: stored)
+        {
+            // A user-chosen library folder (iCloud Drive, mounted volume, …).
+            notesDirectory = LibraryLayout(root: URL(fileURLWithPath: stored, isDirectory: true)).notesDirectory
+        } else {
+            // Default: the classic Application Support location.
+            notesDirectory = LibraryLayout(root: appSupportURL).notesDirectory
         }
         imageStore = ImageStore(appSupport: appSupportURL)
+    }
+
+    // MARK: - Library location
+
+    /// UserDefaults key storing a user-chosen library root folder.
+    private static let libraryRootKey = "libraryRootPath"
+
+    /// The library root the user actively chose (or `nil` for the default location).
+    var libraryRootPath: String? {
+        userDefaults.string(forKey: Self.libraryRootKey)
     }
 
     /// Paste handler for the editor: saves a pasted image and returns the `![[name]]`
@@ -174,18 +205,37 @@ final class AppModel {
         if migratesSandboxContainer {
             SandboxContainerMigration.migrateIfNeeded(to: appSupportURL)
         }
+        await loadLibrary()
+    }
 
+    /// (Re)loads the current `notesDirectory` into memory and rebuilds the index. Also
+    /// called after the user switches the library folder.
+    @MainActor
+    private func loadLibrary() async {
         let directory = notesDirectory
         try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let appSupport = appSupportURL
 
         let started = DispatchTime.now()
-        let loaded = await Self.loadNotes(from: directory, fileManager: fileManager)
-        notes = loaded
-        searchIndex = await Self.rebuildIndex(notes: loaded, appSupport: appSupport)
+        let load: LoadOutcome
+        do {
+            load = try await Self.loadNotes(from: directory, fileManager: fileManager)
+        } catch {
+            // The notes directory is unavailable (mount gone, permission revoked). This is
+            // NOT an empty library: do not fabricate a note the user will lose.
+            Self.log.error(
+                "Library unavailable at \(directory.path): \(error.localizedDescription, privacy: .public)")
+            notes = []
+            searchIndex = nil
+            currentNoteID = nil
+            currentBody = ""
+            return
+        }
+        notes = load.notes
+        searchIndex = await Self.rebuildIndex(notes: load.notes, appSupport: appSupport)
 
         let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started.uptimeNanoseconds) / 1_000_000
-        Self.log.info("Bootstrapped \(loaded.count) notes in \(elapsed, format: .fixed(precision: 1)) ms")
+        Self.log.info("Bootstrapped \(load.notes.count) notes in \(elapsed, format: .fixed(precision: 1)) ms")
 
         resumeLastSelection()
         if notes.isEmpty {
@@ -195,29 +245,125 @@ final class AppModel {
         }
     }
 
-    /// Reads and decodes every note file off the main actor.
+    // MARK: - Library switching
+
+    /// Presents a folder picker and, on confirmation, migrates the current notes into the
+    /// chosen folder (as a browsable library) before switching to it.
+    func chooseLibraryFolder() {
+        guard flushNow() else {
+            Self.log.error("Refusing to change library: unsaved edits could not be flushed.")
+            return
+        }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Use Folder"
+        panel.title = "Choose Notes Folder"
+        panel.message = "supersimple will store your notes as plain .md files in this folder's Notes/ subfolder."
+        panel.begin { response in
+            guard response == .OK, let url = panel.url else { return }
+            Task { @MainActor in
+                await self.switchLibrary(to: url)
+            }
+        }
+    }
+
+    /// Migrates notes (+ pasted images) into a new root and switches the library there.
+    @MainActor
+    func switchLibrary(to root: URL) async {
+        let layout = LibraryLayout(root: root)
+        do {
+            try layout.createIfNeeded()
+        } catch {
+            Self.log.error("Could not create library at \(root.path): \(error.localizedDescription, privacy: .public)")
+            presentLibraryError("The folder could not be created.")
+            return
+        }
+
+        let migrator = LibraryMigrator()
+        let sourceNotes = notesDirectory
+        let sourceImages = appSupportURL.appendingPathComponent("Images", isDirectory: true)
+        let report: MigrationReport
+        do {
+            report = try await migrator.migrate(
+                notesSource: sourceNotes,
+                imagesSource: sourceImages,
+                layout: layout
+            )
+        } catch {
+            Self.log.error("Library migration failed: \(error.localizedDescription, privacy: .public)")
+            presentLibraryError("The notes could not be copied to that folder.")
+            return
+        }
+        migrationReport = report
+
+        userDefaults.set(root.path, forKey: Self.libraryRootKey)
+        notesDirectory = layout.notesDirectory
+        // Drop the current selection; it likely belongs to the previous library.
+        currentNoteID = nil
+        currentBody = ""
+        searchIndex = nil
+        await loadLibrary()
+    }
+
+    /// Reverts to the built-in Application Support location (migrating the current notes).
+    @MainActor
+    func useDefaultLibraryLocation() async {
+        if let current = libraryRootPath, current == appSupportURL.path {
+            return
+        }
+        await switchLibrary(to: appSupportURL)
+        userDefaults.removeObject(forKey: Self.libraryRootKey)
+    }
+
+    func revealLibraryInFinder() {
+        NSWorkspace.shared.activateFileViewerSelecting([notesDirectory])
+    }
+
+    /// Latest result of a library migration, surfaced in Settings.
+    private(set) var migrationReport: MigrationReport?
+
+    private func presentLibraryError(_ message: String) {
+        let alert = NSAlert()
+        alert.messageText = "Library Error"
+        alert.informativeText = message
+        alert.alertStyle = .warning
+        alert.addButton(withTitle: "OK")
+        alert.runModal()
+    }
+
+    /// Result of a load, keeping "empty" (valid) distinct from "unavailable" (an error).
+    private struct LoadOutcome {
+        var notes: [Note]
+        var duplicateIDsEncountered: Int
+    }
+
+    /// Reads and decodes every note file off the main actor. Deduplicates by ID (the
+    /// file that sorts last by `updatedAt` wins) so duplicate frontmatter UUIDs cannot
+    /// crash searches that join by an assumed-unique ID dictionary.
     private nonisolated static func loadNotes(
         from directory: URL,
         fileManager: NoteFileManager
-    ) async -> [Note] {
-        let urls = fileManager.existingNoteURLs(in: directory)
-        var loaded: [Note] = []
+    ) async throws -> LoadOutcome {
+        let urls = try fileManager.enumerateNoteURLs(in: directory)
+        var byID: [UUID: Note] = [:]
         for fileURL in urls {
             guard let text = try? fileManager.read(at: fileURL),
                 let doc = try? FrontmatterCodec.decode(text)
             else { continue }
-            loaded.append(
-                Note(
-                    id: doc.metadata.id,
-                    createdAt: doc.metadata.createdAt,
-                    updatedAt: doc.metadata.updatedAt,
-                    tags: doc.metadata.tags,
-                    body: doc.body,
-                    extraFields: doc.metadata.extraFields
-                )
+            let note = Note(
+                id: doc.metadata.id,
+                createdAt: doc.metadata.createdAt,
+                updatedAt: doc.metadata.updatedAt,
+                tags: doc.metadata.tags,
+                body: doc.body,
+                extraFields: doc.metadata.extraFields
             )
+            byID[note.id] = note
         }
-        return loaded.sorted { $0.updatedAt > $1.updatedAt }
+        let loaded = byID.values.sorted { $0.updatedAt > $1.updatedAt }
+        return LoadOutcome(notes: Array(loaded), duplicateIDsEncountered: urls.count - loaded.count)
     }
 
     private nonisolated static func rebuildIndex(
@@ -251,12 +397,21 @@ final class AppModel {
     func open(_ note: Note) {
         if currentNoteID == note.id {
             currentBody = note.body
+            wordCountCache = NoteStats.wordCount(note.body)
             return
         }
-        flushNow()
+        // Persist the outgoing edit first. If it cannot be written (disk full, revoked
+        // permission, unmounted volume) we must NOT switch away, otherwise the edit is
+        // orphaned and later clobbered by a save of the new note.
+        if !flushNow() {
+            Self.log.error(
+                "Blocked switching to \(note.title): could not persist unsaved edits.")
+            return
+        }
         cancelPendingSave()
         currentNoteID = note.id
         currentBody = note.body
+        wordCountCache = NoteStats.wordCount(note.body)
         userDefaults.set(note.id.uuidString, forKey: "lastNote")
         prefetchFavicons(in: note.body)
     }
@@ -271,6 +426,7 @@ final class AppModel {
     }
 
     func clearLibraryFilter() {
+        searchGeneration &+= 1
         searchQuery = ""
         searchResults = []
         selectedTag = nil
@@ -316,18 +472,32 @@ final class AppModel {
     // MARK: - Create / delete
 
     func createNote() {
-        flushNow()
+        // Do not create-and-switch if the outgoing note cannot be saved; that would
+        // strand its unsaved edits on a note no longer selected.
+        guard flushNow() else {
+            Self.log.error("Blocked creating a note: could not persist unsaved edits.")
+            return
+        }
         if hasActiveFilter {
             clearLibraryFilter()
         }
         let note = Note()
         notes.insert(note, at: 0)
         open(note)
-        persist(note)
+        if !persist(note) {
+            // Persist failed (e.g. disk full). Keep it dirty so a later flush retries
+            // until it durably lands or the user is told.
+            dirtyNoteIDs.insert(note.id)
+        }
     }
 
     func deleteNote(_ note: Note) {
-        flushNow()
+        if currentNoteID == note.id {
+            // Deleting the selected note discards its edits; make sure nothing is stranded
+            // before we remove the file, but do not let a failed save abort a deletion the
+            // user actively confirmed.
+            flushNow()
+        }
         guard let url = fileURL(for: note.id) else { return }
         do {
             try fileManager.delete(at: url)
@@ -336,12 +506,32 @@ final class AppModel {
             return
         }
         try? searchIndex?.delete(noteID: note.id)
+        dirtyNoteIDs.remove(note.id)
 
-        if currentNoteID == note.id {
-            currentNoteID = nil
-            currentBody = ""
-        }
+        let wasSelected = currentNoteID == note.id
+        let index = notes.firstIndex(where: { $0.id == note.id })
         notes.removeAll { $0.id == note.id }
+
+        if wasSelected {
+            // Pick a deterministic neighbour so the editor never falls to a blank state
+            // while other notes exist.
+            let neighbor: Note? = {
+                guard let index, !notes.isEmpty else { return notes.first }
+                if index < notes.count { return notes[index] }
+                return notes[notes.count - 1]
+            }()
+            if let neighbor {
+                currentNoteID = neighbor.id
+                currentBody = neighbor.body
+                wordCountCache = NoteStats.wordCount(neighbor.body)
+                userDefaults.set(neighbor.id.uuidString, forKey: "lastNote")
+                prefetchFavicons(in: neighbor.body)
+            } else {
+                currentNoteID = nil
+                currentBody = ""
+                wordCountCache = 0
+            }
+        }
     }
 
     /// Deletes the currently selected note, if any.
@@ -362,11 +552,12 @@ final class AppModel {
     }
 
     /// Unconditionally replaces the current body (used by tag editing and the caller
-    /// above). Marks dirty, updates the in-memory thumbnail, and schedules autosave.
+    /// above). Marks the note dirty and schedules autosave.
     private func replaceCurrentBody(_ newBody: String) {
         guard let id = currentNoteID else { return }
         currentBody = newBody
-        isDirty = true
+        wordCountCache = NoteStats.wordCount(newBody)
+        dirtyNoteIDs.insert(id)
 
         if let idx = notes.firstIndex(where: { $0.id == id }) {
             notes[idx].body = newBody
@@ -392,11 +583,13 @@ final class AppModel {
         saveTask = nil
     }
 
-    /// Save Now: immediate, unconditional persistence of the current edit.
-    func saveNowPublic() {
-        guard let id = currentNoteID, isDirty else { return }
+    /// Save Now: immediate, unconditional persistence of the current edit. Returns `true`
+    /// when the edit reached disk (so the dirty marker can be cleared), `false` otherwise.
+    @discardableResult
+    func saveNowPublic() -> Bool {
+        guard let id = currentNoteID, dirtyNoteIDs.contains(id) else { return true }
 
-        guard var note = currentNote() else { return }
+        guard var note = currentNote() else { return true }
         note.body = currentBody
         note.updatedAt = Date()
         note.tags = TagNormalizer.extractTags(from: currentBody)
@@ -404,11 +597,14 @@ final class AppModel {
         if let idx = notes.firstIndex(where: { $0.id == id }) {
             notes[idx] = note
         }
-        // Only clear dirty when persistence actually succeeded, so a failed write can
-        // be retried with ⌘S instead of being silently marked clean.
+        // Only clear the dirty marker when persistence actually succeeded, so a failed
+        // write can be retried with ⌘S (or on next switch/quits) instead of being
+        // silently marked clean and lost.
         if persist(note) {
-            isDirty = false
+            dirtyNoteIDs.remove(id)
+            return true
         }
+        return false
     }
 
     /// Applies a tag by editing the note body (append `#tag` when absent).
@@ -435,28 +631,30 @@ final class AppModel {
         var lines: [String] = []
         for rawLine in text.split(separator: "\n", omittingEmptySubsequences: false) {
             var line = String(rawLine)
-            let cleaned = removeToken(token, from: line)
-            // Avoid leaving a dangling `#` at the boundary of a longer word/word.
-            line = cleaned.replacingOccurrences(of: " #", with: " ")
-            // Drop now-empty lines that consisted only of the tag.
+            line = removeToken(token, from: line)
+            // Drop now-empty lines that consisted only of the tag (plus its whitespace).
             if line.trimmingCharacters(in: .whitespaces).isEmpty {
                 lines.append("")
             } else {
                 lines.append(line)
             }
         }
-        // Remove the whole token when it is the first thing on the line.
         return lines.joined(separator: "\n")
     }
 
     private func removeToken(_ token: String, from line: String) -> String {
-        // Match `#name` preceded by start-of-line, whitespace, or punctuation,
-        // and not followed by another alphanumeric/`_`/`-` (would extend the word).
-        let pattern = "(^|[\\s\\W])" + NSRegularExpression.escapedPattern(for: token) + "(?![\\p{L}\\p{N}_-])"
+        // Match `#name` (with optional leading whitespace/punctuation and trailing
+        // whitespace) but NOT when it extends a longer word like `#tagfoo`. The matched
+        // token plus its directly adjacent whitespace is removed, so neighbouring
+        // entirely different `#tags` are left intact.
+        let pattern = "(^|[\\s\\W])" + NSRegularExpression.escapedPattern(for: token) + "(?![\\p{L}\\p{N}_-])\\s?"
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return line }
         let ns = line as NSString
         let range = NSRange(location: 0, length: ns.length)
+        // Keep the preceding char; drop the token + trailing space. Then trim any double
+        // space the removal may have created at the leading boundary.
         return regex.stringByReplacingMatches(in: line, range: range, withTemplate: "$1")
+            .replacingOccurrences(of: "  ", with: " ")
     }
 
     // MARK: - Persistence
@@ -486,11 +684,11 @@ final class AppModel {
     }
 
     /// Immediate, unconditional persistence regardless of dirty flag (used by ⌘S and
-    /// before switching notes).
-    func flushNow() {
-        if isDirty {
-            saveNowPublic()
-        }
+    /// before switching notes). Returns `true` when the current note's edits are safe.
+    @discardableResult
+    func flushNow() -> Bool {
+        guard let id = currentNoteID, dirtyNoteIDs.contains(id) else { return true }
+        return saveNowPublic()
     }
 
     // MARK: - Search
@@ -506,6 +704,9 @@ final class AppModel {
 
         let givenQuery = query
         let gaveTags = tags
+        // Bump the generation so a slower older search cannot overwrite a newer one.
+        searchGeneration &+= 1
+        let generation = searchGeneration
         Task { @MainActor in
             // Run the (I/O + SQLite) query off the main actor; the detached closure only
             // touches Sendable values.
@@ -513,6 +714,8 @@ final class AppModel {
             let results = await Task.detached(priority: .userInitiated) { [index] in
                 (try? index.search(givenQuery, tags: gaveTags)) ?? []
             }.value
+            // Drop stale results: a later query (or a cleared field) superseded this one.
+            guard generation == self.searchGeneration else { return }
             let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started.uptimeNanoseconds) / 1_000_000
             searchResults = results
             Self.log.info(
@@ -536,9 +739,11 @@ final class AppModel {
     var visibleNotes: [Note] {
         let query = searchQuery.trimmingCharacters(in: .whitespaces)
         if !query.isEmpty {
-            // Preserve search-score order rather than library order.
+            // Preserve search-score order rather than library order. Build the dictionary
+            // with last-write-wins so an accidental duplicate ID never traps here.
+            var byID: [UUID: Note] = [:]
+            for note in notes { byID[note.id] = note }
             let order = searchResults.map(\.noteID)
-            let byID = Dictionary(uniqueKeysWithValues: notes.map { ($0.id, $0) })
             return order.compactMap { byID[$0] }
         }
         if let selectedTag {
@@ -586,6 +791,7 @@ final class AppModel {
     }
 
     func closeSearch() {
+        searchGeneration &+= 1
         searchQuery = ""
         searchResults = []
         searchFieldPresented = false
@@ -655,7 +861,9 @@ final class AppModel {
     /// importing a previously-exported file cannot collide with an existing note.
     @discardableResult
     func importNote(from url: URL) throws -> Note {
-        flushNow()
+        guard flushNow() else {
+            throw NoteFileError.writeFailed(underlying: "refusing import while unsaved edits cannot be flushed")
+        }
         let text = try String(contentsOf: url, encoding: .utf8)
         let doc = try FrontmatterCodec.decode(text)
         var note = Note()
@@ -666,7 +874,9 @@ final class AppModel {
             clearLibraryFilter()
         }
         open(note)
-        persist(note)
+        if !persist(note) {
+            dirtyNoteIDs.insert(note.id)
+        }
         return note
     }
 
@@ -675,7 +885,7 @@ final class AppModel {
     /// no window/view is alive.
     func shutdown() {
         cancelPendingSave()
-        if isDirty {
+        if let id = currentNoteID, dirtyNoteIDs.contains(id) {
             saveNowPublic()
         }
         searchIndex = nil

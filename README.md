@@ -22,9 +22,13 @@ for the integrated terminal. No Electron, no `WKWebView`, no JavaScript runtime.
   snippets. The index is a derived cache that rebuilds from your `.md` files.
 - **Tags, no folders** — tags are YAML frontmatter, auto-picked-up from `#tags` in the body.
   No hierarchy, just flat filterable notes.
-- **Plain Markdown files** — each note is a `.md` file in
-  `~/Library/Application Support/Supersimple/Notes/`. Atomic writes, autosave debounce,
-  sync flush on quit.
+- **Plain Markdown files** — each note is a `.md` file in a browsable library folder
+  (`<library>/Notes/`), with pasted images in `<library>/Attachments/`. Atomic writes,
+  autosave debounce, sync flush on quit. You can point the app at your own folder
+  (iCloud Drive, a mounted volume, anywhere) from **Settings → Storage** — supersimple
+  migrates your current notes there and keeps them as plain `.md` you can open from the
+  integrated Terminal or hand to an AI agent. Collisions during migration are reported,
+  never silently overwritten.
 - **Image paste** — pasting an image saves it to the app's storage and embeds it in the
   note (`![[name]]`).
 - **Link favicons** — URLs render with their site's favicon inline (fetched and cached
@@ -51,8 +55,9 @@ App/                       macOS app
   Resources/               Info.plist, entitlements, Geist Mono font, asset catalog
   UI/Theme/                design tokens (near-black palette, accent)
 Packages/SupersimpleCore/  platform-neutral library (maintainable, testable in isolation)
-  Sources/Models/          Note, Tag
-  Sources/Persistence/     FrontmatterCodec, NoteFileManager (atomic I/O)
+  Sources/Models/          Note, Tag, NoteSummary (body-free sidebar model)
+  Sources/Persistence/     FrontmatterCodec, NoteFileManager (atomic I/O, file records),
+                           LibraryLayout/NoteRepository/LibraryMigrator (folder libraries)
   Sources/Search/          NoteSearchIndex (FTS5)
   Sources/Markdown/        MarkdownScanner (math/code-fence detection, pure)
 supersimpleTests/          AppModel end-to-end tests

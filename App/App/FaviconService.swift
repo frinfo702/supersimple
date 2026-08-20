@@ -12,18 +12,28 @@ final class FaviconService: FaviconProvider, @unchecked Sendable {
     private let lock = NSLock()
     private var cache: [String: NSImage] = [:]
     private var inFlight: Set<String> = []
+    /// Bounded negative cache so a host that failed once is not re-requested on every
+    /// keystroke. NSCache evicts under pressure instead of an ever-growing Set.
+    private let failedCache: NSCache<NSString, NSNumber> = {
+        let c = NSCache<NSString, NSNumber>()
+        c.countLimit = 256
+        return c
+    }()
     private let session = URLSession.shared
+
+    /// Reused across every call — the detector and regex never vary.
+    private static let linkDetector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
+    private static let markdownLinkRegex = try? NSRegularExpression(pattern: #"\[[^\]]*\]\(([^)\s]+)\)"#)
 
     /// Hostnames in `body` worth prefetching: detector hits plus markdown `[text](url)`.
     static func hosts(in body: String) -> Set<String> {
         var hosts: Set<String> = []
         let ns = body as NSString
         let full = NSRange(location: 0, length: ns.length)
-        let detector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
-        detector?.enumerateMatches(in: body, options: [], range: full) { match, _, _ in
+        linkDetector?.enumerateMatches(in: body, options: [], range: full) { match, _, _ in
             if let host = match?.url?.host { hosts.insert(host.lowercased()) }
         }
-        if let re = try? NSRegularExpression(pattern: #"\[[^\]]*\]\(([^)\s]+)\)"#) {
+        if let re = markdownLinkRegex {
             for match in re.matches(in: body, range: full) where match.numberOfRanges >= 2 {
                 var urlString = ns.substring(with: match.range(at: 1))
                 if !urlString.contains("://") { urlString = "https://\(urlString)" }
@@ -44,6 +54,8 @@ final class FaviconService: FaviconProvider, @unchecked Sendable {
     func prefetch(hosts: [String]) {
         for host in hosts {
             let key = host.lowercased()
+            let nsKey = key as NSString
+            if failedCache.object(forKey: nsKey) != nil { continue }
             lock.lock()
             let known = cache[key] != nil || inFlight.contains(key)
             if !known { inFlight.insert(key) }
@@ -58,13 +70,16 @@ final class FaviconService: FaviconProvider, @unchecked Sendable {
             lock.lock()
             inFlight.remove(key)
             lock.unlock()
+            failedCache.setObject(true, forKey: key as NSString)
             return
         }
         let task = session.dataTask(with: url) { [weak self] data, _, _ in
-            guard let self, let data, let img = NSImage(data: data) else {
-                self?.lock.lock()
-                self?.inFlight.remove(key)
-                self?.lock.unlock()
+            guard let self else { return }
+            guard let data, let img = NSImage(data: data) else {
+                self.lock.lock()
+                self.inFlight.remove(key)
+                self.lock.unlock()
+                self.failedCache.setObject(true, forKey: key as NSString)
                 return
             }
             self.lock.lock()

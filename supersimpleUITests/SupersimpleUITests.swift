@@ -120,6 +120,8 @@ final class SupersimpleUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["settings-theme-grid"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["settings-font-row"].exists)
         XCTAssertTrue(app.descendants(matching: .any)["settings-icon-grid"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["settings-storage-choose"].exists)
+        XCTAssertTrue(app.descendants(matching: .any)["settings-storage-reveal"].exists)
     }
 
     @MainActor

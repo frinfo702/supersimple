@@ -1,9 +1,11 @@
 import AppKit
+import SupersimpleCore
 import SwiftUI
 
 /// Settings opened from the app menu (⌘,) — same chrome as the main window.
 struct SettingsView: View {
     @Environment(ThemeManager.self) private var themeManager
+    @Environment(AppModel.self) private var model
     @Environment(\.colorScheme) private var colorScheme
 
     private var isDark: Bool { themeManager.isDark(matching: colorScheme) }
@@ -15,6 +17,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 32) {
                 iconSection
                 editorSection
+                storageSection
                 themeSection
             }
             .padding(.horizontal, 28)
@@ -112,6 +115,59 @@ struct SettingsView: View {
             .accessibilityIdentifier("settings-editor-preview")
     }
 
+    // MARK: - Storage
+
+    private var storageSection: some View {
+        SettingsSection(title: "Storage") {
+            VStack(alignment: .leading, spacing: 18) {
+                labeledRow("Notes Folder") {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(notesPathDescription)
+                            .font(.system(size: 12, design: .monospaced))
+                            .foregroundStyle(tokens.muted.swiftUI)
+                            .textSelection(.enabled)
+                            .lineLimit(3)
+                        Text("\(model.notes.count) notes • plain .md files")
+                            .font(.system(size: 11))
+                            .foregroundStyle(tokens.muted.swiftUI)
+                    }
+                }
+                if let report = model.migrationReport, !report.problems.isEmpty {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Last migration had \(report.problems.count) issue(s)")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(tokens.text.swiftUI)
+                        Text("Conflicting and unreadable files were reported, never silently overwritten.")
+                            .font(.system(size: 11))
+                            .foregroundStyle(tokens.muted.swiftUI)
+                    }
+                }
+                HStack(spacing: 8) {
+                    SettingsStorageButton(title: "Choose Folder…", accent: tokens.accent.swiftUI, palette: palette) {
+                        model.chooseLibraryFolder()
+                    }
+                    .accessibilityIdentifier("settings-storage-choose")
+                    SettingsStorageButton(title: "Use Default", accent: tokens.accent.swiftUI, palette: palette) {
+                        Task { await model.useDefaultLibraryLocation() }
+                    }
+                    .accessibilityIdentifier("settings-storage-default")
+                    SettingsStorageButton(title: "Reveal in Finder", accent: tokens.accent.swiftUI, palette: palette) {
+                        model.revealLibraryInFinder()
+                    }
+                    .accessibilityIdentifier("settings-storage-reveal")
+                }
+            }
+        }
+    }
+
+    private var notesPathDescription: String {
+        let defaultRoot = FileManager.default.urls(
+            for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("Supersimple", isDirectory: true)
+        let root = model.libraryRootPath.map { URL(fileURLWithPath: $0, isDirectory: true) } ?? defaultRoot
+        return root.appendingPathComponent(LibraryLayout.notesDirectoryName, isDirectory: true).path
+    }
+
     // MARK: - Theme
 
     private var themeSection: some View {
@@ -178,6 +234,33 @@ private struct SettingsSection<Content: View>: View {
                 .tracking(0.4)
             content()
         }
+    }
+}
+
+private struct SettingsStorageButton: View {
+    var title: String
+    var accent: Color
+    var palette: PaletteColors
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 13, weight: .medium))
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
+                .background(
+                    RoundedRectangle(cornerRadius: AppTheme.Metric.controlRadius, style: .continuous)
+                        .fill(palette.selection)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: AppTheme.Metric.controlRadius, style: .continuous)
+                        .strokeBorder(palette.hairline, lineWidth: AppTheme.Metric.hairlineWidth)
+                )
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(Color.primary)
+        .accessibilityLabel(title)
     }
 }
 

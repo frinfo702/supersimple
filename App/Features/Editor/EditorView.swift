@@ -68,7 +68,7 @@ struct EditorView: View {
 
     private var wordLabel: String {
         guard model.currentNote() != nil else { return "" }
-        let count = NoteStats.wordCount(model.currentBody)
+        let count = model.currentWordCount
         return count == 1 ? "1 word" : "\(count) words"
     }
 }
