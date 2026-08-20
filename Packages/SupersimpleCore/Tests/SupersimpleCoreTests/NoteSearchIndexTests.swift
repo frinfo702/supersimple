@@ -241,6 +241,27 @@ struct NoteSearchIndexTests {
         #expect(try index.search("secret").isEmpty)
     }
 
+    @Test("Body-only matches produce a body snippet, not an empty one")
+    func bodySnippet() throws {
+        let (index, cleanup) = try makeIndex()
+        defer { cleanup() }
+        // No heading: the match lives in the body, so the snippet must come from the body
+        // column (2), not the title column.
+        let n = note(UUID(), body: "A long paragraph about habitat fragmentation and こんにちは.")
+        try index.upsert(note: n)
+
+        let ja = try index.search("こんにちは")
+        #expect(ja.contains { $0.noteID == n.id })
+        if let hit = ja.first(where: { $0.noteID == n.id }) {
+            #expect(hit.snippet.contains("こんにちは"), "Expected a body snippet, got '\(hit.snippet)'")
+        }
+
+        let en = try index.search("fragmentation")
+        if let hit = en.first(where: { $0.noteID == n.id }) {
+            #expect(hit.snippet.contains("fragmentation"))
+        }
+    }
+
     @Test("Migrates an existing unicode61 index")
     func legacyDatabaseMigration() throws {
         let dir = FileManager.default.temporaryDirectory

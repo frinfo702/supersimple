@@ -156,7 +156,7 @@ public final class NoteSearchIndex: @unchecked Sendable {
         }
 
         let sql = """
-            SELECT noteID, title, snippet(notes_fts, 1, '[', ']', '…', 24) AS snip, bm25(notes_fts) AS score
+            SELECT noteID, title, snippet(notes_fts, 2, '[', ']', '…', 24) AS snip, bm25(notes_fts) AS score
             FROM notes_fts
             WHERE \(conditions.joined(separator: " AND "))
             ORDER BY score LIMIT ?
@@ -238,6 +238,9 @@ public final class NoteSearchIndex: @unchecked Sendable {
             )
             try execute(
                 "CREATE TABLE IF NOT EXISTS note_tags (noteID TEXT NOT NULL, tag TEXT NOT NULL, PRIMARY KEY(noteID, tag));"
+            )
+            try execute(
+                "CREATE INDEX IF NOT EXISTS note_tags_tag_idx ON note_tags(tag, noteID);"
             )
 
             let ftsSQL = try scalarText("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'notes_fts';")
