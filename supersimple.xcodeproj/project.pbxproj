@@ -135,7 +135,6 @@
 		F40B77214A55275DF8977211 /* NoteRecencyGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteRecencyGroup.swift; sourceTree = "<group>"; };
 		F7D79E6663399201E241CD4C /* AppearanceSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsTests.swift; sourceTree = "<group>"; };
 		FD2CD44FDAC8B12F3E8CF4B5 /* supersimpleTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = supersimpleTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		"TEMP_22A0AD5B-0EE9-4FB4-ADF4-B15A49A8023E" /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -479,7 +478,6 @@
 			packageReferences = (
 				46782C24B5BE2B7557A1BFD7 /* XCRemoteSwiftPackageReference "libghostty-spm" */,
 				2534CE66A37D7FF7CFC16CB2 /* XCLocalSwiftPackageReference "Packages/swift-markdown-engine" */,
-				82AE72BB421E290672303FDA /* XCLocalSwiftPackageReference "Packages/swift-markdown-engine" */,
 				19AFD8BF545EDA2DB3B7B628 /* XCLocalSwiftPackageReference "Packages/SupersimpleCore" */,
 			);
 			preferredProjectObjectVersion = 77;
@@ -923,10 +921,6 @@
 			relativePath = Packages/SupersimpleCore;
 		};
 		2534CE66A37D7FF7CFC16CB2 /* XCLocalSwiftPackageReference "Packages/swift-markdown-engine" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = "Packages/swift-markdown-engine";
-		};
-		82AE72BB421E290672303FDA /* XCLocalSwiftPackageReference "Packages/swift-markdown-engine" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "Packages/swift-markdown-engine";
 		};

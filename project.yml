@@ -24,7 +24,9 @@ targets:
     dependencies:
       - package: SupersimpleCore
       - package: MarkdownEngine
-      - package: MarkdownEngineLatex
+        products:
+          - MarkdownEngine
+          - MarkdownEngineLatex
       - package: GhosttyKit
         product: GhosttyTerminal
       - target: SupersimpleUpdater
@@ -97,10 +99,6 @@ packages:
     path: Packages/SupersimpleCore
   MarkdownEngine:
     path: Packages/swift-markdown-engine
-    productName: MarkdownEngine
-  MarkdownEngineLatex:
-    path: Packages/swift-markdown-engine
-    productName: MarkdownEngineLatex
   GhosttyKit:
     url: https://github.com/Lakr233/libghostty-spm
     exactVersion: 1.3.2
