@@ -57,6 +57,20 @@ final class AppModel {
     var selectedTag: Tag?
     var searchResults: [SearchResult] = []
 
+    /// Global search palette state. Kept separate from the sidebar filter so opening
+    /// Command-K never destroys the user's current library view.
+    var commandPalettePresented = false
+    var commandPaletteQuery = ""
+    var commandPaletteSelectedTag: Tag?
+    var commandPaletteResults: [SearchResult] = []
+
+    /// In-note find state. Match ranges are owned by MarkdownEngine; the app only
+    /// stores the query, current result, and count displayed in the floating bar.
+    var noteFindPresented = false
+    var noteFindQuery = ""
+    private(set) var noteFindCurrentIndex = 0
+    private(set) var noteFindMatchCount = 0
+
     /// Confirmation target for the delete dialog. Independent of the current selection
     /// so a context-menu delete can target a row that is not open.
     var notePendingDelete: Note?
@@ -108,6 +122,10 @@ final class AppModel {
     private(set) var searchFocusToken: UInt = 0
     /// Bumped to move keyboard focus into the editor.
     private(set) var editorFocusToken: UInt = 0
+    /// Bumped to focus the global Command-K search field.
+    private(set) var commandPaletteFocusToken: UInt = 0
+    /// Bumped to focus the in-note Command-F search field.
+    private(set) var noteFindFocusToken: UInt = 0
 
     private var isBootstrapLoaded = false
     private var saveTask: Task<Void, Never>?
@@ -117,7 +135,12 @@ final class AppModel {
     private var dirtyNoteIDs: Set<UUID> = []
     /// Monotonic token so a slow older search cannot overwrite a newer one's results.
     private var searchGeneration: UInt = 0
+    private var paletteSearchGeneration: UInt = 0
+    private var librarySearchTask: Task<Void, Never>?
+    private var paletteSearchTask: Task<Void, Never>?
+    private var noteFindRefreshTask: Task<Void, Never>?
     private let autosaveDebounce: Duration = .milliseconds(350)
+    private let searchDebounce: Duration = .milliseconds(90)
     /// Production storage only — tests pass directory overrides and must not
     /// copy the user's real sandbox container into the temp fixture.
     private let migratesSandboxContainer: Bool
@@ -475,6 +498,7 @@ final class AppModel {
                 "Blocked switching to \(note.title): could not persist unsaved edits.")
             return
         }
+        dismissNoteFind(focusEditor: false)
         cancelPendingSave()
         currentNoteID = note.id
         currentBody = note.body
@@ -493,6 +517,7 @@ final class AppModel {
     }
 
     func clearLibraryFilter() {
+        librarySearchTask?.cancel()
         searchGeneration &+= 1
         searchQuery = ""
         searchResults = []
@@ -767,20 +792,23 @@ final class AppModel {
     // MARK: - Search
 
     func performSearch() {
-        let query = searchQuery.trimmingCharacters(in: .whitespaces)
-        guard !query.isEmpty, let index = searchIndex else {
+        let parsed = parsedSearch(searchQuery, selectedTag: selectedTag)
+        searchGeneration &+= 1
+        let generation = searchGeneration
+        librarySearchTask?.cancel()
+        guard !parsed.query.isEmpty || !parsed.tags.isEmpty, let index = searchIndex else {
             searchResults = []
             return
         }
-        var tags = Set<Tag>()
-        if let selectedTag { tags.insert(selectedTag) }
 
-        let givenQuery = query
-        let gaveTags = tags
-        // Bump the generation so a slower older search cannot overwrite a newer one.
-        searchGeneration &+= 1
-        let generation = searchGeneration
-        Task { @MainActor in
+        let givenQuery = parsed.query
+        let gaveTags = parsed.tags
+        librarySearchTask = Task { @MainActor in
+            do {
+                try await Task.sleep(for: searchDebounce)
+            } catch {
+                return
+            }
             // Run the (I/O + SQLite) query off the main actor; the detached closure only
             // touches Sendable values.
             let started = DispatchTime.now()
@@ -788,7 +816,7 @@ final class AppModel {
                 (try? index.search(givenQuery, tags: gaveTags)) ?? []
             }.value
             // Drop stale results: a later query (or a cleared field) superseded this one.
-            guard generation == self.searchGeneration else { return }
+            guard generation == self.searchGeneration, !Task.isCancelled else { return }
             let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started.uptimeNanoseconds) / 1_000_000
             searchResults = results
             Self.log.info(
@@ -799,7 +827,16 @@ final class AppModel {
 
     func selectTag(_ tag: Tag?) {
         withAnimation(.easeOut(duration: 0.12)) {
-            selectedTag = (self.selectedTag == tag) ? nil : tag
+            guard let tag else {
+                selectedTag = nil
+                return
+            }
+            if typedTags(in: searchQuery).contains(tag) {
+                searchQuery = removingTag(tag, from: searchQuery)
+                if selectedTag == tag { selectedTag = nil }
+            } else {
+                selectedTag = (selectedTag == tag) ? nil : tag
+            }
         }
         // If a search is active, incorporate the tag filter immediately.
         if !searchQuery.trimmingCharacters(in: .whitespaces).isEmpty {
@@ -836,9 +873,21 @@ final class AppModel {
         return counts.map { ($0.key, $0.value) }.sorted { $0.0 < $1.0 }
     }
 
+    var activeLibrarySearchTags: Set<Tag> {
+        parsedSearch(searchQuery, selectedTag: selectedTag).tags
+    }
+
+    var commandPaletteActiveTags: Set<Tag> {
+        parsedSearch(commandPaletteQuery, selectedTag: commandPaletteSelectedTag).tags
+    }
+
     func openSearchResult(_ result: SearchResult) {
         guard let note = notes.first(where: { $0.id == result.noteID }) else { return }
         open(note)
+    }
+
+    func searchResult(for noteID: UUID) -> SearchResult? {
+        searchResults.first { $0.noteID == noteID }
     }
 
     /// Recency buckets for the unfiltered (or tag-filtered) library. Search hits
@@ -864,10 +913,186 @@ final class AppModel {
     }
 
     func closeSearch() {
+        librarySearchTask?.cancel()
         searchGeneration &+= 1
         searchQuery = ""
         searchResults = []
         searchFieldPresented = false
+    }
+
+    // MARK: - Command palette
+
+    func presentCommandPalette() {
+        dismissNoteFind(focusEditor: false)
+        paletteSearchTask?.cancel()
+        commandPalettePresented = true
+        commandPaletteQuery = ""
+        commandPaletteSelectedTag = nil
+        commandPaletteResults = []
+        paletteSearchGeneration &+= 1
+        commandPaletteFocusToken &+= 1
+    }
+
+    func dismissCommandPalette() {
+        paletteSearchTask?.cancel()
+        paletteSearchGeneration &+= 1
+        commandPalettePresented = false
+        commandPaletteQuery = ""
+        commandPaletteSelectedTag = nil
+        commandPaletteResults = []
+    }
+
+    func performCommandPaletteSearch() {
+        let parsed = parsedSearch(commandPaletteQuery, selectedTag: commandPaletteSelectedTag)
+        paletteSearchGeneration &+= 1
+        let generation = paletteSearchGeneration
+        paletteSearchTask?.cancel()
+        guard !parsed.query.isEmpty || !parsed.tags.isEmpty, let index = searchIndex else {
+            commandPaletteResults = []
+            return
+        }
+
+        let givenQuery = parsed.query
+        let gaveTags = parsed.tags
+        paletteSearchTask = Task { @MainActor in
+            do {
+                try await Task.sleep(for: searchDebounce)
+            } catch {
+                return
+            }
+            let results = await Task.detached(priority: .userInitiated) { [index] in
+                (try? index.search(givenQuery, tags: gaveTags)) ?? []
+            }.value
+            guard generation == self.paletteSearchGeneration,
+                self.commandPalettePresented, !Task.isCancelled
+            else { return }
+            self.commandPaletteResults = results
+        }
+    }
+
+    func selectCommandPaletteTag(_ tag: Tag) {
+        if typedTags(in: commandPaletteQuery).contains(tag) {
+            commandPaletteQuery = removingTag(tag, from: commandPaletteQuery)
+            if commandPaletteSelectedTag == tag { commandPaletteSelectedTag = nil }
+        } else {
+            commandPaletteSelectedTag = commandPaletteSelectedTag == tag ? nil : tag
+        }
+        performCommandPaletteSearch()
+    }
+
+    func openFromCommandPalette(_ note: Note) {
+        open(note)
+        dismissCommandPalette()
+        focusEditor()
+    }
+
+    // MARK: - Find in note
+
+    func presentNoteFind() {
+        guard currentNote() != nil else { return }
+        dismissCommandPalette()
+        noteFindPresented = true
+        noteFindCurrentIndex = 0
+        noteFindMatchCount = 0
+        noteFindFocusToken &+= 1
+        refreshNoteFind()
+    }
+
+    func noteFindQueryDidChange() {
+        noteFindCurrentIndex = 0
+        refreshNoteFind()
+    }
+
+    func scheduleNoteFindRefresh() {
+        noteFindRefreshTask?.cancel()
+        guard noteFindPresented, let noteID = currentNoteID else { return }
+        noteFindRefreshTask = Task { @MainActor in
+            do {
+                try await Task.sleep(for: searchDebounce)
+            } catch {
+                return
+            }
+            guard noteFindPresented, currentNoteID == noteID, !Task.isCancelled else { return }
+            refreshNoteFind()
+        }
+    }
+
+    func moveNoteFind(by delta: Int) {
+        guard noteFindMatchCount > 0 else {
+            refreshNoteFind()
+            return
+        }
+        noteFindCurrentIndex = (noteFindCurrentIndex + delta + noteFindMatchCount) % noteFindMatchCount
+        refreshNoteFind()
+    }
+
+    func noteFindResultsDidChange(count: Int) {
+        noteFindMatchCount = max(0, count)
+        if noteFindMatchCount == 0 {
+            noteFindCurrentIndex = 0
+        } else {
+            noteFindCurrentIndex = min(noteFindCurrentIndex, noteFindMatchCount - 1)
+        }
+    }
+
+    func refreshNoteFind() {
+        guard noteFindPresented else { return }
+        NotificationCenter.default.post(
+            name: EditorFindNotifications.query,
+            object: nil,
+            userInfo: [
+                "query": noteFindQuery,
+                "currentIndex": noteFindCurrentIndex,
+            ]
+        )
+    }
+
+    func dismissNoteFind(focusEditor shouldFocusEditor: Bool = true) {
+        noteFindRefreshTask?.cancel()
+        if noteFindPresented {
+            NotificationCenter.default.post(name: EditorFindNotifications.clear, object: nil)
+        }
+        noteFindPresented = false
+        noteFindQuery = ""
+        noteFindCurrentIndex = 0
+        noteFindMatchCount = 0
+        if shouldFocusEditor {
+            focusEditor()
+        }
+    }
+
+    /// Extracts exact `#tag` tokens from a search while leaving the remaining words
+    /// as full-text terms. Unknown partial tags are reserved for tag suggestions.
+    private func parsedSearch(_ raw: String, selectedTag: Tag?) -> (query: String, tags: Set<Tag>) {
+        var tags = Set<Tag>()
+        if let selectedTag { tags.insert(selectedTag) }
+        let knownTags = Set(allTags.map(\.tag))
+        var terms: [Substring] = []
+        for token in raw.split(whereSeparator: \.isWhitespace) {
+            guard token.first == "#" else {
+                terms.append(token)
+                continue
+            }
+            let name = String(token.dropFirst())
+            let tag = Tag(name: name)
+            if !tag.name.isEmpty, knownTags.contains(tag) {
+                tags.insert(tag)
+            }
+        }
+        return (terms.joined(separator: " "), tags)
+    }
+
+    private func typedTags(in raw: String) -> Set<Tag> {
+        parsedSearch(raw, selectedTag: nil).tags
+    }
+
+    private func removingTag(_ tag: Tag, from raw: String) -> String {
+        raw.split(whereSeparator: \.isWhitespace)
+            .filter { token in
+                guard token.first == "#" else { return true }
+                return Tag(name: String(token.dropFirst())) != tag
+            }
+            .joined(separator: " ")
     }
 
     // MARK: - Export / import
@@ -958,6 +1183,9 @@ final class AppModel {
     /// no window/view is alive.
     func shutdown() {
         cancelPendingSave()
+        librarySearchTask?.cancel()
+        paletteSearchTask?.cancel()
+        noteFindRefreshTask?.cancel()
         if let id = currentNoteID, dirtyNoteIDs.contains(id) {
             saveNowPublic()
         }

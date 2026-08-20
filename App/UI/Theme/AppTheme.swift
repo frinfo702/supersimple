@@ -16,10 +16,14 @@ struct PaletteColors: Equatable {
     var hairline: Color
     var selection: Color
     var hover: Color
+    var searchHighlight: Color
+    var searchCurrentHighlight: Color
     var nsBackground: NSColor
     var nsText: NSColor
     var nsMuted: NSColor
     var nsAccent: NSColor
+    var nsSearchHighlight: NSColor
+    var nsSearchCurrentHighlight: NSColor
 
     static func == (lhs: PaletteColors, rhs: PaletteColors) -> Bool {
         lhs.themeID == rhs.themeID && lhs.isDark == rhs.isDark
@@ -37,10 +41,14 @@ struct PaletteColors: Equatable {
         hairline = tokens.hairline(isDark: isDark).swiftUI
         selection = tokens.selection(isDark: isDark).swiftUI
         hover = tokens.hover(isDark: isDark).swiftUI
+        searchHighlight = tokens.searchHighlight(isDark: isDark).swiftUI
+        searchCurrentHighlight = tokens.searchCurrentHighlight(isDark: isDark).swiftUI
         nsBackground = tokens.background.nsColor
         nsText = tokens.text.nsColor
         nsMuted = tokens.muted.nsColor
         nsAccent = tokens.accent.nsColor
+        nsSearchHighlight = tokens.searchHighlight(isDark: isDark).nsColor
+        nsSearchCurrentHighlight = tokens.searchCurrentHighlight(isDark: isDark).nsColor
     }
 }
 

@@ -214,6 +214,107 @@ struct AppModelTests {
         #expect(!model.isSearching)
     }
 
+    @Test("Hash-prefixed search filters by an exact tag")
+    func hashTagSearch() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+
+        let taggedID = try #require(model.currentNoteID)
+        model.noteBodyEdited("# Swift note\nA tagged document. #swift", for: taggedID)
+        #expect(model.flushNow())
+        model.createNote()
+        let otherID = try #require(model.currentNoteID)
+        model.noteBodyEdited("# Other note\nNo matching tag. #writing", for: otherID)
+        #expect(model.flushNow())
+
+        model.searchQuery = "#swift"
+        model.performSearch()
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while model.searchResults.isEmpty, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        #expect(model.visibleNotes.map(\.id) == [taggedID])
+    }
+
+    @Test("Typed palette tags and tag chips share one active state")
+    func paletteTagState() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+
+        let noteID = try #require(model.currentNoteID)
+        model.noteBodyEdited("# Tagged\n#swift", for: noteID)
+        #expect(model.flushNow())
+        let swift = Tag(name: "swift")
+
+        model.presentCommandPalette()
+        model.commandPaletteQuery = "#swift"
+        #expect(model.commandPaletteActiveTags == [swift])
+
+        model.selectCommandPaletteTag(swift)
+        #expect(model.commandPaletteQuery.isEmpty)
+        #expect(model.commandPaletteActiveTags.isEmpty)
+
+        model.selectCommandPaletteTag(swift)
+        #expect(model.commandPaletteActiveTags == [swift])
+        model.commandPaletteQuery = "another query"
+        #expect(model.commandPaletteActiveTags == [swift])
+    }
+
+    @Test("Clearing the field directly cancels a pending debounced search")
+    func directSearchClearDropsPendingResults() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+        let noteID = try #require(model.currentNoteID)
+        model.noteBodyEdited("# Searchable\nA unique lighthouse phrase.", for: noteID)
+        #expect(model.flushNow())
+
+        model.searchQuery = "lighthouse"
+        model.performSearch()
+        model.searchQuery = ""
+        model.performSearch()
+        try await Task.sleep(for: .milliseconds(180))
+
+        #expect(model.searchResults.isEmpty)
+        #expect(!model.isSearching)
+    }
+
+    @Test("Search highlighting preserves literal square brackets")
+    func searchHighlightBrackets() {
+        let titlePieces = SearchHighlightParser.pieces(
+            from: "[Roadmap]",
+            query: "Roadmap",
+            usesSnippetMarkers: false
+        )
+        #expect(titlePieces.map(\.text).joined() == "[Roadmap]")
+        #expect(titlePieces.filter(\.highlighted).map(\.text) == ["Roadmap"])
+
+        let marked =
+            "[literal] \(SearchResult.highlightStart)Roadmap\(SearchResult.highlightEnd)"
+        let snippetPieces = SearchHighlightParser.pieces(
+            from: marked,
+            query: "Roadmap",
+            usesSnippetMarkers: true
+        )
+        #expect(snippetPieces.map(\.text).joined() == "[literal] Roadmap")
+        #expect(snippetPieces.filter(\.highlighted).map(\.text) == ["Roadmap"])
+    }
+
     @Test("Persisted library root redirects the notes directory into the chosen folder")
     func persistedLibraryRootRedirectsNotes() async throws {
         let dir = try makeTempDir()

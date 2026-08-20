@@ -110,6 +110,14 @@ struct ColorTheme: Identifiable, Equatable, Sendable {
         func hover(isDark: Bool) -> RGB {
             isDark ? RGB(1, 1, 1, 0.045) : RGB(0, 0, 0, 0.04)
         }
+
+        func searchHighlight(isDark: Bool) -> RGB {
+            isDark ? RGB(hex: 0xFBBF24, alpha: 0.28) : RGB(hex: 0xFACC15, alpha: 0.36)
+        }
+
+        func searchCurrentHighlight(isDark: Bool) -> RGB {
+            isDark ? RGB(hex: 0xFBBF24, alpha: 0.52) : RGB(hex: 0xFACC15, alpha: 0.60)
+        }
     }
 
     var id: String

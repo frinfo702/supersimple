@@ -174,6 +174,24 @@ struct AppearanceSettingsTests {
         #expect(darkDefault.background != darkCursor.background)
     }
 
+    @Test("Search highlights are yellow and distinct from row selection")
+    func searchHighlightsAreDistinctFromSelection() {
+        for theme in ColorTheme.all {
+            for isDark in [false, true] {
+                let tokens = theme.tokens(isDark: isDark)
+                let highlight = tokens.searchHighlight(isDark: isDark)
+                let currentHighlight = tokens.searchCurrentHighlight(isDark: isDark)
+                let selection = tokens.selection(isDark: isDark)
+
+                #expect(highlight.r > highlight.b)
+                #expect(highlight.g > highlight.b)
+                #expect(highlight != selection)
+                #expect(currentHighlight != selection)
+                #expect(currentHighlight.a > highlight.a)
+            }
+        }
+    }
+
     @Test("Terminal chrome follows each palette's editor and text tokens")
     func terminalThemeFollowsPalette() {
         for theme in ColorTheme.all {
