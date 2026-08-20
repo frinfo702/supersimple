@@ -50,9 +50,10 @@ final class ImageStore: @unchecked Sendable {
     }
 
     func fingerprint() -> AnyHashable {
-        let files = (try? FileManager.default.contentsOfDirectory(
-            at: imagesDir, includingPropertiesForKeys: nil
-        ).count) ?? 0
+        let files =
+            (try? FileManager.default.contentsOfDirectory(
+                at: imagesDir, includingPropertiesForKeys: nil
+            ).count) ?? 0
         lock.lock()
         let gen = generation
         let remote = remoteCache.count
