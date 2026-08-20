@@ -7,7 +7,8 @@
 //  the next line and the marker sits alone. Presentation-only: that trailing
 //  marker space becomes U+2060 WORD JOINER (same UTF-16 length) with the
 //  original advance hung on the preceding glyph, which removes the break
-//  without changing document storage.
+//  without changing document storage. Empty items (`1. `, `- `) keep the
+//  trailing space — gluing at EOL parks the caret on the marker.
 //
 //  Leading indent tabs/spaces are left alone. Nested lists and Tab indent
 //  use `\t` plus tab stops / `defaultTabInterval`; replacing those with a
@@ -26,6 +27,19 @@ enum LinePrefixGlue {
         guard info.length > info.indentLength else { return false }
 
         let ns = attr.string as NSString
+        var contentEnd = ns.length
+        while contentEnd > 0 {
+            let last = ns.character(at: contentEnd - 1)
+            guard last == 0x0A || last == 0x0D else { break }
+            contentEnd -= 1
+        }
+        // Empty item (`1. `, `- `): the prefix *is* the line. Replacing that
+        // trailing space with WORD JOINER parks the caret on the marker —
+        // the joiner is zero-width, and TextKit ignores the space advance
+        // hung as `.kern` on the previous glyph when the caret sits at EOL.
+        // Glue only when content follows, which is the wrap case we care about.
+        guard info.length < contentEnd else { return false }
+
         var didMutate = false
         for i in (info.indentLength..<info.length).reversed() {
             let c = ns.character(at: i)

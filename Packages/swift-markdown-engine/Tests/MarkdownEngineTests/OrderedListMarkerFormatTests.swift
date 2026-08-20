@@ -122,4 +122,62 @@ struct OverlayGlyphGeometryTests {
         #expect(abs((lineMaxY - topY) - emHeight) < 0.001)
         #expect(topY < lineMaxY)
     }
+
+    @Test("Bullet disc is Notion-sized relative to body type")
+    func bulletDiscIsNotionSized() {
+        let font = NSFont.systemFont(ofSize: 17)
+        let diameter = OverlayGlyphGeometry.bulletDiameter(for: font)
+        #expect(abs(diameter - font.pointSize * OverlayGlyphGeometry.bulletDiameterEm) < 0.001)
+        #expect(diameter >= 5)
+    }
+
+    @Test("Bullet disc sits in the marker slot, centered on x-height")
+    func bulletDiscCenteredOnXHeight() {
+        let font = NSFont.systemFont(ofSize: 16)
+        let lineMaxY: CGFloat = 40
+        let dashWidth: CGFloat = 8
+        let rect = OverlayGlyphGeometry.bulletRect(
+            slotX: 10,
+            dashWidth: dashWidth,
+            lineMaxY: lineMaxY,
+            font: font
+        )
+        let topY = OverlayGlyphGeometry.textTopY(lineMaxY: lineMaxY, font: font)
+        let xHeightCenter = topY + font.ascender - font.xHeight * 0.5
+        #expect(abs(rect.midY - xHeightCenter) < 0.001)
+        #expect(rect.minX >= 10)
+        #expect(rect.maxX <= 10 + dashWidth)
+    }
+}
+
+@Suite("Caret trailing whitespace")
+struct CaretGeometryTests {
+
+    @Test("Empty ordered item counts the marker space")
+    func emptyOrderedItemCountsMarkerSpace() {
+        let text = NSAttributedString(string: "1. ", attributes: [
+            .font: NSFont.systemFont(ofSize: 16)
+        ])
+        #expect(CaretGeometry.trailingWhitespaceUTF16Count(in: text.string as NSString, caret: 3) == 1)
+        let extra = CaretGeometry.trailingWhitespaceAdvance(in: text, caret: 3)
+        let space = (" " as NSString).size(withAttributes: [.font: NSFont.systemFont(ofSize: 16)]).width
+        #expect(abs(extra - space) < 0.01)
+    }
+
+    @Test("Caret inside content is not treated as trailing whitespace")
+    func contentEndIsNotTrailingWhitespace() {
+        let text = NSAttributedString(string: "1. hello")
+        #expect(CaretGeometry.trailingWhitespaceUTF16Count(in: text.string as NSString, caret: 8) == 0)
+        #expect(CaretGeometry.trailingWhitespaceAdvance(in: text, caret: 8) == 0)
+        #expect(CaretGeometry.trailingWhitespaceUTF16Count(in: text.string as NSString, caret: 3) == 0)
+    }
+
+    @Test("Collapsed marker space does not invent a visible gap")
+    func collapsedMarkerSpaceHasNoAdvance() {
+        let font = NSFont.systemFont(ofSize: 0.1)
+        let text = NSMutableAttributedString(string: "- ")
+        text.addAttributes([.font: font, .kern: -font.pointSize], range: NSRange(location: 0, length: 2))
+        let extra = CaretGeometry.trailingWhitespaceAdvance(in: text, caret: 2)
+        #expect(extra < 0.5)
+    }
 }

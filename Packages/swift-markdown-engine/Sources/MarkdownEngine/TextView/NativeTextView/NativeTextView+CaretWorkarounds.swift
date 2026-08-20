@@ -124,7 +124,11 @@ extension NativeTextView {
         guard let ts = textStorage else { return nil }
         if ts.length == 0 { return baseFont }
         let idx = min(selectedRange().location, ts.length - 1)
-        return ts.attribute(.font, at: idx, effectiveRange: nil) as? NSFont
+        let font = ts.attribute(.font, at: idx, effectiveRange: nil) as? NSFont
+        // Hidden list-marker runs use a ~0.1pt font; snapping to that em-box
+        // would skip the X correction for an empty `- ` / `1. ` item.
+        if let font, font.pointSize >= 1 { return font }
+        return baseFont
     }
 
     /// Typographic bounds of the caret's line, in text-view coordinates.
@@ -224,7 +228,53 @@ extension NativeTextView {
             if f.width >= 0, f.height > 0 { layoutRect = f }
             return false
         }
-        return layoutRect?.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y)
+        let rect = layoutRect?.offsetBy(dx: textContainerOrigin.x, dy: textContainerOrigin.y)
+        return adjustedCaretRectForTrailingWhitespace(rect)
+    }
+
+    /// TextKit 2 parks the EOL caret on the last non-space glyph, so typing
+    /// `1. ` (empty ordered item) shows the caret on the `.` until content
+    /// exists. Advance it by the marker space when that happened.
+    private func adjustedCaretRectForTrailingWhitespace(_ rect: CGRect?) -> CGRect? {
+        guard var rect, let ts = textStorage else { return rect }
+        let caret = selectedRange().location
+        let extra = CaretGeometry.trailingWhitespaceAdvance(in: ts, caret: caret)
+        guard extra > 0.5 else { return rect }
+        let spaceCount = CaretGeometry.trailingWhitespaceUTF16Count(in: ts.string as NSString, caret: caret)
+        guard spaceCount > 0 else { return rect }
+        if let spaceX = caretXForDocumentIndex(caret - spaceCount) {
+            let measured = spaceX + extra
+            if measured > rect.origin.x + 0.5 {
+                rect.origin.x = measured
+            }
+        } else {
+            rect.origin.x += extra
+        }
+        return rect
+    }
+
+    private func caretXForDocumentIndex(_ index: Int) -> CGFloat? {
+        guard let tlm = textLayoutManager,
+              let tcs = tlm.textContentManager as? NSTextContentStorage,
+              let ts = textStorage, ts.length > 0 else { return nil }
+        let probe = min(max(0, index), ts.length - 1)
+        guard let docLoc = tcs.location(tcs.documentRange.location, offsetBy: probe) else { return nil }
+        var x: CGFloat?
+        tlm.enumerateTextLayoutFragments(from: docLoc, options: [.ensuresLayout]) { fragment in
+            let fragStart = tcs.offset(from: tcs.documentRange.location, to: fragment.rangeInElement.location)
+            guard fragStart != NSNotFound else { return false }
+            let local = probe - fragStart
+            let line = fragment.textLineFragments.first { line in
+                let lr = line.characterRange
+                return local >= lr.location && local < lr.location + lr.length
+            } ?? fragment.textLineFragments.last
+            guard let line else { return false }
+            let charPos = line.locationForCharacter(at: local)
+            let tb = line.typographicBounds
+            x = textContainerOrigin.x + fragment.layoutFragmentFrame.origin.x + tb.origin.x + charPos.x
+            return false
+        }
+        return x
     }
 
     private func applyCaretFrame(_ indicator: NSView, rect: CGRect) {
@@ -285,5 +335,47 @@ extension NativeTextView {
         isApplyingCaretShift = true
         indicator.frame.origin.y = desiredY
         isApplyingCaretShift = false
+    }
+}
+
+/// Caret-X helpers for trailing marker whitespace that TextKit 2 drops at EOL.
+enum CaretGeometry {
+    static func trailingWhitespaceUTF16Count(in ns: NSString, caret: Int) -> Int {
+        let loc = min(max(0, caret), ns.length)
+        guard loc > 0 else { return 0 }
+        let line = ns.lineRange(for: NSRange(location: loc - 1, length: 0))
+        var lineEnd = NSMaxRange(line)
+        while lineEnd > line.location {
+            let c = ns.character(at: lineEnd - 1)
+            if c == 0x0A || c == 0x0D { lineEnd -= 1 } else { break }
+        }
+        guard loc == lineEnd else { return 0 }
+        var i = loc
+        var count = 0
+        while i > line.location {
+            let ch = ns.character(at: i - 1)
+            guard ch == 0x20 || ch == 0x09 else { break }
+            count += 1
+            i -= 1
+        }
+        return count
+    }
+
+    static func trailingWhitespaceAdvance(in text: NSAttributedString, caret: Int) -> CGFloat {
+        let ns = text.string as NSString
+        let count = trailingWhitespaceUTF16Count(in: ns, caret: caret)
+        guard count > 0 else { return 0 }
+        let start = caret - count
+        var width: CGFloat = 0
+        for i in 0..<count {
+            let idx = start + i
+            let attrs = text.attributes(at: idx, effectiveRange: nil)
+            let s = ns.substring(with: NSRange(location: idx, length: 1))
+            width += (s as NSString).size(withAttributes: attrs).width
+            if let kern = attrs[.kern] as? CGFloat {
+                width += kern
+            }
+        }
+        return max(0, width)
     }
 }

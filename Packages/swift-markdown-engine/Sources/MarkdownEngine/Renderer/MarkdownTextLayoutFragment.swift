@@ -60,8 +60,35 @@ public extension NSAttributedString.Key {
 /// Extra `minimumLineHeight` leading sits above the glyphs, so the em-box is
 /// pinned to the typographic bottom — matching the caret crop.
 enum OverlayGlyphGeometry {
+    /// Notion-like filled disc diameter, relative to body point size
+    /// (~6.8pt at 17pt). The `•` glyph is closer to a period in most fonts.
+    static let bulletDiameterEm: CGFloat = 0.4
+
     static func textTopY(lineMaxY: CGFloat, font: NSFont) -> CGFloat {
         lineMaxY + font.descender - font.ascender
+    }
+
+    static func bulletDiameter(for font: NSFont) -> CGFloat {
+        max(5, font.pointSize * bulletDiameterEm)
+    }
+
+    /// Filled disc centered in the marker slot and on the font's x-height,
+    /// matching Notion's bullet alignment.
+    static func bulletRect(
+        slotX: CGFloat,
+        dashWidth: CGFloat,
+        lineMaxY: CGFloat,
+        font: NSFont
+    ) -> CGRect {
+        let d = bulletDiameter(for: font)
+        let topY = textTopY(lineMaxY: lineMaxY, font: font)
+        let xHeightCenterY = topY + font.ascender - font.xHeight * 0.5
+        return CGRect(
+            x: slotX + max(0, (dashWidth - d) * 0.5),
+            y: xHeightCenterY - d * 0.5,
+            width: d,
+            height: d
+        )
     }
 }
 
@@ -600,10 +627,9 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
 
     // MARK: - Bullet Markers
 
-    /// Paint a `•` over every hidden bullet marker (`.bulletMarker`). The
-    /// glyph is drawn in the same font as the source so its baseline matches
-    /// the surrounding text, and centered within the original marker char's
-    /// advance so a `•` of a different width still sits where `-`/`*`/`+` was.
+    /// Paint a Notion-sized filled disc over every hidden bullet marker
+    /// (`.bulletMarker`). Centered in the original marker char's advance so it
+    /// still sits where `-`/`*`/`+` was. Selection paints the raw source char.
     private func drawBulletMarkers(at point: CGPoint, in context: CGContext) {
         guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return }
         let selectionRanges: [NSRange] = {
@@ -619,6 +645,11 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
         let theme = (textLayoutManager?.textContainer?.textView as? NativeTextView)?
             .configuration.theme ?? .default
         let storageString = ts.string as NSString
+        let scale = textLayoutManager?.textContainer?.textView?.window?.backingScaleFactor
+            ?? NSScreen.main?.backingScaleFactor ?? 2.0
+        func alignToPixel(_ value: CGFloat) -> CGFloat {
+            (value * scale).rounded(.toNearestOrAwayFromZero) / scale
+        }
 
         ts.enumerateAttribute(.bulletMarker, in: range, options: []) { [weak self] value, attrRange, _ in
             guard let self, (value as? Bool) == true else { return }
@@ -631,7 +662,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             let collapsed = (runFont?.pointSize ?? bodyFont.pointSize) < 1
             // A `.bulletMarker` range means the styler painted the raw char
             // `.clear`, so something must ALWAYS be drawn over the slot. Outside
-            // a selection that's the rendered `•`; while the marker sits inside
+            // a selection that's the rendered disc; while the marker sits inside
             // a selection the raw source char (`-`/`*`/`+`) is painted instead,
             // so selecting a list line reveals its raw syntax. (The styler's own
             // reveal is caret-based and doesn't fire for selections — an earlier
@@ -639,29 +670,38 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             // an empty slot wherever the selection anchor wasn't in the marker.)
             let isSelected = selectionRanges.contains(where: { NSIntersectionRange($0, attrRange).length > 0 })
             let raw = storageString.substring(with: attrRange)
-            let glyph = (isSelected ? raw : "•") as NSString
-            let glyphAttrs: [NSAttributedString.Key: Any] = [.font: bodyFont, .foregroundColor: theme.bodyText]
-
             let dashWidth = (raw as NSString).size(withAttributes: [.font: bodyFont]).width
             let spaceWidth = (" " as NSString).size(withAttributes: [.font: bodyFont]).width
-            let glyphWidth = glyph.size(withAttributes: glyphAttrs).width
-            let xOffset = max(0, (dashWidth - glyphWidth) / 2)
             // Collapsed `- ` sits at the content edge; paint the bullet in the
             // indent slot to its left (same geometry as the hanging indent).
-            let x = collapsed ? pos.x - dashWidth - spaceWidth + xOffset : pos.x + xOffset
-            // Flipped context: text origin is its top edge. A collapsed 0.1pt
-            // marker's `locationForCharacter` baseline sits at the line-box
-            // bottom (no body descent), so the overlay looked like a period.
-            // Pin the body-sized `•` to the line's typographic em-box — extra
-            // `minimumLineHeight` leading sits above, same as the caret crop.
+            let slotX = collapsed ? pos.x - dashWidth - spaceWidth : pos.x
             let localIndex = attrRange.location - range.location
-            let topY: CGFloat
+            let lineMaxY: CGFloat
             if let bounds = self.lineBounds(forLocalIndex: localIndex, point: point) {
-                topY = OverlayGlyphGeometry.textTopY(lineMaxY: bounds.maxY, font: bodyFont)
+                lineMaxY = bounds.maxY
             } else {
-                topY = pos.baselineY - bodyFont.ascender
+                lineMaxY = pos.baselineY - bodyFont.descender
             }
-            glyph.draw(at: CGPoint(x: x, y: topY), withAttributes: glyphAttrs)
+
+            if isSelected {
+                let glyph = raw as NSString
+                let glyphAttrs: [NSAttributedString.Key: Any] = [.font: bodyFont, .foregroundColor: theme.bodyText]
+                let glyphWidth = glyph.size(withAttributes: glyphAttrs).width
+                let xOffset = max(0, (dashWidth - glyphWidth) / 2)
+                let topY = OverlayGlyphGeometry.textTopY(lineMaxY: lineMaxY, font: bodyFont)
+                glyph.draw(at: CGPoint(x: slotX + xOffset, y: topY), withAttributes: glyphAttrs)
+            } else {
+                var rect = OverlayGlyphGeometry.bulletRect(
+                    slotX: slotX,
+                    dashWidth: dashWidth,
+                    lineMaxY: lineMaxY,
+                    font: bodyFont
+                )
+                rect.origin.x = alignToPixel(rect.origin.x)
+                rect.origin.y = alignToPixel(rect.origin.y)
+                theme.bodyText.setFill()
+                NSBezierPath(ovalIn: rect).fill()
+            }
         }
     }
 

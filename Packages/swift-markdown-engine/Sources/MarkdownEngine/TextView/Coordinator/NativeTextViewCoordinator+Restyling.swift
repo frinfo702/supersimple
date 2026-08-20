@@ -231,10 +231,14 @@ extension NativeTextViewCoordinator {
             precomputedBlocks: blocks,
             configuration: configuration
         )
-        // Reconcile wide-table overlays after layout settles.
+        // Reconcile wide-table overlays after layout settles. List indent
+        // also lands here (`1. ` → hanging indent); snap the caret again so
+        // it isn't left on the marker while the space is still trailing.
         if let nativeTextView = textView as? NativeTextView {
+            nativeTextView.applyBlockImageCaretPolicy()
             DispatchQueue.main.async { [weak nativeTextView] in
                 nativeTextView?.updateWideTableOverlays()
+                nativeTextView?.applyBlockImageCaretPolicy()
             }
         }
     }

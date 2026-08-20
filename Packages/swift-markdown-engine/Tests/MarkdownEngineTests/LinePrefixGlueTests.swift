@@ -60,4 +60,25 @@ struct LinePrefixGlueTests {
         #expect(LinePrefixGlue.apply(to: attr))
         #expect(attr.string.hasPrefix(">\u{2060}"))
     }
+
+    @Test("apply does not glue an empty list item's trailing space")
+    func applyLeavesEmptyOrderedItemSpace() {
+        let attr = NSMutableAttributedString(string: "1. ")
+        #expect(LinePrefixGlue.apply(to: attr) == false)
+        #expect(attr.string == "1. ")
+    }
+
+    @Test("apply does not glue an empty bullet item's trailing space")
+    func applyLeavesEmptyBulletItemSpace() {
+        let attr = NSMutableAttributedString(string: "- ")
+        #expect(LinePrefixGlue.apply(to: attr) == false)
+        #expect(attr.string == "- ")
+    }
+
+    @Test("apply still glues when ordered-item content follows")
+    func applyGluesOrderedItemWithContent() {
+        let attr = NSMutableAttributedString(string: "1. hello")
+        #expect(LinePrefixGlue.apply(to: attr))
+        #expect(attr.string.hasPrefix("1.\u{2060}"))
+    }
 }
