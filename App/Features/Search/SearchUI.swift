@@ -457,6 +457,7 @@ struct NoteFindBar: View {
         .shadow(color: .black.opacity(0.20), radius: 18, y: 7)
         .onAppear { focus() }
         .onChange(of: model.noteFindFocusToken) { _, _ in focus() }
+        .accessibilityElement(children: .contain)
         .accessibilityIdentifier("note-find-bar")
     }
 
