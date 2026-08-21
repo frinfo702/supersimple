@@ -2,6 +2,11 @@ import Foundation
 import SQLite3
 
 public struct SearchResult: Equatable, Sendable, Identifiable {
+    /// Private-use delimiters carried in snippets so display code can distinguish
+    /// search hits from literal Markdown square brackets.
+    public static let highlightStart = "\u{E000}"
+    public static let highlightEnd = "\u{E001}"
+
     public let noteID: UUID
     public let title: String
     public let snippet: String
@@ -156,7 +161,7 @@ public final class NoteSearchIndex: @unchecked Sendable {
         }
 
         let sql = """
-            SELECT noteID, title, snippet(notes_fts, 2, '[', ']', '…', 24) AS snip, bm25(notes_fts) AS score
+            SELECT noteID, title, snippet(notes_fts, 2, '\(SearchResult.highlightStart)', '\(SearchResult.highlightEnd)', '…', 24) AS snip, bm25(notes_fts) AS score
             FROM notes_fts
             WHERE \(conditions.joined(separator: " AND "))
             ORDER BY score LIMIT ?
@@ -176,13 +181,24 @@ public final class NoteSearchIndex: @unchecked Sendable {
         }
 
         let sql = """
-            SELECT noteID, title, substr(body, 1, 240) AS snip, 0.0 AS score
-            FROM notes_search
-            WHERE \(conditions.joined(separator: " AND "))
-            ORDER BY title LIMIT ?
+            WITH matched AS (
+                SELECT noteID, title, body, instr(lower(body), lower(?)) AS hit
+                FROM notes_search
+                WHERE \(conditions.joined(separator: " AND "))
+                ORDER BY title LIMIT ?
+            )
+            SELECT noteID, title,
+                CASE
+                    WHEN hit > 72 THEN '…' || substr(body, hit - 72, 240)
+                    ELSE substr(body, 1, 240)
+                END AS body_context,
+                0.0 AS score
+            FROM matched
+            ORDER BY title
             """
+        args.insert(query, at: 0)
         args.append(String(limit))
-        return try queryRows(sql: sql, arguments: args)
+        return try queryRows(sql: sql, arguments: args, snippetQuery: query)
     }
 
     /// Exact-tag lookup with no full-text component. Orders by note title for stability.
@@ -288,7 +304,11 @@ public final class NoteSearchIndex: @unchecked Sendable {
             .replacingOccurrences(of: "_", with: "\\_")
     }
 
-    private func queryRows(sql: String, arguments: [String]) throws -> [SearchResult] {
+    private func queryRows(
+        sql: String,
+        arguments: [String],
+        snippetQuery: String? = nil
+    ) throws -> [SearchResult] {
         lock.lock()
         defer { lock.unlock() }
 
@@ -312,7 +332,11 @@ public final class NoteSearchIndex: @unchecked Sendable {
                     let noteID = UUID(uuidString: idText),
                     let title = columnText(statement, index: 1)
                 else { continue }
-                let snippet = columnText(statement, index: 2) ?? ""
+                let rawSnippet = columnText(statement, index: 2) ?? ""
+                let snippet =
+                    snippetQuery.map {
+                        highlightedSnippet(in: rawSnippet, matching: $0)
+                    } ?? rawSnippet
                 let score = sqlite3_column_double(statement, 3)
                 result.append(
                     SearchResult(noteID: noteID, title: title, snippet: snippet, score: score, matchTags: [])
@@ -323,7 +347,37 @@ public final class NoteSearchIndex: @unchecked Sendable {
                 throw SearchError.databaseUnavailable
             }
         }
-        return result.sorted { $0.score < $1.score }
+        return result
+    }
+
+    /// Produces the same delimiter-marked contract as SQLite FTS `snippet()`, but for
+    /// short and Unicode queries that use the LIKE fallback. Context is centered on
+    /// the first body match instead of always returning the start of the document.
+    private func highlightedSnippet(in body: String, matching query: String) -> String {
+        guard !body.isEmpty else { return "" }
+        let options: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+        guard let match = body.range(of: query, options: options) else {
+            return compactWhitespace(String(body.prefix(180)))
+        }
+
+        let lower =
+            body.index(match.lowerBound, offsetBy: -72, limitedBy: body.startIndex)
+            ?? body.startIndex
+        let upper =
+            body.index(match.upperBound, offsetBy: 112, limitedBy: body.endIndex)
+            ?? body.endIndex
+        let leadingEllipsis = lower == body.startIndex ? "" : "…"
+        let trailingEllipsis = upper == body.endIndex ? "" : "…"
+        let before = body[lower..<match.lowerBound]
+        let hit = body[match]
+        let after = body[match.upperBound..<upper]
+        return compactWhitespace(
+            "\(leadingEllipsis)\(before)\(SearchResult.highlightStart)\(hit)\(SearchResult.highlightEnd)\(after)\(trailingEllipsis)"
+        )
+    }
+
+    private func compactWhitespace(_ text: String) -> String {
+        text.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 
     private func columnText(_ statement: OpaquePointer, index: Int32) -> String? {

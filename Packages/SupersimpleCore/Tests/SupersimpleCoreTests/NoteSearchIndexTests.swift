@@ -90,7 +90,8 @@ struct NoteSearchIndexTests {
         #expect(results.map(\.noteID) == [strong.id, weak.id])
         #expect(results[0].score < results[1].score)
         #expect(results.allSatisfy { $0.score != 0 })
-        #expect(results.allSatisfy { $0.snippet.contains("[Needle]") })
+        let markedNeedle = "\(SearchResult.highlightStart)Needle\(SearchResult.highlightEnd)"
+        #expect(results.allSatisfy { $0.snippet.contains(markedNeedle) })
     }
 
     @Test("Finds Japanese substrings in titles and bodies")
@@ -260,6 +261,24 @@ struct NoteSearchIndexTests {
         if let hit = en.first(where: { $0.noteID == n.id }) {
             #expect(hit.snippet.contains("fragmentation"))
         }
+    }
+
+    @Test("Short-query snippets are centered on and mark a distant match")
+    func shortQueryContextSnippet() throws {
+        let (index, cleanup) = try makeIndex()
+        defer { cleanup() }
+
+        let distantPrefix = "DOCUMENT-BEGIN " + String(repeating: "前置きの文章です。", count: 50)
+        let target = note(UUID(), body: "\(distantPrefix)ここが検索目標です。後ろの文脈も残ります。")
+        try index.upsert(note: target)
+
+        let hit = try #require(index.search("目標").first)
+        let markedTarget = "\(SearchResult.highlightStart)目標\(SearchResult.highlightEnd)"
+        #expect(hit.snippet.contains(markedTarget))
+        #expect(hit.snippet.count < 260)
+        #expect(hit.snippet.hasPrefix("…"))
+        #expect(hit.snippet.contains("後ろの文脈"))
+        #expect(!hit.snippet.contains("DOCUMENT-BEGIN"))
     }
 
     @Test("Migrates an existing unicode61 index")

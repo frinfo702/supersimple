@@ -138,6 +138,29 @@ final class SupersimpleUITests: XCTestCase {
         XCTAssertFalse(panel.isHittable, "Terminal panel should not stay hittable after a second ⌘J")
     }
 
+    @MainActor
+    func testCommandKOpensSearchPalette() throws {
+        let app = launchedApp()
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 5))
+
+        app.typeKey("k", modifierFlags: .command)
+        XCTAssertTrue(
+            app.descendants(matching: .any)["command-search-palette"].waitForExistence(timeout: 3)
+        )
+        XCTAssertTrue(app.descendants(matching: .any)["command-search-field"].exists)
+    }
+
+    @MainActor
+    func testCommandFOpensFindBar() throws {
+        let app = launchedApp()
+        XCTAssertTrue(app.windows.firstMatch.waitForExistence(timeout: 5))
+        app.buttons["new-note-button"].click()
+
+        app.typeKey("f", modifierFlags: .command)
+        XCTAssertTrue(app.descendants(matching: .any)["note-find-bar"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.descendants(matching: .any)["note-find-field"].exists)
+    }
+
     // MARK: - Screenshot capture
 
     @MainActor

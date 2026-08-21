@@ -147,7 +147,7 @@ struct SidebarView: View {
                     TagChip(
                         tag: entry.tag,
                         count: entry.count,
-                        isSelected: model.selectedTag == entry.tag
+                        isSelected: model.activeLibrarySearchTags.contains(entry.tag)
                     ) {
                         model.selectTag(entry.tag)
                     }
@@ -205,7 +205,12 @@ struct SidebarView: View {
         Button {
             model.open(note)
         } label: {
-            NoteRow(note: note, isSelected: model.currentNoteID == note.id)
+            NoteRow(
+                note: note,
+                isSelected: model.currentNoteID == note.id,
+                searchResult: model.isSearching ? model.searchResult(for: note.id) : nil,
+                searchQuery: model.isSearching ? model.searchQuery : ""
+            )
         }
         .buttonStyle(.plain)
         .contextMenu {
@@ -314,26 +319,48 @@ private struct SidebarActionLabel<Icon: View>: View {
 private struct NoteRow: View {
     let note: Note
     let isSelected: Bool
+    let searchResult: SearchResult?
+    let searchQuery: String
     @State private var hovering = false
     @Environment(\.palette) private var palette
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
+        VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(note.title)
-                    .font(.system(size: 13, weight: isSelected ? .semibold : .medium))
-                    .lineLimit(1)
+                HighlightedSearchText(
+                    text: note.title,
+                    query: fullTextQuery,
+                    palette: palette,
+                    fontSize: 13,
+                    weight: isSelected ? .semibold : .medium
+                )
+                .lineLimit(1)
                 Spacer(minLength: 8)
                 Text(NoteStats.relativeUpdated(note.updatedAt))
                     .font(.system(size: 11))
                     .foregroundStyle(palette.muted)
                     .lineLimit(1)
             }
-            if !preview.isEmpty {
-                Text(preview)
-                    .font(.system(size: 12))
-                    .foregroundStyle(palette.muted)
-                    .lineLimit(1)
+            if !displaySnippet.isEmpty {
+                HighlightedSearchText(
+                    text: displaySnippet,
+                    query: fullTextQuery,
+                    palette: palette,
+                    fontSize: 12,
+                    weight: .regular,
+                    usesSnippetMarkers: searchResult?.snippet.isEmpty == false
+                )
+                .foregroundStyle(palette.muted)
+                .lineLimit(searchResult == nil ? 1 : 2)
+            }
+            if searchResult != nil, !note.tags.isEmpty {
+                HStack(spacing: 6) {
+                    ForEach(Array(note.tags.sorted().prefix(3)), id: \.self) { tag in
+                        Text("#\(tag.name)")
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(palette.muted)
+                    }
+                }
             }
         }
         .padding(.horizontal, 8)
@@ -346,7 +373,7 @@ private struct NoteRow: View {
         .contentShape(Rectangle())
         .onHover { hovering = $0 }
         .accessibilityLabel(note.title)
-        .accessibilityValue(preview)
+        .accessibilityValue(displaySnippet)
         .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
@@ -356,7 +383,18 @@ private struct NoteRow: View {
         return .clear
     }
 
-    private var preview: String { NoteStats.preview(from: note.body) }
+    private var fullTextQuery: String {
+        searchQuery.split(whereSeparator: \.isWhitespace)
+            .filter { !$0.hasPrefix("#") }
+            .joined(separator: " ")
+    }
+
+    private var displaySnippet: String {
+        if let snippet = searchResult?.snippet, !snippet.isEmpty {
+            return snippet
+        }
+        return NoteStats.preview(from: note.body)
+    }
 }
 
 private struct TagChip: View {

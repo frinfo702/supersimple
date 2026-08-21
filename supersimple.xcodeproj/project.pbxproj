@@ -22,6 +22,7 @@
 		62A6EBB69ADEB23FFD352AF4 /* MarkdownEngineLatex in Frameworks */ = {isa = PBXBuildFile; productRef = 574E0DC4D79106D424F96D2F /* MarkdownEngineLatex */; };
 		66AF55163312673D7D295B54 /* GhosttyTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = DC9F16AB2A2EDDE7AFFBCAFC /* GhosttyTerminal */; };
 		7050887B5CCE0DF269821C72 /* AppBundleInstallerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8FFA8CE0E90CD09DD259CD8 /* AppBundleInstallerTests.swift */; };
+		7C80FB3351BF183CCFF750BF /* SearchUI.swift in Sources */ = {isa = PBXBuildFile; fileRef = EFD5884B572511DF68F602E4 /* SearchUI.swift */; };
 		8275BCB4BA82A558F2E6CC6E /* AppearanceSettingsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F7D79E6663399201E241CD4C /* AppearanceSettingsTests.swift */; };
 		8A333A14EFBD621403AD3640 /* SupersimpleUpdater.app in Embed Dependencies */ = {isa = PBXBuildFile; fileRef = D422B2FA546462BD6941BF2A /* SupersimpleUpdater.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		8DB20AA1ED612D1DE0B527A1 /* GeistMono.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 1A8A5098809F4EF931DED0F4 /* GeistMono.ttf */; };
@@ -131,6 +132,7 @@
 		E52E7AD4D9C61D126880708B /* swift-markdown-engine */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "swift-markdown-engine"; path = "Packages/swift-markdown-engine"; sourceTree = SOURCE_ROOT; };
 		EA3EE4C0A864F7BDB1B6908E /* SandboxContainerMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SandboxContainerMigration.swift; sourceTree = "<group>"; };
 		EC02340F436B5F0721F130D1 /* SupersimpleUpdater.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupersimpleUpdater.swift; sourceTree = "<group>"; };
+		EFD5884B572511DF68F602E4 /* SearchUI.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SearchUI.swift; sourceTree = "<group>"; };
 		F0E36FED5D7F1ACC4B039FFE /* SplitResizeHandle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SplitResizeHandle.swift; sourceTree = "<group>"; };
 		F40B77214A55275DF8977211 /* NoteRecencyGroup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteRecencyGroup.swift; sourceTree = "<group>"; };
 		F7D79E6663399201E241CD4C /* AppearanceSettingsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppearanceSettingsTests.swift; sourceTree = "<group>"; };
@@ -174,6 +176,7 @@
 			children = (
 				A315A49DBBE60BFDBA267123 /* Editor */,
 				9DC95DB0734FF9ABEC1189E6 /* Library */,
+				6FA66AA5F9AAC81717FB1B71 /* Search */,
 				81A52360EE86A5E996E8C100 /* Settings */,
 				790F869443F01059B394AB8E /* Terminal */,
 			);
@@ -215,6 +218,14 @@
 				1A8A5098809F4EF931DED0F4 /* GeistMono.ttf */,
 			);
 			path = Fonts;
+			sourceTree = "<group>";
+		};
+		6FA66AA5F9AAC81717FB1B71 /* Search */ = {
+			isa = PBXGroup;
+			children = (
+				EFD5884B572511DF68F602E4 /* SearchUI.swift */,
+			);
+			path = Search;
 			sourceTree = "<group>";
 		};
 		790F869443F01059B394AB8E /* Terminal */ = {
@@ -557,6 +568,7 @@
 				DB9513E2393E5059A929F047 /* PendingUpdateInstall.swift in Sources */,
 				00D9968516FA9AB4F913A40B /* SVGIcons.swift in Sources */,
 				97AF5F2F78AF0252CDE1B8EB /* SandboxContainerMigration.swift in Sources */,
+				7C80FB3351BF183CCFF750BF /* SearchUI.swift in Sources */,
 				B8CB4008CBF25485BF0588C5 /* SettingsView.swift in Sources */,
 				1DFA51B809AEC2578A5B24A0 /* SidebarView.swift in Sources */,
 				B34DE7707FBD4A5D5F0F6261 /* SplitResizeHandle.swift in Sources */,

@@ -28,6 +28,28 @@ struct EditorView: View {
         .background(EditorFocusBeacon(token: model.editorFocusToken))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("editor-surface")
+        .overlay(alignment: .topTrailing) {
+            if model.noteFindPresented {
+                NoteFindBar(model: model, palette: palette)
+                    .padding(.top, 14)
+                    .padding(.trailing, 16)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .animation(.easeOut(duration: 0.13), value: model.noteFindPresented)
+        .onReceive(NotificationCenter.default.publisher(for: EditorFindNotifications.results)) {
+            notification in
+            guard let count = notification.userInfo?["count"] as? Int else { return }
+            model.noteFindResultsDidChange(count: count)
+        }
+        .onChange(of: model.currentNoteID) { _, _ in
+            if model.noteFindPresented {
+                DispatchQueue.main.async { model.refreshNoteFind() }
+            }
+        }
+        .onChange(of: model.currentBody) { _, _ in
+            model.scheduleNoteFindRefresh()
+        }
     }
 
     private func liveEditor(for note: Note) -> some View {
@@ -89,13 +111,20 @@ enum EditorConfiguration {
         theme.headingMarker = palette.nsMuted
         theme.link = palette.nsAccent
         theme.incompleteLink = palette.nsAccent.withAlphaComponent(0.7)
+        theme.findMatchHighlight = palette.nsSearchHighlight
+        theme.findCurrentMatchHighlight = palette.nsSearchCurrentHighlight
         config.theme = theme
 
         config.services = MarkdownEditorServices(
             images: imageStore,
             syntaxHighlighter: NativeCodeHighlighter(),
             latex: SwiftMathBridge(),
-            favicons: faviconService
+            favicons: faviconService,
+            bus: MarkdownEditorBus(
+                findClearHighlights: EditorFindNotifications.clear,
+                findQuery: EditorFindNotifications.query,
+                findResults: EditorFindNotifications.results
+            )
         )
         config.readingWidth = AppTheme.Metric.readingWidth
         var headings = config.headings

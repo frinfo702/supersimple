@@ -144,27 +144,49 @@ struct ContentView: View {
 
     var body: some View {
         @Bindable var bindableModel = model
-        HStack(spacing: 0) {
-            SidebarView(model: model)
-                .frame(width: model.sidebarVisible ? model.sidebarWidth : 0)
+        ZStack {
+            HStack(spacing: 0) {
+                SidebarView(model: model)
+                    .frame(width: model.sidebarVisible ? model.sidebarWidth : 0)
+                    .frame(maxHeight: .infinity)
+                    .clipped()
+                    .opacity(model.sidebarVisible ? 1 : 0)
+                    .allowsHitTesting(model.sidebarVisible)
+                    .accessibilityHidden(!model.sidebarVisible)
+                SplitResizeHandle(
+                    value: $bindableModel.sidebarWidth,
+                    hairline: palette.hairline,
+                    axis: .leadingWidth
+                )
+                .frame(width: model.sidebarVisible ? 6 : 0)
                 .frame(maxHeight: .infinity)
-                .clipped()
-                .opacity(model.sidebarVisible ? 1 : 0)
                 .allowsHitTesting(model.sidebarVisible)
                 .accessibilityHidden(!model.sidebarVisible)
-            SplitResizeHandle(
-                value: $bindableModel.sidebarWidth,
-                hairline: palette.hairline,
-                axis: .leadingWidth
-            )
-            .frame(width: model.sidebarVisible ? 6 : 0)
-            .frame(maxHeight: .infinity)
-            .allowsHitTesting(model.sidebarVisible)
-            .accessibilityHidden(!model.sidebarVisible)
-            .accessibilityIdentifier("sidebar-resize-handle")
-            .accessibilityLabel("Resize sidebar")
-            editorColumn
-                .id("editor-column")
+                .accessibilityIdentifier("sidebar-resize-handle")
+                .accessibilityLabel("Resize sidebar")
+                editorColumn
+                    .id("editor-column")
+            }
+
+            if model.commandPalettePresented {
+                Color.black.opacity(isDark ? 0.27 : 0.12)
+                    .contentShape(Rectangle())
+                    .onTapGesture { model.dismissCommandPalette() }
+                    .transition(.opacity)
+                    .accessibilityHidden(true)
+                GeometryReader { proxy in
+                    CommandSearchPalette(model: model, palette: palette)
+                        .frame(
+                            width: min(max(proxy.size.width - 48, 560), 780),
+                            height: min(max(proxy.size.height - 64, 430), 560)
+                        )
+                        .position(
+                            x: proxy.size.width / 2,
+                            y: proxy.size.height / 2 - 12
+                        )
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.97)))
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
@@ -175,6 +197,7 @@ struct ContentView: View {
         .background(WindowChrome(title: windowTitle, background: palette.nsBackground))
         .animation(nil, value: themeManager.preference)
         .animation(nil, value: themeManager.paletteID)
+        .animation(.easeOut(duration: 0.15), value: model.commandPalettePresented)
         .onAppear {
             if appLaunchTask == nil {
                 appLaunchTask = Task { await model.bootstrap() }
@@ -304,6 +327,20 @@ struct AppCommands: Commands {
             }
             .keyboardShortcut(.delete, modifiers: [.command])
         }
+        CommandGroup(replacing: .textEditing) {
+            Button("Find in Note…") {
+                model.presentNoteFind()
+            }
+            .keyboardShortcut("f")
+            Button("Find Next") {
+                model.moveNoteFind(by: 1)
+            }
+            .keyboardShortcut("g")
+            Button("Find Previous") {
+                model.moveNoteFind(by: -1)
+            }
+            .keyboardShortcut("g", modifiers: [.command, .shift])
+        }
         CommandGroup(after: .sidebar) {
             Button("Toggle Sidebar") {
                 withAnimation(.easeOut(duration: 0.15)) {
@@ -313,6 +350,10 @@ struct AppCommands: Commands {
             .keyboardShortcut("s", modifiers: [.command, .option])
         }
         CommandGroup(after: .toolbar) {
+            Button("Search Everywhere…") {
+                model.presentCommandPalette()
+            }
+            .keyboardShortcut("k")
             Button("Search Notes") {
                 model.focusSearch()
             }
