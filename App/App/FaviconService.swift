@@ -1,9 +1,9 @@
 import AppKit
 import MarkdownEngine
 
-/// Fetches and caches site favicons (via Google's favicon service) so links can
-/// render a small icon inline. Lookup is synchronous from cache; prefetching is
-/// async and posts `faviconLoaded` when a new icon arrives so the editor can restyle.
+/// Serves bundled SVG icons for common sites, then fetches and caches other favicons
+/// via Google's favicon service. Lookup is synchronous from cache; prefetching is async
+/// and posts `faviconLoaded` when a new icon arrives so the editor can restyle.
 final class FaviconService: FaviconProvider, @unchecked Sendable {
     static let faviconLoaded = Notification.Name("supersimple.faviconLoaded")
 
@@ -20,6 +20,27 @@ final class FaviconService: FaviconProvider, @unchecked Sendable {
         return c
     }()
     private let session = URLSession.shared
+
+    /// Stable asset names are also exposed to tests so URL routing can be verified
+    /// without relying on AppKit's bundle/image cache.
+    enum PreparedIcon: String, CaseIterable {
+        case github = "SiteGitHub"
+        case githubIssue = "SiteGitHubIssue"
+        case githubPullRequest = "SiteGitHubPullRequest"
+        case linear = "SiteLinear"
+        case huggingFace = "SiteHuggingFace"
+        case gitLab = "SiteGitLab"
+        case figma = "SiteFigma"
+        case notion = "SiteNotion"
+        case jira = "SiteJira"
+        case stackOverflow = "SiteStackOverflow"
+        case youtube = "SiteYouTube"
+        case cvf = "SiteCVF"
+        case arXiv = "SiteArXiv"
+        case x = "SiteX"
+
+        var image: NSImage? { NSImage(named: rawValue) }
+    }
 
     /// Reused across every call — the detector and regex never vary.
     private static let linkDetector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
@@ -45,15 +66,72 @@ final class FaviconService: FaviconProvider, @unchecked Sendable {
 
     /// Synchronous cached lookup (used by the engine during styling).
     func favicon(for host: String) -> NSImage? {
+        if let prepared = Self.preparedIcon(forHost: host) {
+            return prepared.image
+        }
         lock.lock()
         defer { lock.unlock() }
         return cache[host.lowercased()]
+    }
+
+    /// Uses the full path for resource-specific icons, falling back to the site's logo.
+    func favicon(for url: URL) -> NSImage? {
+        if let prepared = Self.preparedIcon(for: url) {
+            return prepared.image
+        }
+        guard let host = url.host else { return nil }
+        return favicon(for: host)
+    }
+
+    static func preparedIcon(for url: URL) -> PreparedIcon? {
+        guard let host = url.host else { return nil }
+        let normalizedHost = normalize(host)
+        if normalizedHost == "github.com" {
+            let parts = url.pathComponents.filter { $0 != "/" }
+            if parts.count >= 4, Int(parts[3]) != nil {
+                if parts[2] == "issues" { return .githubIssue }
+                if parts[2] == "pull" { return .githubPullRequest }
+            }
+            return .github
+        }
+        return preparedIcon(forHost: normalizedHost)
+    }
+
+    private static func preparedIcon(forHost host: String) -> PreparedIcon? {
+        let host = normalize(host)
+        if matches(host, domain: "github.com") { return .github }
+        if matches(host, domain: "linear.app") { return .linear }
+        if matches(host, domain: "huggingface.co") { return .huggingFace }
+        if matches(host, domain: "gitlab.com") { return .gitLab }
+        if matches(host, domain: "figma.com") { return .figma }
+        if matches(host, domain: "notion.so") || matches(host, domain: "notion.site") { return .notion }
+        if matches(host, domain: "atlassian.net") { return .jira }
+        if matches(host, domain: "stackoverflow.com") { return .stackOverflow }
+        if matches(host, domain: "youtube.com") || host == "youtu.be" { return .youtube }
+        if matches(host, domain: "thecvf.com") || matches(host, domain: "cv-foundation.org") {
+            return .cvf
+        }
+        if matches(host, domain: "arxiv.org") { return .arXiv }
+        if matches(host, domain: "x.com") || matches(host, domain: "twitter.com") || host == "t.co" {
+            return .x
+        }
+        return nil
+    }
+
+    private static func normalize(_ host: String) -> String {
+        let lowercased = host.lowercased()
+        return lowercased.hasPrefix("www.") ? String(lowercased.dropFirst(4)) : lowercased
+    }
+
+    private static func matches(_ host: String, domain: String) -> Bool {
+        host == domain || host.hasSuffix(".\(domain)")
     }
 
     /// Asynchronously fetches favicons for hosts that aren't cached yet.
     func prefetch(hosts: [String]) {
         for host in hosts {
             let key = host.lowercased()
+            if Self.preparedIcon(forHost: key) != nil { continue }
             let nsKey = key as NSString
             if failedCache.object(forKey: nsKey) != nil { continue }
             lock.lock()

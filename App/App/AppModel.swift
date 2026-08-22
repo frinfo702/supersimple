@@ -398,6 +398,30 @@ final class AppModel {
         NSWorkspace.shared.activateFileViewerSelecting([notesDirectory])
     }
 
+    enum NotePathStyle {
+        case relative
+        case absolute
+    }
+
+    /// Returns the actual on-disk path when a loaded note kept a non-canonical filename.
+    /// Relative paths are rooted at the selected library folder.
+    func pathForCopying(_ note: Note, style: NotePathStyle) -> String {
+        let fileURL = (fileRecordsByID[note.id]?.url ?? libraryLayout.noteURL(for: note.id))
+            .standardizedFileURL
+        if case .absolute = style { return fileURL.path }
+
+        let rootPath = libraryLayout.root.standardizedFileURL.path
+        let prefix = rootPath.hasSuffix("/") ? rootPath : rootPath + "/"
+        guard fileURL.path.hasPrefix(prefix) else { return fileURL.lastPathComponent }
+        return String(fileURL.path.dropFirst(prefix.count))
+    }
+
+    func copyPath(of note: Note, style: NotePathStyle) {
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(pathForCopying(note, style: style), forType: .string)
+    }
+
     /// Latest result of a library migration, surfaced in Settings.
     private(set) var migrationReport: MigrationReport?
 

@@ -87,7 +87,13 @@ enum MarkdownASTStyler {
         let codeRanges = collectCodeRanges(in: blocks)
         let checkboxRanges = collectCheckboxRanges(in: blocks)
         let linkRanges = collectLinkRanges(in: blocks)
-        styleAutoLinks(ctx: ctx, codeRanges: codeRanges, linkRanges: linkRanges, into: &attrs)
+        styleAutoLinks(
+            ctx: ctx,
+            blocks: blocks,
+            codeRanges: codeRanges,
+            linkRanges: linkRanges,
+            into: &attrs
+        )
         styleIncompleteLinkBrackets(ctx: ctx, codeRanges: codeRanges, checkboxRanges: checkboxRanges, into: &attrs)
         return attrs
     }
@@ -475,7 +481,13 @@ enum MarkdownASTStyler {
         }
     }
 
-    private static func styleAutoLinks(ctx: Ctx, codeRanges: [NSRange], linkRanges: [NSRange], into attrs: inout [StyledRange]) {
+    private static func styleAutoLinks(
+        ctx: Ctx,
+        blocks: [BlockNode],
+        codeRanges: [NSRange],
+        linkRanges: [NSRange],
+        into attrs: inout [StyledRange]
+    ) {
         guard let detector = autoLinkDetector else { return }
         for scan in ctx.scanRanges {
             detector.enumerateMatches(in: ctx.text, range: scan) { match, _, _ in
@@ -485,7 +497,13 @@ enum MarkdownASTStyler {
                       !isInCode(match.range, codeRanges),
                       !isInCode(match.range, linkRanges) else { return }
                 attrs.append((match.range, [.link: url]))
-                appendAutolinkFavicon(matchRange: match.range, url: url, ctx: ctx, into: &attrs)
+                appendAutolinkFavicon(
+                    matchRange: match.range,
+                    url: url,
+                    blocks: blocks,
+                    ctx: ctx,
+                    into: &attrs
+                )
             }
         }
     }
@@ -494,15 +512,22 @@ enum MarkdownASTStyler {
     /// so the URL text is not overlapped. Start-of-line URLs skip this; wrap
     /// them as `[label](url)` to get an icon.
     private static func appendAutolinkFavicon(
-        matchRange: NSRange, url: URL, ctx: Ctx, into attrs: inout [StyledRange]
+        matchRange: NSRange,
+        url: URL,
+        blocks: [BlockNode],
+        ctx: Ctx,
+        into attrs: inout [StyledRange]
     ) {
         guard matchRange.location > 0, url.host != nil else { return }
         let prev = matchRange.location - 1
         let ch = ctx.ns.character(at: prev)
         guard ch == 0x20 || ch == 0x09 else { return }
+        let metrics = faviconMetrics(at: matchRange.location, in: blocks, ctx: ctx)
         appendFavicon(
             on: NSRange(location: prev, length: 1),
             urlString: url.absoluteString,
+            font: metrics.font,
+            lineHeight: metrics.lineHeight,
             ctx: ctx,
             into: &attrs
         )
@@ -858,25 +883,81 @@ enum MarkdownASTStyler {
         styleInlines(children, font: font, ctx: ctx, into: &attrs)
     }
 
-    private static let faviconDisplaySize: CGFloat = 12
-    private static let faviconGap: CGFloat = 4
+    private static let faviconLineHeightScale: CGFloat = 0.82
+    private static let faviconGapScale: CGFloat = 0.18
+
+    private struct FaviconMetrics {
+        var font: NSFont
+        var lineHeight: CGFloat
+    }
+
+    private static func faviconMetrics(
+        at location: Int,
+        in blocks: [BlockNode],
+        ctx: Ctx
+    ) -> FaviconMetrics {
+        for block in blocks where NSLocationInRange(location, block.range) {
+            switch block {
+            case .heading(let level, _, _, _):
+                let multiplier = ctx.config.headings.fontMultiplier(for: level)
+                let headingBase = NSFont(
+                    name: ctx.fontName,
+                    size: ctx.baseFont.pointSize * multiplier
+                ) ?? .systemFont(ofSize: ctx.baseFont.pointSize * multiplier)
+                let font = adding(.bold, to: headingBase)
+                return FaviconMetrics(
+                    font: font,
+                    lineHeight: ceil(font.ascender - font.descender + font.leading) + 1
+                )
+            case .blockquote:
+                return FaviconMetrics(
+                    font: ctx.baseFont,
+                    lineHeight: ctx.baseLineHeight + ctx.config.blockquote.extraLineHeight
+                )
+            case .list(_, let items):
+                if items.contains(where: { NSLocationInRange(location, $0.range) }) {
+                    return FaviconMetrics(
+                        font: ctx.baseFont,
+                        lineHeight: ctx.baseLineHeight + ctx.config.lists.extraLineHeight
+                    )
+                }
+            default:
+                break
+            }
+        }
+        return FaviconMetrics(
+            font: ctx.baseFont,
+            lineHeight: ctx.baseLineHeight + ctx.config.paragraph.lineHeightExtraSpacing
+        )
+    }
 
     /// Places a cached site icon in the hidden `[` marker of each inactive
     /// `[text](url)` link, expanding that marker so the overlay doesn't overlap
     /// the label. Applied after marker-shrinking so the reserved width sticks.
     private static func styleLinkFavicons(in blocks: [BlockNode], ctx: Ctx, into attrs: inout [StyledRange]) {
-        func walk(_ nodes: [InlineNode]) {
+        func walk(_ nodes: [InlineNode], font: NSFont, lineHeight: CGFloat) {
             for node in nodes {
                 switch node {
                 case .link(let range, _, let urlRange, let markers, let children):
                     if !ctx.isActive(range), let first = markers.first, first.length > 0 {
-                        appendFavicon(on: first, urlRange: urlRange, ctx: ctx, into: &attrs)
+                        appendFavicon(
+                            on: first,
+                            urlRange: urlRange,
+                            font: font,
+                            lineHeight: lineHeight,
+                            ctx: ctx,
+                            into: &attrs
+                        )
                     }
-                    walk(children)
-                case .emphasis(_, _, _, let children):
-                    walk(children)
+                    walk(children, font: font, lineHeight: lineHeight)
+                case .emphasis(let kind, _, _, let children):
+                    walk(
+                        children,
+                        font: adding(traits(for: kind), to: font),
+                        lineHeight: lineHeight
+                    )
                 case .ext(let node):
-                    walk(node.children)
+                    walk(node.children, font: font, lineHeight: lineHeight)
                 default:
                     break
                 }
@@ -884,12 +965,43 @@ enum MarkdownASTStyler {
         }
         for block in blocks where ctx.inScope(block.range) {
             switch block {
-            case .paragraph(_, let inlines), .heading(_, _, _, let inlines), .blockquote(_, let inlines):
-                walk(inlines)
+            case .paragraph(_, let inlines):
+                walk(
+                    inlines,
+                    font: ctx.baseFont,
+                    lineHeight: ctx.baseLineHeight + ctx.config.paragraph.lineHeightExtraSpacing
+                )
+            case .heading(let level, _, _, let inlines):
+                let multiplier = ctx.config.headings.fontMultiplier(for: level)
+                let headingBase = NSFont(
+                    name: ctx.fontName,
+                    size: ctx.baseFont.pointSize * multiplier
+                ) ?? .systemFont(ofSize: ctx.baseFont.pointSize * multiplier)
+                let headingFont = adding(.bold, to: headingBase)
+                let lineHeight = ceil(
+                    headingFont.ascender - headingFont.descender + headingFont.leading
+                ) + 1
+                walk(inlines, font: headingFont, lineHeight: lineHeight)
+            case .blockquote(_, let inlines):
+                walk(
+                    inlines,
+                    font: ctx.baseFont,
+                    lineHeight: ctx.baseLineHeight + ctx.config.blockquote.extraLineHeight
+                )
             case .list(_, let items):
-                for item in items { walk(item.inlines) }
+                for item in items {
+                    walk(
+                        item.inlines,
+                        font: ctx.baseFont,
+                        lineHeight: ctx.baseLineHeight + ctx.config.lists.extraLineHeight
+                    )
+                }
             case .ext(let node):
-                walk(node.inlines)
+                walk(
+                    node.inlines,
+                    font: ctx.baseFont,
+                    lineHeight: ctx.baseLineHeight + ctx.config.paragraph.lineHeightExtraSpacing
+                )
             default:
                 break
             }
@@ -897,35 +1009,55 @@ enum MarkdownASTStyler {
     }
 
     private static func appendFavicon(
-        on slot: NSRange, urlRange: NSRange, ctx: Ctx, into attrs: inout [StyledRange]
+        on slot: NSRange,
+        urlRange: NSRange,
+        font: NSFont,
+        lineHeight: CGFloat,
+        ctx: Ctx,
+        into attrs: inout [StyledRange]
     ) {
         var urlString = ctx.ns.substring(with: urlRange)
         if !urlString.contains("://") { urlString = "https://\(urlString)" }
-        appendFavicon(on: slot, urlString: urlString, ctx: ctx, into: &attrs)
+        appendFavicon(
+            on: slot,
+            urlString: urlString,
+            font: font,
+            lineHeight: lineHeight,
+            ctx: ctx,
+            into: &attrs
+        )
     }
 
     private static func appendFavicon(
-        on slot: NSRange, urlString: String, ctx: Ctx, into attrs: inout [StyledRange]
+        on slot: NSRange,
+        urlString: String,
+        font: NSFont,
+        lineHeight: CGFloat,
+        ctx: Ctx,
+        into attrs: inout [StyledRange]
     ) {
-        guard let host = faviconHost(urlString),
-              let icon = ctx.config.services.favicons.favicon(for: host) else { return }
+        guard let url = URL(string: urlString),
+              let icon = ctx.config.services.favicons.favicon(for: url) else { return }
+        // Keep the icon visually within the line box while allowing body-size and
+        // heading-size changes to scale it. Half-point snapping stays crisp on Retina.
+        let displaySize = max(12, (lineHeight * faviconLineHeightScale * 2).rounded() / 2)
+        let gap = max(3, (lineHeight * faviconGapScale * 2).rounded() / 2)
+        // `.latexBounds.origin.y` is the image descent from the text baseline.
+        // Center the icon on the surrounding font's typographic ascent/descent.
+        let descent = displaySize / 2 - (font.ascender + font.descender) / 2
         let slotText = ctx.ns.substring(with: slot)
         let slotWidth = HeadingHelpers.textWidth(slotText, font: ctx.inlineMarkerFont)
-        let targetWidth = faviconDisplaySize + faviconGap
+        let targetWidth = displaySize + gap
         attrs.append((slot, [
             .latexImage: icon,
-            .latexBounds: NSValue(rect: CGRect(x: 0, y: 1, width: faviconDisplaySize, height: faviconDisplaySize)),
+            .latexBounds: NSValue(
+                rect: CGRect(x: 0, y: descent, width: displaySize, height: displaySize)
+            ),
             .latexIsBlock: false,
             .foregroundColor: NSColor.clear,
             .font: ctx.inlineMarkerFont,
             .kern: targetWidth - slotWidth,
         ]))
-    }
-
-    /// Extracts the hostname from a URL string for favicon lookup.
-    private static func faviconHost(_ urlString: String) -> String? {
-        guard let url = URL(string: urlString), let host = url.host else { return nil }
-        return host
     }
 
     private static func styleWikiLink(

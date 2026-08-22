@@ -214,6 +214,13 @@ struct SidebarView: View {
         }
         .buttonStyle(.plain)
         .contextMenu {
+            Button("Copy Relative Path") {
+                model.copyPath(of: note, style: .relative)
+            }
+            Button("Copy Absolute Path") {
+                model.copyPath(of: note, style: .absolute)
+            }
+            Divider()
             Button("Export…") {
                 model.open(note)
                 model.presentExportPanel()

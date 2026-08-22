@@ -59,6 +59,26 @@ struct AppModelTests {
         #expect(model2.notes.first?.body.contains("Some body") == true)
     }
 
+    @Test("Builds relative and absolute paths for a sidebar note")
+    func noteCopyPaths() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+
+        await model.bootstrap()
+        let note = try #require(model.currentNote())
+        let fileName = "\(note.id.uuidString).md"
+
+        #expect(model.pathForCopying(note, style: .relative) == "Notes/\(fileName)")
+        #expect(
+            model.pathForCopying(note, style: .absolute)
+                == dir.appendingPathComponent("Notes/\(fileName)").path
+        )
+    }
+
     @Test("Shutdown persists a dirty edit without waiting for autosave")
     func shutdownPersistsDirtyEdit() async throws {
         let dir = try makeTempDir()
@@ -831,6 +851,44 @@ struct FaviconServiceTests {
     func ignoresPlainText() {
         let hosts = FaviconService.hosts(in: "hello world, no urls here")
         #expect(hosts.isEmpty)
+    }
+
+    @Test("Routes GitHub issues and pull requests to specific prepared icons")
+    func githubResourceIcons() throws {
+        let issue = try #require(URL(string: "https://github.com/acme/app/issues/42"))
+        let pull = try #require(URL(string: "https://github.com/acme/app/pull/17"))
+        let repository = try #require(URL(string: "https://github.com/acme/app"))
+
+        #expect(FaviconService.preparedIcon(for: issue) == .githubIssue)
+        #expect(FaviconService.preparedIcon(for: pull) == .githubPullRequest)
+        #expect(FaviconService.preparedIcon(for: repository) == .github)
+    }
+
+    @Test("Routes common developer sites to bundled icons")
+    func commonPreparedIcons() throws {
+        let service = FaviconService()
+        let cases: [(String, FaviconService.PreparedIcon)] = [
+            ("https://linear.app/acme/issue/APP-42", .linear),
+            ("https://huggingface.co/openai", .huggingFace),
+            ("https://gitlab.com/acme/app", .gitLab),
+            ("https://www.figma.com/design/abc", .figma),
+            ("https://workspace.notion.site/page", .notion),
+            ("https://acme.atlassian.net/browse/APP-42", .jira),
+            ("https://stackoverflow.com/questions/1", .stackOverflow),
+            ("https://youtu.be/example", .youtube),
+            ("https://openaccess.thecvf.com/content/CVPR2026/html/example.html", .cvf),
+            ("https://www.cv-foundation.org/openaccess/example.pdf", .cvf),
+            ("https://arxiv.org/abs/2608.12345", .arXiv),
+            ("https://x.com/openai/status/1", .x),
+            ("https://mobile.twitter.com/openai/status/1", .x),
+            ("https://t.co/example", .x),
+        ]
+
+        for (string, expected) in cases {
+            let url = try #require(URL(string: string))
+            #expect(FaviconService.preparedIcon(for: url) == expected)
+            #expect(service.favicon(for: url) != nil)
+        }
     }
 }
 

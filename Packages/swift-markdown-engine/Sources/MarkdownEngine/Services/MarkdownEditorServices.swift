@@ -193,17 +193,25 @@ public struct NoOpLatexRenderer: LatexRenderer {
 
 // MARK: - Favicons
 
-/// Supplies a small site icon for a hostname so links can render a favicon inline.
+/// Supplies a small site icon so links can render a favicon inline.
 public protocol FaviconProvider: Sendable {
     /// Returns the cached favicon for `host` (e.g. "github.com"), or `nil` if not yet
     /// available. Called synchronously during styling; embedders prefetch asynchronously.
     func favicon(for host: String) -> NSImage?
+    /// Returns an icon for a complete URL. Providers can use the path to distinguish
+    /// resources such as a GitHub issue and pull request.
+    func favicon(for url: URL) -> NSImage?
     /// Posted when a previously missing favicon becomes available. The engine
     /// restyles so the icon appears without waiting for the next keystroke.
     var didLoadNotification: Notification.Name? { get }
 }
 
 public extension FaviconProvider {
+    func favicon(for url: URL) -> NSImage? {
+        guard let host = url.host else { return nil }
+        return favicon(for: host)
+    }
+
     var didLoadNotification: Notification.Name? { nil }
 }
 

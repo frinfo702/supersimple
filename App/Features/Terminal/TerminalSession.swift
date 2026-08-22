@@ -9,8 +9,8 @@ import SwiftUI
 ///
 /// Spawning is deferred until the first ⌘J so launch does not pay for Ghostty
 /// init. The surface uses the exec (PTY) backend with no command override, which
-/// starts the user's macOS login shell (`$SHELL` / passwd shell) in the home
-/// directory. Ghostty's own config files and shell-integration scripts are not
+/// starts the user's macOS login shell (`$SHELL` / passwd shell) in the active
+/// library folder. Ghostty's own config files and shell-integration scripts are not
 /// loaded.
 @MainActor
 final class TerminalSession: ObservableObject {
@@ -21,9 +21,14 @@ final class TerminalSession: ObservableObject {
     private var isRestarting = false
     private var appliedTheme = ColorTheme.current.terminalTheme()
     private var appliedColorScheme: ColorScheme = .light
+    private var workingDirectory = FileManager.default.homeDirectoryForCurrentUser
     private let toggleMonitor = ToggleShortcutMonitor()
 
-    func prepare(colorScheme: ColorScheme) {
+    func prepare(colorScheme: ColorScheme, workingDirectory: URL) {
+        self.workingDirectory = Self.availableDirectory(
+            workingDirectory,
+            fallback: FileManager.default.homeDirectoryForCurrentUser
+        )
         guard context == nil else { return }
         appliedTheme = ColorTheme.current.terminalTheme()
         appliedColorScheme = colorScheme
@@ -55,7 +60,7 @@ final class TerminalSession: ObservableObject {
         context?.onClose = nil
         if terminalView == nil {
             context = nil
-            prepare(colorScheme: appliedColorScheme)
+            prepare(colorScheme: appliedColorScheme, workingDirectory: workingDirectory)
             return
         }
         // A fresh controller defaults to `.light`; carry the active scheme over
@@ -118,7 +123,7 @@ final class TerminalSession: ObservableObject {
         let state = TerminalViewState(controller: controller)
         state.configuration = TerminalSurfaceOptions(
             backend: .exec,
-            workingDirectory: FileManager.default.homeDirectoryForCurrentUser.path
+            workingDirectory: workingDirectory.path
         )
         state.onClose = { [weak self] _ in
             guard let self, !self.isRestarting else { return }
@@ -128,6 +133,14 @@ final class TerminalSession: ObservableObject {
             self.restart()
         }
         return state
+    }
+
+    private static func availableDirectory(_ requested: URL, fallback: URL) -> URL {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: requested.path, isDirectory: &isDirectory),
+            isDirectory.boolValue
+        else { return fallback }
+        return requested.standardizedFileURL
     }
 }
 

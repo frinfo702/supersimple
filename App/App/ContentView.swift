@@ -206,13 +206,16 @@ struct ContentView: View {
                 model.toggleTerminal()
             }
             if model.terminalVisible {
-                terminalSession.prepare(colorScheme: colorScheme)
+                prepareTerminal()
             }
         }
         .onChange(of: model.terminalVisible) { _, visible in
             if visible {
-                terminalSession.prepare(colorScheme: colorScheme)
+                prepareTerminal()
             }
+        }
+        .onChange(of: model.notesDirectory) { _, _ in
+            prepareTerminal()
         }
         .onChange(of: model.sidebarVisible) { _, _ in
             DispatchQueue.main.async {
@@ -284,6 +287,13 @@ struct ContentView: View {
 
     private var windowTitle: String {
         model.currentNote()?.title ?? "supersimple"
+    }
+
+    private func prepareTerminal() {
+        terminalSession.prepare(
+            colorScheme: colorScheme,
+            workingDirectory: model.libraryLayout.root
+        )
     }
 }
 

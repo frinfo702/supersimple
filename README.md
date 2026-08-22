@@ -29,16 +29,19 @@ for the integrated terminal. No Electron, no `WKWebView`, no JavaScript runtime.
   migrates your current notes there and keeps them as plain `.md` you can open from the
   integrated Terminal or hand to an AI agent. Collisions during migration are reported,
   never silently overwritten.
+- **Copy note paths** — right-click a note in the sidebar to copy either its
+  library-relative path or full absolute path.
 - **Image paste** — pasting an image saves it to the app's storage and embeds it in the
   note (`![[name]]`).
-- **Link favicons** — URLs render with their site's favicon inline (fetched and cached
-  from Google's favicon service).
+- **Link favicons** — common developer and research sites use bundled vector icons,
+  including distinct GitHub Issue and pull-request icons, CVF, and arXiv. Other sites are
+  fetched and cached from Google's favicon service.
 - **Minimal design** — hidden navbar title, standard traffic lights, subtle warm accent,
   near-black theme, and dark/light/system appearance.
 - **Integrated terminal** — `⌘J` opens a bottom panel backed by
   [libghostty](https://github.com/ghostty-org/ghostty). It runs your macOS login shell
-  (`$SHELL`) in the home directory, with no Ghostty config file and no shell-integration
-  scripts.
+  (`$SHELL`) in the active library folder, with no Ghostty config file and no
+  shell-integration scripts.
 
 ## Requirements
 
