@@ -92,6 +92,142 @@ enum OverlayGlyphGeometry {
     }
 }
 
+/// Attributes that require custom work beyond TextKit's normal glyph drawing.
+/// A fragment builds this mask once per valid layout, then dispatches only the
+/// overlay painters that are present in that fragment.
+private struct FragmentRenderFeatures: OptionSet {
+    let rawValue: UInt16
+
+    static let codeBlockBackground = Self(rawValue: 1 << 0)
+    static let blockBackground = Self(rawValue: 1 << 1)
+    static let latexImage = Self(rawValue: 1 << 2)
+    static let taskCheckbox = Self(rawValue: 1 << 3)
+    static let bulletMarker = Self(rawValue: 1 << 4)
+    static let orderedMarker = Self(rawValue: 1 << 5)
+    static let thematicBreak = Self(rawValue: 1 << 6)
+    static let blockquote = Self(rawValue: 1 << 7)
+
+    static let surfaceExtending: Self = [
+        .codeBlockBackground, .thematicBreak, .blockquote, .taskCheckbox, .bulletMarker
+    ]
+}
+
+private struct FragmentAttributeRun<Value> {
+    let range: NSRange
+    let value: Value
+}
+
+private struct FragmentLatexRun {
+    let range: NSRange
+    let image: NSImage
+    let explicitImageBounds: CGRect?
+    let isBlock: Bool
+    let blockOffsetY: CGFloat?
+    let isScrollableOverlay: Bool
+}
+
+private struct FragmentRenderPlan {
+    let textStorage: NSTextStorage
+    let range: NSRange
+    let features: FragmentRenderFeatures
+    let codeBlockBackground: NSColor?
+    let blockBackgrounds: [FragmentAttributeRun<NSColor>]
+    let latexImages: [FragmentLatexRun]
+    let taskCheckboxes: [FragmentAttributeRun<Bool>]
+    let bulletMarkers: [NSRange]
+    let orderedMarkers: [FragmentAttributeRun<String>]
+    let thematicBreaks: [NSRange]
+    let blockquotes: [FragmentAttributeRun<Int>]
+
+    init(textStorage: NSTextStorage, range: NSRange) {
+        self.textStorage = textStorage
+        self.range = range
+
+        // Code backgrounds intentionally apply only when the fragment's first
+        // character carries the attribute.
+        let collectedCodeBlockBackground = textStorage.attribute(
+            .markdownCodeBlockBackground,
+            at: range.location,
+            effectiveRange: nil
+        ) as? NSColor
+        codeBlockBackground = collectedCodeBlockBackground
+
+        var collectedBlockBackgrounds: [FragmentAttributeRun<NSColor>] = []
+        textStorage.enumerateAttribute(.markdownBlockBackground, in: range, options: []) { value, runRange, _ in
+            guard let color = value as? NSColor else { return }
+            collectedBlockBackgrounds.append(.init(range: runRange, value: color))
+        }
+        blockBackgrounds = collectedBlockBackgrounds
+
+        var collectedLatexImages: [FragmentLatexRun] = []
+        textStorage.enumerateAttribute(.latexImage, in: range, options: []) { value, runRange, _ in
+            guard let image = value as? NSImage else { return }
+            let location = runRange.location
+            let bounds = (textStorage.attribute(.latexBounds, at: location, effectiveRange: nil) as? NSValue)?
+                .rectValue
+            collectedLatexImages.append(.init(
+                range: runRange,
+                image: image,
+                explicitImageBounds: bounds,
+                isBlock: textStorage.attribute(.latexIsBlock, at: location, effectiveRange: nil) as? Bool ?? false,
+                blockOffsetY: textStorage.attribute(.latexBlockOffsetY, at: location, effectiveRange: nil) as? CGFloat,
+                isScrollableOverlay: textStorage.attribute(
+                    .scrollableBlockNaturalWidth,
+                    at: location,
+                    effectiveRange: nil
+                ) != nil
+            ))
+        }
+        latexImages = collectedLatexImages
+
+        var collectedTaskCheckboxes: [FragmentAttributeRun<Bool>] = []
+        textStorage.enumerateAttribute(.taskCheckbox, in: range, options: []) { value, runRange, _ in
+            guard let isChecked = value as? Bool else { return }
+            collectedTaskCheckboxes.append(.init(range: runRange, value: isChecked))
+        }
+        taskCheckboxes = collectedTaskCheckboxes
+
+        var collectedBulletMarkers: [NSRange] = []
+        textStorage.enumerateAttribute(.bulletMarker, in: range, options: []) { value, runRange, _ in
+            guard value as? Bool == true else { return }
+            collectedBulletMarkers.append(runRange)
+        }
+        bulletMarkers = collectedBulletMarkers
+
+        var collectedOrderedMarkers: [FragmentAttributeRun<String>] = []
+        textStorage.enumerateAttribute(.orderedMarker, in: range, options: []) { value, runRange, _ in
+            guard let marker = value as? String else { return }
+            collectedOrderedMarkers.append(.init(range: runRange, value: marker))
+        }
+        orderedMarkers = collectedOrderedMarkers
+
+        var collectedThematicBreaks: [NSRange] = []
+        textStorage.enumerateAttribute(.thematicBreak, in: range, options: []) { value, runRange, _ in
+            guard value as? Bool == true else { return }
+            collectedThematicBreaks.append(runRange)
+        }
+        thematicBreaks = collectedThematicBreaks
+
+        var collectedBlockquotes: [FragmentAttributeRun<Int>] = []
+        textStorage.enumerateAttribute(.blockquoteLevel, in: range, options: []) { value, runRange, _ in
+            guard let level = value as? Int else { return }
+            collectedBlockquotes.append(.init(range: runRange, value: level))
+        }
+        blockquotes = collectedBlockquotes
+
+        var collectedFeatures: FragmentRenderFeatures = []
+        if collectedCodeBlockBackground != nil { collectedFeatures.insert(.codeBlockBackground) }
+        if !collectedBlockBackgrounds.isEmpty { collectedFeatures.insert(.blockBackground) }
+        if !collectedLatexImages.isEmpty { collectedFeatures.insert(.latexImage) }
+        if !collectedTaskCheckboxes.isEmpty { collectedFeatures.insert(.taskCheckbox) }
+        if !collectedBulletMarkers.isEmpty { collectedFeatures.insert(.bulletMarker) }
+        if !collectedOrderedMarkers.isEmpty { collectedFeatures.insert(.orderedMarker) }
+        if !collectedThematicBreaks.isEmpty { collectedFeatures.insert(.thematicBreak) }
+        if !collectedBlockquotes.isEmpty { collectedFeatures.insert(.blockquote) }
+        features = collectedFeatures
+    }
+}
+
 final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
 
     /// Horizontal space (points) each blockquote nesting level occupies —
@@ -108,15 +244,27 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
     @objc(extraLineFragmentAttributes)
     dynamic var stExtraLineFragmentAttributes: NSDictionary?
 
+    /// Valid for the lifetime of this fragment's current TextKit layout.
+    /// `invalidateLayout()` is the authoritative invalidation point for text
+    /// and rendering-attribute edits, so scrolling can reuse the render plan
+    /// without risking stale overlay dispatch after an edit or restyle.
+    private var cachedRenderPlan: FragmentRenderPlan?
+
+    override func invalidateLayout() {
+        cachedRenderPlan = nil
+        super.invalidateLayout()
+    }
+
     // MARK: - Rendering surface
 
     /// Extend rendering bounds for code-block backgrounds (full container width)
     /// and block images drawn below text via paragraphSpacing.
     override var renderingSurfaceBounds: CGRect {
         var bounds = super.renderingSurfaceBounds
+        guard let plan = makeRenderPlan() else { return bounds }
         // Task checkboxes too: the box draws left of the first glyph (marker
         // slot), outside the default text surface — TextKit would clip it.
-        if hasCodeBlockBackground || hasThematicBreak || hasBlockquote || hasTaskCheckbox || hasBulletMarker {
+        if !plan.features.intersection(.surfaceExtending).isEmpty {
             let containerWidth = textLayoutManager?.textContainer?.size.width ?? bounds.width
             // Extend left to container edge
             bounds.origin.x = -layoutFragmentFrame.origin.x
@@ -124,12 +272,16 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
         }
         // Extend bounds to cover block images that render below the text line
         // (visibleSource mode uses paragraphSpacing to create space for the image).
-        for rect in blockImageRects(at: .zero) {
-            bounds = bounds.union(rect)
+        if plan.features.contains(.latexImage) {
+            for rect in blockImageRects(at: .zero, plan: plan) {
+                bounds = bounds.union(rect)
+            }
         }
         // Line-box fills are taller than the glyphs they sit behind.
-        for fill in blockBackgroundFills(at: .zero) {
-            bounds = bounds.union(fill.rect)
+        if plan.features.contains(.blockBackground) {
+            for fill in blockBackgroundFills(at: .zero, plan: plan) {
+                bounds = bounds.union(fill.rect)
+            }
         }
         return bounds
     }
@@ -137,31 +289,52 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
     // MARK: - Drawing
 
     override func draw(at point: CGPoint, in context: CGContext) {
+        guard let plan = makeRenderPlan() else {
+            super.draw(at: point, in: context)
+            return
+        }
+
         // 1. Code-block backgrounds (behind text)
-        drawCodeBlockBackground(at: point, in: context)
+        if plan.features.contains(.codeBlockBackground) {
+            drawCodeBlockBackground(at: point, in: context, plan: plan)
+        }
 
         // 1b. Line-box fills (`==highlight==` and friends), behind text
-        drawBlockBackgrounds(at: point, in: context)
+        if plan.features.contains(.blockBackground) {
+            drawBlockBackgrounds(at: point, in: context, plan: plan)
+        }
 
         // 2. LaTeX images (behind text — hidden markers are invisible anyway)
-        drawLatexImages(at: point, in: context)
+        if plan.features.contains(.latexImage) {
+            drawLatexImages(at: point, in: context, plan: plan)
+        }
 
         // 3. Normal text
         super.draw(at: point, in: context)
 
         // 4. Task checkboxes (on top of hidden [ ]/[x] markers)
-        drawTaskCheckboxes(at: point, in: context)
+        if plan.features.contains(.taskCheckbox) {
+            drawTaskCheckboxes(at: point, in: context, plan: plan)
+        }
 
         // 4b. Bullet glyphs (on top of hidden -/*/+ markers)
-        drawBulletMarkers(at: point, in: context)
-        drawOrderedMarkers(at: point, in: context)
+        if plan.features.contains(.bulletMarker) {
+            drawBulletMarkers(at: point, in: context, plan: plan)
+        }
+        if plan.features.contains(.orderedMarker) {
+            drawOrderedMarkers(at: point, in: context, plan: plan)
+        }
 
         // 5. Thematic breaks (full-width line, painted last so it doesn't
         //    fight with anything that already drew at the line's center)
-        drawThematicBreaks(at: point, in: context)
+        if plan.features.contains(.thematicBreak) {
+            drawThematicBreaks(at: point, in: context, plan: plan)
+        }
 
         // 6. Blockquote bars (left gutter, behind nothing — text is indented)
-        drawBlockquoteBars(at: point, in: context)
+        if plan.features.contains(.blockquote) {
+            drawBlockquoteBars(at: point, in: context, plan: plan)
+        }
     }
 
     // MARK: - Helpers
@@ -179,11 +352,26 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
         (textLayoutManager?.textContentManager as? NSTextContentStorage)?.textStorage
     }
 
+    private func makeRenderPlan() -> FragmentRenderPlan? {
+        guard let textStorage, let range = fragmentNSRange, range.length > 0 else { return nil }
+        if let cachedRenderPlan,
+           cachedRenderPlan.textStorage === textStorage,
+           NSEqualRanges(cachedRenderPlan.range, range) {
+            return cachedRenderPlan
+        }
+        let plan = FragmentRenderPlan(textStorage: textStorage, range: range)
+        cachedRenderPlan = plan
+        return plan
+    }
+
     /// Returns the drawing position for a character at `docIndex` (document-level NSRange location).
     /// `point` is the draw origin passed to `draw(at:in:)`.
-    private func drawPosition(forDocumentCharAt docIndex: Int, point: CGPoint) -> (x: CGFloat, baselineY: CGFloat, lineHeight: CGFloat)? {
-        guard let fragRange = fragmentNSRange else { return nil }
-        let localIndex = docIndex - fragRange.location
+    private func drawPosition(
+        forDocumentCharAt docIndex: Int,
+        point: CGPoint,
+        fragmentRange: NSRange
+    ) -> (x: CGFloat, baselineY: CGFloat, lineHeight: CGFloat)? {
+        let localIndex = docIndex - fragmentRange.location
         guard localIndex >= 0 else { return nil }
 
         // NSTextLineFragment.typographicBounds.origin.y is already relative to the
@@ -222,64 +410,13 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
 
     // MARK: - Code Block Background
 
-    private var hasCodeBlockBackground: Bool {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return false }
-        return ts.attribute(.markdownCodeBlockBackground, at: range.location, effectiveRange: nil) is NSColor
-    }
-
-    private var hasThematicBreak: Bool {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return false }
-        var found = false
-        ts.enumerateAttribute(.thematicBreak, in: range, options: []) { value, _, stop in
-            if value as? Bool == true {
-                found = true
-                stop.pointee = true
-            }
-        }
-        return found
-    }
-
-    private var hasBlockquote: Bool {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return false }
-        var found = false
-        ts.enumerateAttribute(.blockquoteLevel, in: range, options: []) { value, _, stop in
-            if value is Int {
-                found = true
-                stop.pointee = true
-            }
-        }
-        return found
-    }
-
-    private var hasBulletMarker: Bool {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return false }
-        var found = false
-        ts.enumerateAttribute(.bulletMarker, in: range, options: []) { value, _, stop in
-            if (value as? Bool) == true {
-                found = true
-                stop.pointee = true
-            }
-        }
-        return found
-    }
-
-    private var hasTaskCheckbox: Bool {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return false }
-        var found = false
-        ts.enumerateAttribute(.taskCheckbox, in: range, options: []) { value, _, stop in
-            if value is Bool {
-                found = true
-                stop.pointee = true
-            }
-        }
-        return found
-    }
-
-    private func drawCodeBlockBackground(at point: CGPoint, in context: CGContext) {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return }
-
+    private func drawCodeBlockBackground(
+        at point: CGPoint,
+        in context: CGContext,
+        plan: FragmentRenderPlan
+    ) {
         // Only fenced code-block fragments get the full-width fill (first char must carry the marker).
-        guard let color = ts.attribute(.markdownCodeBlockBackground, at: range.location, effectiveRange: nil) as? NSColor else { return }
+        guard let color = plan.codeBlockBackground else { return }
 
         let containerWidth = textLayoutManager?.textContainer?.size.width ?? layoutFragmentFrame.width
 
@@ -373,10 +510,18 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
     /// leading plus `paragraph.lineHeightExtraSpacing` and a wrapped highlight
     /// comes out as stacked bands.
     func blockBackgroundFills(at point: CGPoint) -> [(rect: CGRect, color: NSColor)] {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return [] }
+        guard let plan = makeRenderPlan(), plan.features.contains(.blockBackground) else { return [] }
+        return blockBackgroundFills(at: point, plan: plan)
+    }
+
+    private func blockBackgroundFills(
+        at point: CGPoint,
+        plan: FragmentRenderPlan
+    ) -> [(rect: CGRect, color: NSColor)] {
+        let range = plan.range
         var fills: [(rect: CGRect, color: NSColor)] = []
-        ts.enumerateAttribute(.markdownBlockBackground, in: range, options: []) { value, attrRange, _ in
-            guard let color = value as? NSColor else { return }
+        for background in plan.blockBackgrounds {
+            let attrRange = background.range
             let local = NSRange(location: attrRange.location - range.location, length: attrRange.length)
             for lineFragment in textLineFragments {
                 let lineRange = lineFragment.characterRange
@@ -397,15 +542,19 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
                                  y: point.y + tb.origin.y,
                                  width: endX - startX,
                                  height: tb.height),
-                    color: color
+                    color: background.value
                 ))
             }
         }
         return fills
     }
 
-    private func drawBlockBackgrounds(at point: CGPoint, in context: CGContext) {
-        let fills = blockBackgroundFills(at: point)
+    private func drawBlockBackgrounds(
+        at point: CGPoint,
+        in context: CGContext,
+        plan: FragmentRenderPlan
+    ) {
+        let fills = blockBackgroundFills(at: point, plan: plan)
         guard !fills.isEmpty else { return }
 
         NSGraphicsContext.saveGraphicsState()
@@ -427,11 +576,15 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
         attrRange: NSRange,
         imageBounds: CGRect,
         blockOffsetY: CGFloat?,
-        point: CGPoint
+        point: CGPoint,
+        fragmentRange: NSRange
     ) -> CGRect? {
-        guard let pos = drawPosition(forDocumentCharAt: attrRange.location, point: point) else { return nil }
-        let fragLocation = fragmentNSRange?.location ?? 0
-        let localStart = attrRange.location - fragLocation
+        guard let pos = drawPosition(
+            forDocumentCharAt: attrRange.location,
+            point: point,
+            fragmentRange: fragmentRange
+        ) else { return nil }
+        let localStart = attrRange.location - fragmentRange.location
         let localLast = max(localStart, localStart + attrRange.length - 1)
         let firstLb = lineBounds(forLocalIndex: localStart, point: point)
         // For a wrapped source span (e.g. a long `![alt](url)` that wraps in
@@ -461,21 +614,20 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
     /// Returns the rects of all block images in this fragment, relative to
     /// `point`.  Used by `renderingSurfaceBounds` (with `.zero`) to extend
     /// the surface so images drawn in paragraphSpacing aren't clipped.
-    private func blockImageRects(at point: CGPoint) -> [CGRect] {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return [] }
+    private func blockImageRects(at point: CGPoint, plan: FragmentRenderPlan) -> [CGRect] {
+        let range = plan.range
         var rects: [CGRect] = []
-        ts.enumerateAttribute(.latexImage, in: range, options: []) { value, attrRange, _ in
-            guard value is NSImage else { return }
-            let isBlock = ts.attribute(.latexIsBlock, at: attrRange.location, effectiveRange: nil) as? Bool ?? false
-            guard isBlock else { return }
+        for latex in plan.latexImages {
+            guard latex.isBlock else { continue }
             // Skip overlay blocks; surface bounds must stay within container.
-            if ts.attribute(.scrollableBlockNaturalWidth, at: attrRange.location, effectiveRange: nil) != nil {
-                return
-            }
-            let boundsVal = ts.attribute(.latexBounds, at: attrRange.location, effectiveRange: nil) as? NSValue
-            let imageBounds = boundsVal?.rectValue ?? .zero
-            let blockOffsetY = ts.attribute(.latexBlockOffsetY, at: attrRange.location, effectiveRange: nil) as? CGFloat
-            if let rect = blockImageDrawRect(attrRange: attrRange, imageBounds: imageBounds, blockOffsetY: blockOffsetY, point: point) {
+            guard !latex.isScrollableOverlay else { continue }
+            if let rect = blockImageDrawRect(
+                attrRange: latex.range,
+                imageBounds: latex.explicitImageBounds ?? .zero,
+                blockOffsetY: latex.blockOffsetY,
+                point: point,
+                fragmentRange: range
+            ) {
                 rects.append(rect)
             }
         }
@@ -484,32 +636,38 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
 
     // MARK: - LaTeX Images
 
-    private func drawLatexImages(at point: CGPoint, in context: CGContext) {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return }
+    private func drawLatexImages(
+        at point: CGPoint,
+        in context: CGContext,
+        plan: FragmentRenderPlan
+    ) {
+        let range = plan.range
 
         NSGraphicsContext.saveGraphicsState()
         defer { NSGraphicsContext.restoreGraphicsState() }
         let nsContext = NSGraphicsContext(cgContext: context, flipped: true)
         NSGraphicsContext.current = nsContext
 
-        ts.enumerateAttribute(.latexImage, in: range, options: []) { [weak self] value, attrRange, _ in
-            guard let self, let image = value as? NSImage else { return }
-
+        for latex in plan.latexImages {
             // Skip overlay-rendered blocks; WideTableOverlay owns the visual.
-            if ts.attribute(.scrollableBlockNaturalWidth, at: attrRange.location, effectiveRange: nil) != nil {
-                return
-            }
+            guard !latex.isScrollableOverlay else { continue }
 
-            let boundsVal = ts.attribute(.latexBounds, at: attrRange.location, effectiveRange: nil) as? NSValue
-            let imageBounds = boundsVal?.rectValue ?? CGRect(origin: .zero, size: image.size)
-            let isBlock = ts.attribute(.latexIsBlock, at: attrRange.location, effectiveRange: nil) as? Bool ?? false
-            let blockOffsetY = ts.attribute(.latexBlockOffsetY, at: attrRange.location, effectiveRange: nil) as? CGFloat
-
-            guard let pos = drawPosition(forDocumentCharAt: attrRange.location, point: point) else { return }
+            guard let pos = drawPosition(
+                forDocumentCharAt: latex.range.location,
+                point: point,
+                fragmentRange: range
+            ) else { continue }
 
             let drawRect: CGRect
-            if isBlock {
-                guard let rect = blockImageDrawRect(attrRange: attrRange, imageBounds: imageBounds, blockOffsetY: blockOffsetY, point: point) else { return }
+            let imageBounds = latex.explicitImageBounds ?? CGRect(origin: .zero, size: latex.image.size)
+            if latex.isBlock {
+                guard let rect = blockImageDrawRect(
+                    attrRange: latex.range,
+                    imageBounds: imageBounds,
+                    blockOffsetY: latex.blockOffsetY,
+                    point: point,
+                    fragmentRange: range
+                ) else { continue }
                 drawRect = rect
             } else {
                 let descent = imageBounds.origin.y
@@ -517,7 +675,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
                                   y: pos.baselineY + descent - imageBounds.height,
                                   width: imageBounds.width, height: imageBounds.height)
             }
-            image.draw(in: drawRect)
+            latex.image.draw(in: drawRect)
         }
     }
 
@@ -527,17 +685,11 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
     /// line fragment whose backing text carries the `.thematicBreak`
     /// attribute. This decouples HR rendering from the source-text length,
     /// so a 3-char `---` looks the same as a 80-char auto-expanded line.
-    private func drawThematicBreaks(at point: CGPoint, in context: CGContext) {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return }
-        var hasThematic = false
-        ts.enumerateAttribute(.thematicBreak, in: range, options: []) { value, _, stop in
-            if value as? Bool == true {
-                hasThematic = true
-                stop.pointee = true
-            }
-        }
-        guard hasThematic else { return }
-
+    private func drawThematicBreaks(
+        at point: CGPoint,
+        in context: CGContext,
+        plan: FragmentRenderPlan
+    ) {
         let containerWidth = textLayoutManager?.textContainer?.size.width ?? layoutFragmentFrame.width
         let theme = (textLayoutManager?.textContainer?.textView as? NativeTextView)?
             .configuration.theme ?? .default
@@ -554,15 +706,11 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
         // band on those whose first character carries the marker. (HR
         // tokens are always single-line, but the loop is robust if a
         // future caller ever stacks several rules in one paragraph.)
-        let fragLocation = fragmentNSRange?.location ?? 0
+        let fragLocation = plan.range.location
         for lineFragment in textLineFragments {
             let lr = lineFragment.characterRange
             let docStart = fragLocation + lr.location
-            // TextKit 2 appends a synthetic trailing empty line fragment whose
-            // characterRange lands at exactly `tsLen` — `attribute(at:)` needs
-            // a strictly in-bounds index, so skip the sentinel.
-            guard docStart < ts.length else { continue }
-            let isHR = ts.attribute(.thematicBreak, at: docStart, effectiveRange: nil) as? Bool == true
+            let isHR = plan.thematicBreaks.contains { NSLocationInRange(docStart, $0) }
             let tb = lineFragment.typographicBounds
             if isHR {
                 // tb.origin.y is already relative to this layout fragment.
@@ -583,14 +731,11 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
     /// Paint `level` vertical bars in the left gutter of every line that
     /// carries `.blockquoteLevel`. Each line paints its own segment, so a
     /// run of quote lines reads as one continuous bar.
-    private func drawBlockquoteBars(at point: CGPoint, in context: CGContext) {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return }
-        var anyLevel = false
-        ts.enumerateAttribute(.blockquoteLevel, in: range, options: []) { value, _, stop in
-            if value is Int { anyLevel = true; stop.pointee = true }
-        }
-        guard anyLevel else { return }
-
+    private func drawBlockquoteBars(
+        at point: CGPoint,
+        in context: CGContext,
+        plan: FragmentRenderPlan
+    ) {
         let theme = (textLayoutManager?.textContainer?.textView as? NativeTextView)?
             .configuration.theme ?? .default
         let indentPerLevel = Self.blockquoteIndentPerLevel
@@ -602,17 +747,13 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
         NSGraphicsContext.current = nsContext
         theme.mutedText.withAlphaComponent(0.5).setFill()
 
-        let fragLocation = fragmentNSRange?.location ?? 0
+        let fragLocation = plan.range.location
         let leftEdge = point.x - layoutFragmentFrame.origin.x
         for lineFragment in textLineFragments {
             let lr = lineFragment.characterRange
             let docStart = fragLocation + lr.location
-            // TextKit 2 appends a synthetic trailing empty line fragment whose
-            // characterRange lands at exactly `tsLen` — `attribute(at:)` needs
-            // a strictly in-bounds index, so skip the sentinel.
-            guard docStart < ts.length else { continue }
             let tb = lineFragment.typographicBounds
-            if let level = ts.attribute(.blockquoteLevel, at: docStart, effectiveRange: nil) as? Int {
+            if let level = plan.blockquotes.first(where: { NSLocationInRange(docStart, $0.range) })?.value {
                 // tb.origin.y is already relative to this layout fragment.
                 let barY = point.y + tb.origin.y
                 for i in 0..<level {
@@ -630,8 +771,13 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
     /// Paint a Notion-sized filled disc over every hidden bullet marker
     /// (`.bulletMarker`). Centered in the original marker char's advance so it
     /// still sits where `-`/`*`/`+` was. Selection paints the raw source char.
-    private func drawBulletMarkers(at point: CGPoint, in context: CGContext) {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return }
+    private func drawBulletMarkers(
+        at point: CGPoint,
+        in context: CGContext,
+        plan: FragmentRenderPlan
+    ) {
+        let ts = plan.textStorage
+        let range = plan.range
         let selectionRanges: [NSRange] = {
             guard let tv = textLayoutManager?.textContainer?.textView else { return [] }
             return tv.selectedRanges.map { $0.rangeValue }.filter { $0.length > 0 }
@@ -651,12 +797,15 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             (value * scale).rounded(.toNearestOrAwayFromZero) / scale
         }
 
-        ts.enumerateAttribute(.bulletMarker, in: range, options: []) { [weak self] value, attrRange, _ in
-            guard let self, (value as? Bool) == true else { return }
-            guard let pos = self.drawPosition(forDocumentCharAt: attrRange.location, point: point) else { return }
+        for attrRange in plan.bulletMarkers {
+            guard let pos = drawPosition(
+                forDocumentCharAt: attrRange.location,
+                point: point,
+                fragmentRange: range
+            ) else { continue }
 
-            let bodyFont = (self.textLayoutManager?.textContainer?.textView as? NativeTextView)?.baseFont
-                ?? (self.textLayoutManager?.textContainer?.textView?.font
+            let bodyFont = (textLayoutManager?.textContainer?.textView as? NativeTextView)?.baseFont
+                ?? (textLayoutManager?.textContainer?.textView?.font
                     ?? NSFont.systemFont(ofSize: NSFont.systemFontSize))
             let runFont = ts.attribute(.font, at: attrRange.location, effectiveRange: nil) as? NSFont
             let collapsed = (runFont?.pointSize ?? bodyFont.pointSize) < 1
@@ -677,7 +826,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             let slotX = collapsed ? pos.x - dashWidth - spaceWidth : pos.x
             let localIndex = attrRange.location - range.location
             let lineMaxY: CGFloat
-            if let bounds = self.lineBounds(forLocalIndex: localIndex, point: point) {
+            if let bounds = lineBounds(forLocalIndex: localIndex, point: point) {
                 lineMaxY = bounds.maxY
             } else {
                 lineMaxY = pos.baselineY - bodyFont.descender
@@ -712,8 +861,13 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
     /// kerned to the display width so any digit count aligns and content/wrapped
     /// lines hang at that width). Draws the raw source marker instead while the
     /// line is selected, so selection reveals the literal digits.
-    private func drawOrderedMarkers(at point: CGPoint, in context: CGContext) {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return }
+    private func drawOrderedMarkers(
+        at point: CGPoint,
+        in context: CGContext,
+        plan: FragmentRenderPlan
+    ) {
+        let ts = plan.textStorage
+        let range = plan.range
         let selectionRanges: [NSRange] = {
             guard let tv = textLayoutManager?.textContainer?.textView else { return [] }
             return tv.selectedRanges.map { $0.rangeValue }.filter { $0.length > 0 }
@@ -727,18 +881,22 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             .configuration.theme ?? .default
         let storageString = ts.string as NSString
 
-        ts.enumerateAttribute(.orderedMarker, in: range, options: []) { [weak self] value, attrRange, _ in
-            guard let self, let number = value as? String else { return }
-            guard let pos = self.drawPosition(forDocumentCharAt: attrRange.location, point: point) else { return }
+        for marker in plan.orderedMarkers {
+            let attrRange = marker.range
+            guard let pos = drawPosition(
+                forDocumentCharAt: attrRange.location,
+                point: point,
+                fragmentRange: range
+            ) else { continue }
             let font = (ts.attribute(.font, at: attrRange.location, effectiveRange: nil) as? NSFont)
-                ?? (self.textLayoutManager?.textContainer?.textView?.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize))
+                ?? (textLayoutManager?.textContainer?.textView?.font ?? NSFont.systemFont(ofSize: NSFont.systemFontSize))
             let isSelected = selectionRanges.contains(where: { NSIntersectionRange($0, attrRange).length > 0 })
             let raw = storageString.substring(with: attrRange)
-            let glyph = (isSelected ? raw : number) as NSString
+            let glyph = (isSelected ? raw : marker.value) as NSString
             let glyphAttrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: theme.bodyText]
             let localIndex = attrRange.location - range.location
             let topY: CGFloat
-            if let bounds = self.lineBounds(forLocalIndex: localIndex, point: point) {
+            if let bounds = lineBounds(forLocalIndex: localIndex, point: point) {
                 topY = OverlayGlyphGeometry.textTopY(lineMaxY: bounds.maxY, font: font)
             } else {
                 topY = pos.baselineY - font.ascender
@@ -749,16 +907,20 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
 
     // MARK: - Task List Checkboxes
 
-    private func drawTaskCheckboxes(at point: CGPoint, in context: CGContext) {
-        guard let ts = textStorage, let range = fragmentNSRange, range.length > 0 else { return }
+    private func drawTaskCheckboxes(
+        at point: CGPoint,
+        in context: CGContext,
+        plan: FragmentRenderPlan
+    ) {
+        let range = plan.range
 
         NSGraphicsContext.saveGraphicsState()
         defer { NSGraphicsContext.restoreGraphicsState() }
         let nsContext = NSGraphicsContext(cgContext: context, flipped: true)
         NSGraphicsContext.current = nsContext
 
-        ts.enumerateAttribute(.taskCheckbox, in: range, options: []) { [weak self] value, attrRange, _ in
-            guard let self, value != nil else { return }
+        for checkbox in plan.taskCheckboxes {
+            let attrRange = checkbox.range
             // A `.taskCheckbox` range means the styler cleared the raw `- [ ]`
             // (and collapsed the box's advance), so the box must ALWAYS be
             // drawn — including while the range sits inside a selection. An
@@ -767,8 +929,12 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
             // source can't be painted here instead: the hidden `[ ]` advance
             // is collapsed, so raw glyphs would overlap the content — raw
             // reveal stays caret-based (taskRevealed in the styler).
-            let isChecked = (value as? Bool) ?? false
-            guard let pos = drawPosition(forDocumentCharAt: attrRange.location, point: point) else { return }
+            let isChecked = checkbox.value
+            guard let pos = drawPosition(
+                forDocumentCharAt: attrRange.location,
+                point: point,
+                fragmentRange: range
+            ) else { continue }
 
             // Box collapsed to 0.1pt, so pos.x sits at the content edge; the
             // square is right-aligned to it (shared with the click hit-test).
@@ -789,7 +955,7 @@ final class MarkdownTextLayoutFragment: NSTextLayoutFragment {
                 (value * scale).rounded(.toNearestOrAwayFromZero) / scale
             }
             let boxRect = CGRect(x: alignToPixel(boxX), y: alignToPixel(boxY), width: size, height: size)
-            guard !boxRect.isEmpty, !boxRect.isNull else { return }
+            guard !boxRect.isEmpty, !boxRect.isNull else { continue }
 
             let iconInset = max(0.0, size * 0.01)
             let iconRect = boxRect.insetBy(dx: iconInset, dy: iconInset)
