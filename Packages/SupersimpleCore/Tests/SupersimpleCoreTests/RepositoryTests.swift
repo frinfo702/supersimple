@@ -200,6 +200,43 @@ struct NoteRepositoryTests {
         #expect(!LibraryLayout(root: root).fileExists(id: id))
     }
 
+    @Test("A trashed note can be restored without overwriting another file")
+    func restoreTrashedNote() throws {
+        let root = try tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = NoteRepository(root: root)
+        let id = UUID()
+        _ = try repo.write(id: id, body: "recover me")
+        let originalURL = LibraryLayout(root: root).noteURL(for: id)
+
+        let trashed = try repo.moveToTrash(fileURL: originalURL)
+        #expect(!FileManager.default.fileExists(atPath: originalURL.path))
+        #expect(FileManager.default.fileExists(atPath: trashed.trashURL.path))
+
+        _ = try repo.restore(trashed)
+        #expect(FileManager.default.fileExists(atPath: originalURL.path))
+        if case .content(let content) = repo.load(id: id) {
+            #expect(content.body == "recover me")
+        } else {
+            Issue.record("expected restored note")
+        }
+    }
+
+    @Test("Trash operations reject files outside their library directories")
+    func trashPathSafety() throws {
+        let root = try tempRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let repo = NoteRepository(root: root)
+        let outside = root.deletingLastPathComponent().appendingPathComponent("outside.md")
+        try "outside".write(to: outside, atomically: true, encoding: .utf8)
+        defer { try? FileManager.default.removeItem(at: outside) }
+
+        #expect(throws: RepositoryError.self) {
+            try repo.moveToTrash(fileURL: outside)
+        }
+        #expect(FileManager.default.fileExists(atPath: outside.path))
+    }
+
     @Test("Attachment names reject path traversal")
     func attachmentSafety() {
         #expect(NoteRepository.isSafeAttachmentName("abc.png"))
@@ -207,6 +244,25 @@ struct NoteRepositoryTests {
         #expect(!NoteRepository.isSafeAttachmentName("a/b.png"))
         #expect(!NoteRepository.isSafeAttachmentName(""))
         #expect(!NoteRepository.isSafeAttachmentName(".hidden"))
+    }
+}
+
+@Suite("Note links")
+struct NoteLinkTests {
+    @Test("Extracts stable and unresolved links but ignores image embeds")
+    func extractsLinks() {
+        let id = UUID()
+        let links = NoteLink.extract(
+            from: "See [[Stable|\(id.uuidString)]] and [[Draft]]. ![[image.png]]"
+        )
+        #expect(links == [NoteLink(title: "Stable", targetID: id), NoteLink(title: "Draft", targetID: nil)])
+    }
+
+    @Test("Stable IDs survive title changes and title-only links match without case sensitivity")
+    func matchesTargets() {
+        let note = Note(body: "# Renamed")
+        #expect(NoteLink(title: "Old title", targetID: note.id).points(to: note))
+        #expect(NoteLink(title: "renamed", targetID: nil).points(to: note))
     }
 }
 

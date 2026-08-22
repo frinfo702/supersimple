@@ -34,6 +34,8 @@ This is a local copy of [swift-markdown-engine](https://github.com/nodes-app/swi
   would delete the marker's trailing space and leave a tab + raw `2.`.
 - `EmbeddedImageProvider.didLoadNotification` restyles when a remote `![](url)`
   image arrives. Empty-alt images plant on `!` so the overlay has an anchor.
+- Editable wiki links keep a plain click for caret placement and navigate only on
+  Command-click, including the fallback path for dropped AppKit link events.
 
 ## Upgrading
 

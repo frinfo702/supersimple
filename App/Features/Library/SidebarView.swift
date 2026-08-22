@@ -175,6 +175,15 @@ struct SidebarView: View {
                         noteRow(note)
                     }
                 } else {
+                    if !model.pinnedVisibleNotes.isEmpty {
+                        favoriteSectionLabel
+                            .padding(.horizontal, 14)
+                            .padding(.top, 10)
+                            .padding(.bottom, 4)
+                        ForEach(model.pinnedVisibleNotes) { note in
+                            noteRow(note)
+                        }
+                    }
                     ForEach(model.groupedVisibleNotes, id: \.group) { section in
                         sectionLabel(section.group.title)
                             .padding(.horizontal, 14)
@@ -208,12 +217,24 @@ struct SidebarView: View {
             NoteRow(
                 note: note,
                 isSelected: model.currentNoteID == note.id,
+                isPinned: model.isPinned(note),
                 searchResult: model.isSearching ? model.searchResult(for: note.id) : nil,
                 searchQuery: model.isSearching ? model.searchQuery : ""
             )
         }
         .buttonStyle(.plain)
         .contextMenu {
+            Button {
+                model.togglePin(note)
+            } label: {
+                Label {
+                    Text(model.isPinned(note) ? "Remove from Favorites" : "Add to Favorites")
+                } icon: {
+                    FavoriteIcon(lineWidth: 1.4)
+                        .frame(width: 14, height: 14)
+                }
+            }
+            Divider()
             Button("Copy Relative Path") {
                 model.copyPath(of: note, style: .relative)
             }
@@ -226,8 +247,15 @@ struct SidebarView: View {
                 model.presentExportPanel()
             }
             Divider()
-            Button("Delete…", role: .destructive) {
+            Button(role: .destructive) {
                 model.requestDelete(note)
+            } label: {
+                Label {
+                    Text("Delete…")
+                } icon: {
+                    TrashIcon(lineWidth: 1.4)
+                        .frame(width: 14, height: 14)
+                }
             }
         }
     }
@@ -250,6 +278,19 @@ struct SidebarView: View {
             .font(.system(size: 10, weight: .semibold))
             .tracking(1.2)
             .foregroundStyle(palette.muted)
+    }
+
+    private var favoriteSectionLabel: some View {
+        HStack(spacing: 6) {
+            FavoriteIcon(lineWidth: 1.4)
+                .frame(width: 11, height: 11)
+            Text("FAVORITES")
+                .tracking(1.2)
+        }
+        .font(.system(size: 10, weight: .semibold))
+        .foregroundStyle(palette.muted)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Favorites")
     }
 }
 
@@ -326,6 +367,7 @@ private struct SidebarActionLabel<Icon: View>: View {
 private struct NoteRow: View {
     let note: Note
     let isSelected: Bool
+    let isPinned: Bool
     let searchResult: SearchResult?
     let searchQuery: String
     @State private var hovering = false
@@ -342,6 +384,12 @@ private struct NoteRow: View {
                     weight: isSelected ? .semibold : .medium
                 )
                 .lineLimit(1)
+                if isPinned {
+                    FavoriteIcon(lineWidth: 1.35)
+                        .foregroundStyle(palette.muted)
+                        .frame(width: 10, height: 10)
+                        .accessibilityLabel("Favorite")
+                }
                 Spacer(minLength: 8)
                 Text(NoteStats.relativeUpdated(note.updatedAt))
                     .font(.system(size: 11))

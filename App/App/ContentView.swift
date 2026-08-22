@@ -187,6 +187,47 @@ struct ContentView: View {
                 }
                 .transition(.opacity.combined(with: .scale(scale: 0.97)))
             }
+
+            VStack(spacing: 8) {
+                Spacer()
+                if let conflict = model.externalNoteConflict {
+                    LibraryStatusBanner(
+                        message: conflict.diskNote == nil
+                            ? "This note was deleted outside supersimple."
+                            : "This note changed outside supersimple.",
+                        showsTrashIcon: conflict.diskNote == nil,
+                        primaryTitle: conflict.diskNote == nil ? "Keep Note" : "Keep Mine",
+                        primaryAction: model.keepLocalVersionAfterConflict,
+                        secondaryTitle: conflict.diskNote == nil ? "Accept Delete" : "Use External",
+                        secondaryAction: model.loadExternalVersionAfterConflict,
+                        palette: palette
+                    )
+                } else if let title = model.deletedNoteUndoTitle {
+                    LibraryStatusBanner(
+                        message: "Moved “\(title)” to Trash",
+                        showsTrashIcon: true,
+                        primaryTitle: "Undo",
+                        primaryAction: model.restoreLastDeletedNote,
+                        secondaryTitle: "Dismiss",
+                        secondaryAction: model.dismissDeletionUndo,
+                        palette: palette
+                    )
+                } else if let message = model.externalChangeMessage {
+                    LibraryStatusBanner(
+                        message: message,
+                        primaryTitle: nil,
+                        primaryAction: {},
+                        secondaryTitle: nil,
+                        secondaryAction: {},
+                        palette: palette
+                    )
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.bottom, 18)
+            .allowsHitTesting(
+                model.externalNoteConflict != nil || model.deletedNoteUndoTitle != nil
+            )
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(palette.background)
@@ -243,7 +284,7 @@ struct ContentView: View {
                 model.notePendingDelete = nil
             }
         } message: {
-            Text("The Markdown file will be removed from disk. This cannot be undone.")
+            Text("The Markdown file will be moved to the library Trash and can be restored with Undo.")
         }
     }
 
@@ -297,6 +338,54 @@ struct ContentView: View {
     }
 }
 
+private struct LibraryStatusBanner: View {
+    let message: String
+    var showsTrashIcon = false
+    let primaryTitle: String?
+    let primaryAction: () -> Void
+    let secondaryTitle: String?
+    let secondaryAction: () -> Void
+    let palette: PaletteColors
+
+    var body: some View {
+        HStack(spacing: 12) {
+            if showsTrashIcon {
+                TrashIcon(lineWidth: 1.4)
+                    .frame(width: 16, height: 16)
+                    .foregroundStyle(palette.muted)
+                    .accessibilityHidden(true)
+            }
+            Text(message)
+                .font(.system(size: 12, weight: .medium))
+                .lineLimit(2)
+            Spacer(minLength: 12)
+            if let secondaryTitle {
+                Button(secondaryTitle, action: secondaryAction)
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(palette.muted)
+            }
+            if let primaryTitle {
+                Button(primaryTitle, action: primaryAction)
+                    .buttonStyle(.plain)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(palette.accent)
+            }
+        }
+        .padding(.horizontal, 14)
+        .frame(minHeight: 42)
+        .frame(maxWidth: 540)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .strokeBorder(palette.hairline, lineWidth: AppTheme.Metric.hairlineWidth)
+        }
+        .shadow(color: .black.opacity(0.2), radius: 16, y: 8)
+        .accessibilityIdentifier("library-status-banner")
+    }
+}
+
 struct AppCommands: Commands {
     var model: AppModel
     @Bindable var updater: AppUpdater
@@ -329,11 +418,18 @@ struct AppCommands: Commands {
             .keyboardShortcut("s")
         }
         CommandGroup(after: .pasteboard) {
-            Button("Delete Note") {
+            Button {
                 if let first = NSApp.keyWindow?.firstResponder, first is NSText {
                     return
                 }
                 model.requestDelete()
+            } label: {
+                Label {
+                    Text("Delete Note")
+                } icon: {
+                    TrashIcon(lineWidth: 1.4)
+                        .frame(width: 14, height: 14)
+                }
             }
             .keyboardShortcut(.delete, modifiers: [.command])
         }

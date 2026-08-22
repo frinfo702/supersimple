@@ -22,13 +22,21 @@ for the integrated terminal. No Electron, no `WKWebView`, no JavaScript runtime.
   snippets. The index is a derived cache that rebuilds from your `.md` files.
 - **Tags, no folders** — tags are YAML frontmatter, auto-picked-up from `#tags` in the body.
   No hierarchy, just flat filterable notes.
+- **Linked notes** — typing `[[` opens note-title autocomplete. Links store the target UUID,
+  survive title changes, open on click, and expose a compact backlinks list in the editor.
+  A missing title can be created directly from the picker.
+- **Favorite notes** — mark frequently used notes from the sidebar context menu. Favorites
+  remain in a dedicated section above the recency groups.
 - **Plain Markdown files** — each note is a `.md` file in a browsable library folder
   (`<library>/Notes/`), with pasted images in `<library>/Attachments/`. Atomic writes,
   autosave debounce, sync flush on quit. You can point the app at your own folder
   (iCloud Drive, a mounted volume, anywhere) from **Settings → Storage** — supersimple
   migrates your current notes there and keeps them as plain `.md` you can open from the
   integrated Terminal or hand to an AI agent. Collisions during migration are reported,
-  never silently overwritten.
+  never silently overwritten. External edits are detected through native filesystem events:
+  clean notes reload automatically, while concurrent local edits show an explicit choice.
+- **Recoverable deletion** — deleted notes move to the library's hidden Trash and can be
+  restored immediately with Undo; existing files are never overwritten during restore.
 - **Copy note paths** — right-click a note in the sidebar to copy either its
   library-relative path or full absolute path.
 - **Image paste** — pasting an image saves it to the app's storage and embeds it in the

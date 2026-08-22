@@ -6,6 +6,21 @@ import SupersimpleCore
 import SwiftUI
 import UniformTypeIdentifiers
 
+struct ExternalNoteConflict: Identifiable {
+    let noteID: UUID
+    let diskNote: Note?
+    let diskRecord: FileRecord?
+
+    var id: UUID { noteID }
+}
+
+private struct DeletedNoteUndo {
+    let note: Note
+    let file: TrashedNoteFile
+    let index: Int
+    let wasSelected: Bool
+}
+
 /// Central application state. Owns the in-memory set of notes, the currently
 /// edited body, the search index, and drives debounced atomic persistence.
 @MainActor
@@ -20,12 +35,17 @@ final class AppModel {
     private var repository: NoteRepository
     /// Last known on-disk revision for each loaded note. Saves must match this record.
     private var fileRecordsByID: [UUID: FileRecord] = [:]
+    /// Last external revision already handled for a note whose local revision cannot yet
+    /// be advanced (for example, while an unsaved edit is awaiting conflict resolution).
+    /// This prevents repeated directory events from announcing the same disk contents.
+    private var observedExternalRevisionByID: [UUID: String] = [:]
     private var searchIndex: NoteSearchIndex?
     /// Directory of `.md` note files. Skewed toward a user-chosen library root, but
     /// defaults (and stays backward compatible) with `Application Support/Supersimple/Notes`.
     private(set) var notesDirectory: URL
     private let appSupportURL: URL
     private let userDefaults: UserDefaults
+    private let libraryChangeMonitor = LibraryChangeMonitor()
     /// Remaining folder-library layout for the current notes root.
     var libraryLayout: LibraryLayout { LibraryLayout(root: notesDirectory.deletingLastPathComponent()) }
     /// Stores pasted images and serves them to the editor's `![[name]]` embeds.
@@ -74,6 +94,15 @@ final class AppModel {
     /// Confirmation target for the delete dialog. Independent of the current selection
     /// so a context-menu delete can target a row that is not open.
     var notePendingDelete: Note?
+
+    /// Recoverable deletion and external-edit state shown by the main window.
+    private var deletedNoteUndo: DeletedNoteUndo?
+    private(set) var deletedNoteUndoTitle: String?
+    var externalNoteConflict: ExternalNoteConflict?
+    private(set) var externalChangeMessage: String?
+
+    /// Notes fixed above the recency groups in the sidebar.
+    private(set) var pinnedNoteIDs: Set<UUID>
 
     /// Whether the sidebar column is shown.
     var sidebarVisible: Bool {
@@ -139,6 +168,9 @@ final class AppModel {
     private var librarySearchTask: Task<Void, Never>?
     private var paletteSearchTask: Task<Void, Never>?
     private var noteFindRefreshTask: Task<Void, Never>?
+    private var externalRefreshTask: Task<Void, Never>?
+    private var deletionUndoTask: Task<Void, Never>?
+    private var externalMessageTask: Task<Void, Never>?
     private let autosaveDebounce: Duration = .milliseconds(350)
     private let searchDebounce: Duration = .milliseconds(90)
     /// Production storage only — tests pass directory overrides and must not
@@ -179,6 +211,8 @@ final class AppModel {
         } else {
             terminalHeight = AppTheme.Metric.terminalHeight
         }
+        let pinnedStrings = self.userDefaults.stringArray(forKey: Self.pinnedNoteIDsKey) ?? []
+        pinnedNoteIDs = Set(pinnedStrings.compactMap(UUID.init(uuidString:)))
 
         migratesSandboxContainer = notesDirectoryOverride == nil && appSupportURLOverride == nil
 
@@ -209,6 +243,7 @@ final class AppModel {
 
     /// UserDefaults key storing a user-chosen library root folder.
     private static let libraryRootKey = "libraryRootPath"
+    private static let pinnedNoteIDsKey = "pinnedNoteIDs"
 
     /// The library root the user actively chose (or `nil` for the default location).
     var libraryRootPath: String? {
@@ -240,6 +275,9 @@ final class AppModel {
     @MainActor
     @discardableResult
     private func loadLibrary(resetSelection: Bool = false) async -> Bool {
+        libraryChangeMonitor.stop()
+        externalRefreshTask?.cancel()
+        externalRefreshTask = nil
         let directory = notesDirectory
         let root = directory.deletingLastPathComponent()
         // A persisted external location must not be recreated when its volume is absent.
@@ -296,6 +334,7 @@ final class AppModel {
         }
         notes = load.notes
         fileRecordsByID = load.fileRecords
+        observedExternalRevisionByID.removeAll()
         searchIndex = await Self.rebuildIndex(notes: load.notes, appSupport: appSupport)
 
         let elapsed = Double(DispatchTime.now().uptimeNanoseconds - started.uptimeNanoseconds) / 1_000_000
@@ -307,6 +346,7 @@ final class AppModel {
         } else if currentNoteID == nil {
             open(notes[0])
         }
+        startExternalChangeMonitoring()
         return true
     }
 
@@ -577,6 +617,60 @@ final class AppModel {
         notePendingDelete = note ?? currentNote()
     }
 
+    // MARK: - Linked notes
+
+    func note(matchingLink identifier: String) -> Note? {
+        if let id = UUID(uuidString: identifier), let note = notes.first(where: { $0.id == id }) {
+            return note
+        }
+        return notes.first {
+            $0.title.compare(identifier, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+        }
+    }
+
+    func openLinkedNote(identifier: String) {
+        guard let note = note(matchingLink: identifier) else { return }
+        open(note)
+        focusEditor()
+    }
+
+    func backlinks(to target: Note) -> [Note] {
+        notes
+            .filter { $0.id != target.id && NoteLink.extract(from: $0.body).contains { $0.points(to: target) } }
+            .sorted { $0.updatedAt > $1.updatedAt }
+    }
+
+    /// Creates a linked target without leaving the note currently being edited.
+    @discardableResult
+    func createLinkedNote(named rawTitle: String) -> Note? {
+        let title = rawTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !title.isEmpty, !title.contains("|"), !title.contains("]") else { return nil }
+        if let existing = note(matchingLink: title) { return existing }
+        guard flushNow() else { return nil }
+
+        let note = Note(body: "# \(title)")
+        notes.insert(note, at: 0)
+        if persist(note) { return note }
+        notes.removeAll { $0.id == note.id }
+        return nil
+    }
+
+    // MARK: - Pinning
+
+    func isPinned(_ note: Note) -> Bool {
+        pinnedNoteIDs.contains(note.id)
+    }
+
+    func togglePin(_ note: Note) {
+        if pinnedNoteIDs.contains(note.id) {
+            pinnedNoteIDs.remove(note.id)
+        } else {
+            pinnedNoteIDs.insert(note.id)
+        }
+        let stored = pinnedNoteIDs.map(\.uuidString).sorted()
+        userDefaults.set(stored, forKey: Self.pinnedNoteIDsKey)
+    }
+
     /// Extracts hostnames from a body and prefetches their favicons.
     func prefetchFavicons(in body: String) {
         let hosts = FaviconService.hosts(in: body)
@@ -615,8 +709,11 @@ final class AppModel {
             flushNow()
         }
         guard let url = fileRecordsByID[note.id]?.url ?? fileURL(for: note.id) else { return }
+        let wasSelected = currentNoteID == note.id
+        let index = notes.firstIndex(where: { $0.id == note.id }) ?? 0
+        let trashed: TrashedNoteFile
         do {
-            try fileManager.delete(at: url)
+            trashed = try repository.moveToTrash(fileURL: url)
         } catch {
             Self.log.error("Failed to delete note \(note.id): \(error.localizedDescription, privacy: .public)")
             return
@@ -624,16 +721,18 @@ final class AppModel {
         try? searchIndex?.delete(noteID: note.id)
         dirtyNoteIDs.remove(note.id)
         fileRecordsByID.removeValue(forKey: note.id)
+        observedExternalRevisionByID.removeValue(forKey: note.id)
 
-        let wasSelected = currentNoteID == note.id
-        let index = notes.firstIndex(where: { $0.id == note.id })
         notes.removeAll { $0.id == note.id }
+        deletedNoteUndo = DeletedNoteUndo(note: note, file: trashed, index: index, wasSelected: wasSelected)
+        deletedNoteUndoTitle = note.title
+        scheduleDeletionUndoDismissal()
 
         if wasSelected {
             // Pick a deterministic neighbour so the editor never falls to a blank state
             // while other notes exist.
             let neighbor: Note? = {
-                guard let index, !notes.isEmpty else { return notes.first }
+                guard !notes.isEmpty else { return notes.first }
                 if index < notes.count { return notes[index] }
                 return notes[notes.count - 1]
             }()
@@ -648,6 +747,43 @@ final class AppModel {
                 currentBody = ""
                 wordCountCache = 0
             }
+        }
+    }
+
+    func restoreLastDeletedNote() {
+        guard let deletedNoteUndo else { return }
+        do {
+            let record = try repository.restore(deletedNoteUndo.file)
+            let insertionIndex = min(deletedNoteUndo.index, notes.count)
+            notes.insert(deletedNoteUndo.note, at: insertionIndex)
+            fileRecordsByID[deletedNoteUndo.note.id] = record
+            observedExternalRevisionByID.removeValue(forKey: deletedNoteUndo.note.id)
+            try? searchIndex?.upsert(note: deletedNoteUndo.note)
+            dismissDeletionUndo()
+            if deletedNoteUndo.wasSelected {
+                open(deletedNoteUndo.note)
+                focusEditor()
+            }
+        } catch {
+            Self.log.error(
+                "Failed to restore note \(deletedNoteUndo.note.id): \(error.localizedDescription, privacy: .public)")
+            presentLibraryError("The note could not be restored because its original path is no longer available.")
+        }
+    }
+
+    func dismissDeletionUndo() {
+        deletionUndoTask?.cancel()
+        deletionUndoTask = nil
+        deletedNoteUndo = nil
+        deletedNoteUndoTitle = nil
+    }
+
+    private func scheduleDeletionUndoDismissal() {
+        deletionUndoTask?.cancel()
+        deletionUndoTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(8))
+            guard !Task.isCancelled else { return }
+            self?.dismissDeletionUndo()
         }
     }
 
@@ -788,6 +924,7 @@ final class AppModel {
             switch result {
             case .written(let landed):
                 fileRecordsByID[note.id] = landed
+                observedExternalRevisionByID.removeValue(forKey: note.id)
             case .conflict:
                 Self.log.error(
                     "Refusing to overwrite externally changed note \(note.id, privacy: .public)")
@@ -811,6 +948,205 @@ final class AppModel {
     func flushNow() -> Bool {
         guard let id = currentNoteID, dirtyNoteIDs.contains(id) else { return true }
         return saveNowPublic()
+    }
+
+    // MARK: - External file changes
+
+    private func startExternalChangeMonitoring() {
+        libraryChangeMonitor.stop()
+        libraryChangeMonitor.start(directory: notesDirectory) { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.scheduleExternalRefresh()
+            }
+        }
+    }
+
+    private func scheduleExternalRefresh() {
+        externalRefreshTask?.cancel()
+        externalRefreshTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: .milliseconds(180))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
+            await self?.refreshExternalChanges()
+        }
+    }
+
+    /// Reconciles the in-memory library with Markdown files changed by another editor,
+    /// iCloud, the integrated terminal, or an AI agent.
+    func refreshExternalChanges() async {
+        let load: LoadOutcome
+        do {
+            load = try await Self.loadNotes(from: notesDirectory, fileManager: fileManager)
+        } catch {
+            Self.log.error("External refresh failed: \(error.localizedDescription, privacy: .public)")
+            return
+        }
+
+        let allIDs = Set(fileRecordsByID.keys).union(load.fileRecords.keys)
+        let changedIDs = allIDs.filter {
+            !NoteFileManager.contentsMatch(fileRecordsByID[$0], load.fileRecords[$0])
+        }
+        guard !changedIDs.isEmpty else { return }
+
+        // A dirty note deliberately keeps its old baseline until the user resolves the
+        // conflict. Directory watchers can emit several events for one atomic write, so
+        // remember the disk hash separately and handle each external revision only once.
+        let newlyChangedIDs = changedIDs.filter { id in
+            observedExternalRevisionByID[id] != Self.externalRevisionIdentifier(load.fileRecords[id])
+        }
+        guard !newlyChangedIDs.isEmpty else { return }
+        for id in newlyChangedIDs {
+            observedExternalRevisionByID[id] = Self.externalRevisionIdentifier(load.fileRecords[id])
+        }
+
+        let localByID = Dictionary(uniqueKeysWithValues: notes.map { ($0.id, $0) })
+        let diskByID = Dictionary(uniqueKeysWithValues: load.notes.map { ($0.id, $0) })
+
+        if let currentID = currentNoteID,
+            dirtyNoteIDs.contains(currentID),
+            newlyChangedIDs.contains(currentID)
+        {
+            externalNoteConflict = ExternalNoteConflict(
+                noteID: currentID,
+                diskNote: diskByID[currentID],
+                diskRecord: load.fileRecords[currentID]
+            )
+        }
+
+        var merged = load.notes
+        for dirtyID in dirtyNoteIDs {
+            guard let local = localByID[dirtyID] else { continue }
+            if let index = merged.firstIndex(where: { $0.id == dirtyID }) {
+                merged[index] = local
+            } else {
+                merged.append(local)
+            }
+        }
+        merged.sort { $0.updatedAt > $1.updatedAt }
+        notes = merged
+
+        var reconciledRecords = load.fileRecords
+        for dirtyID in dirtyNoteIDs {
+            if let previous = fileRecordsByID[dirtyID] {
+                reconciledRecords[dirtyID] = previous
+            } else {
+                reconciledRecords.removeValue(forKey: dirtyID)
+            }
+        }
+        fileRecordsByID = reconciledRecords
+
+        let reloadedIDs = newlyChangedIDs.filter { !dirtyNoteIDs.contains($0) }
+        for id in reloadedIDs {
+            // Clean notes now use the disk record as their normal baseline. Only
+            // unresolved dirty revisions need the separate de-duplication record.
+            observedExternalRevisionByID.removeValue(forKey: id)
+        }
+
+        if let currentID = currentNoteID, !dirtyNoteIDs.contains(currentID) {
+            if let refreshed = diskByID[currentID] {
+                currentBody = refreshed.body
+                wordCountCache = NoteStats.wordCount(refreshed.body)
+                prefetchFavicons(in: refreshed.body)
+            } else {
+                selectAfterExternalRemoval()
+            }
+        }
+
+        guard !reloadedIDs.isEmpty else { return }
+
+        searchIndex = await Self.rebuildIndex(notes: merged, appSupport: appSupportURL)
+        if externalNoteConflict == nil {
+            showExternalChangeMessage(
+                reloadedIDs.count == 1
+                    ? "Reloaded an external change"
+                    : "Reloaded \(reloadedIDs.count) external changes"
+            )
+        }
+    }
+
+    private static func externalRevisionIdentifier(_ record: FileRecord?) -> String {
+        record?.contentHash ?? "<deleted>"
+    }
+
+    func keepLocalVersionAfterConflict() {
+        guard let conflict = externalNoteConflict,
+            conflict.noteID == currentNoteID,
+            var note = currentNote()
+        else { return }
+        if let diskRecord = conflict.diskRecord {
+            fileRecordsByID[conflict.noteID] = diskRecord
+        } else {
+            fileRecordsByID.removeValue(forKey: conflict.noteID)
+        }
+        note.body = currentBody
+        note.updatedAt = Date()
+        note.tags = TagNormalizer.extractTags(from: currentBody)
+        if let index = notes.firstIndex(where: { $0.id == note.id }) {
+            notes[index] = note
+        }
+        if persist(note) {
+            dirtyNoteIDs.remove(note.id)
+            observedExternalRevisionByID.removeValue(forKey: note.id)
+            externalNoteConflict = nil
+            showExternalChangeMessage("Kept your version")
+        }
+    }
+
+    func loadExternalVersionAfterConflict() {
+        guard let conflict = externalNoteConflict else { return }
+        dirtyNoteIDs.remove(conflict.noteID)
+        if let diskNote = conflict.diskNote {
+            if let index = notes.firstIndex(where: { $0.id == conflict.noteID }) {
+                notes[index] = diskNote
+            } else {
+                notes.insert(diskNote, at: 0)
+            }
+            if let record = conflict.diskRecord {
+                fileRecordsByID[conflict.noteID] = record
+            }
+            observedExternalRevisionByID.removeValue(forKey: conflict.noteID)
+            if currentNoteID == conflict.noteID {
+                currentBody = diskNote.body
+                wordCountCache = NoteStats.wordCount(diskNote.body)
+            }
+            try? searchIndex?.upsert(note: diskNote)
+        } else {
+            notes.removeAll { $0.id == conflict.noteID }
+            fileRecordsByID.removeValue(forKey: conflict.noteID)
+            observedExternalRevisionByID.removeValue(forKey: conflict.noteID)
+            try? searchIndex?.delete(noteID: conflict.noteID)
+            if currentNoteID == conflict.noteID {
+                selectAfterExternalRemoval()
+            }
+        }
+        externalNoteConflict = nil
+        showExternalChangeMessage("Loaded the external version")
+    }
+
+    private func selectAfterExternalRemoval() {
+        if let next = notes.first {
+            currentNoteID = next.id
+            currentBody = next.body
+            wordCountCache = NoteStats.wordCount(next.body)
+            userDefaults.set(next.id.uuidString, forKey: "lastNote")
+        } else {
+            currentNoteID = nil
+            currentBody = ""
+            wordCountCache = 0
+        }
+    }
+
+    private func showExternalChangeMessage(_ message: String) {
+        externalMessageTask?.cancel()
+        externalChangeMessage = message
+        externalMessageTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled else { return }
+            self?.externalChangeMessage = nil
+        }
     }
 
     // MARK: - Search
@@ -881,9 +1217,23 @@ final class AppModel {
             return order.compactMap { byID[$0] }
         }
         if let selectedTag {
-            return notes.filter { $0.tags.contains(selectedTag) }
+            return libraryOrderedNotes.filter { $0.tags.contains(selectedTag) }
         }
-        return notes
+        return libraryOrderedNotes
+    }
+
+    private var libraryOrderedNotes: [Note] {
+        notes.sorted { lhs, rhs in
+            let lhsPinned = pinnedNoteIDs.contains(lhs.id)
+            let rhsPinned = pinnedNoteIDs.contains(rhs.id)
+            if lhsPinned != rhsPinned { return lhsPinned }
+            return lhs.updatedAt > rhs.updatedAt
+        }
+    }
+
+    var pinnedVisibleNotes: [Note] {
+        guard !isSearching else { return [] }
+        return visibleNotes.filter { pinnedNoteIDs.contains($0.id) }
     }
 
     /// All tags across every note, sorted with counts.
@@ -919,7 +1269,7 @@ final class AppModel {
     var groupedVisibleNotes: [(group: NoteRecencyGroup, notes: [Note])] {
         guard !isSearching else { return [] }
         var buckets: [NoteRecencyGroup: [Note]] = [:]
-        for note in visibleNotes {
+        for note in visibleNotes where !pinnedNoteIDs.contains(note.id) {
             buckets[NoteRecencyGroup.group(for: note.updatedAt), default: []].append(note)
         }
         return NoteRecencyGroup.allCases.compactMap { group in
@@ -1210,6 +1560,10 @@ final class AppModel {
         librarySearchTask?.cancel()
         paletteSearchTask?.cancel()
         noteFindRefreshTask?.cancel()
+        libraryChangeMonitor.stop()
+        externalRefreshTask?.cancel()
+        deletionUndoTask?.cancel()
+        externalMessageTask?.cancel()
         if let id = currentNoteID, dirtyNoteIDs.contains(id) {
             saveNowPublic()
         }
