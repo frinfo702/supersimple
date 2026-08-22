@@ -730,28 +730,31 @@ enum MarkdownASTStyler {
             let contentRange = NSRange(location: j, length: max(0, contentEnd - j))
             let tokenRange = NSRange(location: line.location, length: contentEnd - line.location)
 
-            let textIndent = CGFloat(level) * indentPerLevel + indentPerLevel * 0.5
-            let para = NSMutableParagraphStyle()
-            para.firstLineHeadIndent = textIndent
-            para.headIndent = textIndent
-            let lineHeight = ctx.baseLineHeight + ctx.config.blockquote.extraLineHeight
-            para.minimumLineHeight = lineHeight
-            para.maximumLineHeight = lineHeight
-            // Inner quote lines stay tight (0); the LAST line gets the normal
-            para.paragraphSpacing = (lineEnd >= end) ? ctx.baseParagraphSpacing : 0
-            para.paragraphSpacingBefore = 0
-            attrs.append((ctx.ns.paragraphRange(for: tokenRange), [.paragraphStyle: para]))
-
-            if contentRange.length > 0 {
-                attrs.append((contentRange, [.foregroundColor: ctx.theme.mutedText]))
-            }
-            if ctx.isActive(tokenRange) {
+            let isActive = ctx.isActive(tokenRange)
+            if isActive {
                 attrs.append((markerRange, [.foregroundColor: ctx.theme.mutedText]))
             } else {
+                let textIndent = CGFloat(level) * indentPerLevel + indentPerLevel * 0.5
+                let para = NSMutableParagraphStyle()
+                para.firstLineHeadIndent = textIndent
+                para.headIndent = textIndent
+                let lineHeight = ctx.baseLineHeight + ctx.config.blockquote.extraLineHeight
+                para.minimumLineHeight = lineHeight
+                para.maximumLineHeight = lineHeight
+                // Inner quote lines stay tight (0); the LAST line gets the normal
+                para.paragraphSpacing = (lineEnd >= end) ? ctx.baseParagraphSpacing : 0
+                para.paragraphSpacingBefore = 0
+                attrs.append((ctx.ns.paragraphRange(for: tokenRange), [.paragraphStyle: para]))
+
+                if contentRange.length > 0 {
+                    attrs.append((contentRange, [.foregroundColor: ctx.theme.mutedText]))
+                }
                 attrs.append((markerRange, [.foregroundColor: NSColor.clear, .font: ctx.inlineMarkerFont]))
+                // Whole line, not just the first char, so each soft-wrapped visual line
+                // receives the rendered quote bar. Active lines stay untagged so the
+                // raw `>` marker and the bar are never drawn at the same time.
+                attrs.append((tokenRange, [.blockquoteLevel: level]))
             }
-            // Whole line, not just the first char, so each soft-wrapped visual line
-            attrs.append((tokenRange, [.blockquoteLevel: level]))
         }
     }
 
