@@ -17,6 +17,7 @@ struct EditorView: View {
     @State private var wikiPickerIndex = 0
     @State private var backlinksExpanded = false
     @State private var hoveredBacklinkID: UUID?
+    @State private var backlinksHovering = false
 
     private var palette: PaletteColors {
         themeManager.paletteColors(isDark: themeManager.isDark(matching: colorScheme))
@@ -123,7 +124,8 @@ struct EditorView: View {
                     activeWikiSelection = nil
                 }
             },
-            onInlinePreviewKey: handleWikiPreviewKey
+            onInlinePreviewKey: handleWikiPreviewKey,
+            isCursorExcluded: { _ in backlinksHovering }
         )
         .background(palette.editor)
     }
@@ -271,6 +273,12 @@ struct EditorView: View {
                     }
                     .buttonStyle(.plain)
                     .help("Show notes that link here")
+                }
+                .onHover { hovering in
+                    backlinksHovering = hovering
+                    if hovering {
+                        NSCursor.arrow.set()
+                    }
                 }
             }
         }
