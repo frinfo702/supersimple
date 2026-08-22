@@ -12,6 +12,8 @@ import AppKit
 
 extension NativeTextView {
     override func mouseDown(with event: NSEvent) {
+        if handleCommandLinkClick(event) { return }
+
         // Was the click point on a link? Captured before super.mouseDown, which
         // may park the caret elsewhere. Used to rescue a dropped link click.
         let clickPointOnLink: Bool = {
@@ -22,7 +24,8 @@ extension NativeTextView {
         if let toggled = toggleTaskCheckboxIfHit(event: event), toggled { return }
         if remapClickInParagraphSpacing(event: event) { return }
         dragStartMouseScreenLoc = NSEvent.mouseLocation
-        let boostTimer = Timer(timeInterval: 1.0 / configuration.dragSelection.ticksPerSecond, repeats: true) { [weak self] _ in
+        let boostTimer = Timer(timeInterval: 1.0 / configuration.dragSelection.ticksPerSecond, repeats: true) {
+            [weak self] _ in
             self?.performDragBoostTick()
         }
         RunLoop.current.add(boostTimer, forMode: .common)
@@ -35,26 +38,32 @@ extension NativeTextView {
         linkClickDidNavigate = false
         let preClickSelection = selectedRange()
         let downLoc = NSEvent.mouseLocation
-        super.mouseDown(with: event)   // modal tracking loop — returns after mouseUp
+        super.mouseDown(with: event)  // modal tracking loop — returns after mouseUp
         let travel = hypot(NSEvent.mouseLocation.x - downLoc.x, NSEvent.mouseLocation.y - downLoc.y)
 
         // AppKit intermittently drops clickedOnLink for a stationary single click
         // on a link (caret placed, delegate never called). Re-dispatch it through
         // the same delegate path — clickedOnLink applies the edit zone/resolution.
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
-        if clickPointOnLink, !linkClickDidFire, event.clickCount == 1, mods.isEmpty,
-           travel < 2, selectedRange().length == 0,
-           let ts = textStorage, ts.length > 0 {
+        let supportsLinkFallback = mods.isEmpty || mods.contains(.command)
+        if clickPointOnLink, !linkClickDidFire, event.clickCount == 1, supportsLinkFallback,
+            travel < 2, selectedRange().length == 0,
+            let ts = textStorage, ts.length > 0
+        {
             let caret = min(selectedRange().location, ts.length - 1)
             let onCaret = ts.attribute(.link, at: caret, effectiveRange: nil) != nil
-            let linkAttr = onCaret ? ts.attribute(.link, at: caret, effectiveRange: nil)
+            let linkAttr =
+                onCaret
+                ? ts.attribute(.link, at: caret, effectiveRange: nil)
                 : (caret > 0 ? ts.attribute(.link, at: caret - 1, effectiveRange: nil) : nil)
             let linkIdx = onCaret ? caret : caret - 1
             if let linkAttr, let dlg = delegate as? NativeTextViewCoordinator,
-               !dlg.textView(self, clickedOnLink: linkAttr, at: linkIdx) {
+                !dlg.textView(self, clickedOnLink: linkAttr, at: linkIdx)
+            {
                 // Web link: the delegate declines; open the URL as AppKit would.
                 if let url = (linkAttr as? URL) ?? (linkAttr as? String).flatMap(URL.init(string:)),
-                   url.scheme != nil {
+                    url.scheme != nil
+                {
                     NSWorkspace.shared.open(url)
                 }
             }
@@ -71,15 +80,45 @@ extension NativeTextView {
         }
     }
 
+    /// AppKit does not consistently call `clickedOnLink` for custom `.link` values
+    /// in an editable text view. Route Command-click directly from mouseDown so wiki
+    /// links behave like editable URL links and never depend on that delegate quirk.
+    private func handleCommandLinkClick(_ event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard event.clickCount == 1, modifiers.contains(.command) else { return false }
+        let viewPoint = convert(event.locationInWindow, from: nil)
+        guard let hit = linkHit(at: viewPoint), let coordinator = delegate as? NativeTextViewCoordinator else {
+            return false
+        }
+
+        linkClickDidFire = true
+        linkClickDidNavigate = false
+        if !coordinator.handleLinkClick(
+            self,
+            link: hit.value,
+            at: hit.characterIndex,
+            modifierFlags: modifiers
+        ),
+            let url = (hit.value as? URL) ?? (hit.value as? String).flatMap(URL.init(string:)),
+            url.scheme != nil
+        {
+            NSWorkspace.shared.open(url)
+        }
+        return true
+    }
+
     func performDragBoostTick() {
         guard let window = self.window,
-              let scrollView = enclosingScrollView,
-              let start = dragStartMouseScreenLoc else { return }
+            let scrollView = enclosingScrollView,
+            let start = dragStartMouseScreenLoc
+        else { return }
 
         let mouseScreen = NSEvent.mouseLocation
         let dragPolicy = configuration.dragSelection
         // Require real drag movement so a static click at the window edge doesn't scroll.
-        guard max(abs(mouseScreen.x - start.x), abs(mouseScreen.y - start.y)) > dragPolicy.movementThreshold else { return }
+        guard max(abs(mouseScreen.x - start.x), abs(mouseScreen.y - start.y)) > dragPolicy.movementThreshold else {
+            return
+        }
 
         let mouseInWin = window.convertPoint(fromScreen: mouseScreen)
         let direction: CGFloat

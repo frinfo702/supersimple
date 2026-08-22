@@ -21,8 +21,20 @@ public enum RepositoryError: Error, Sendable {
     case unavailable(underlying: String)
     case notFound(UUID)
     case conflict(UUID)
+    case invalidNotePath
     case invalidAttachmentPath
     case saveFailed(underlying: String)
+}
+
+/// A recoverable move from the notes directory into the library trash.
+public struct TrashedNoteFile: Equatable, Sendable {
+    public let originalURL: URL
+    public let trashURL: URL
+
+    public init(originalURL: URL, trashURL: URL) {
+        self.originalURL = originalURL
+        self.trashURL = trashURL
+    }
 }
 
 /// Result of a load: the content, or a description of why it could not be produced.
@@ -263,21 +275,74 @@ public final class NoteRepository: @unchecked Sendable {
 
     // MARK: - Deletion / trash
 
-    /// Moves a note into the library's hidden Trash so accidental deletion is recoverable.
-    public func delete(id: UUID) -> Bool {
+    /// Moves an exact note file to the hidden library trash and returns the paths
+    /// required to restore it. A unique suffix prevents rapid repeated deletes from
+    /// colliding with an earlier trash entry.
+    public func moveToTrash(fileURL: URL) throws -> TrashedNoteFile {
         lock.lock()
         defer { lock.unlock() }
-        let url = layout.noteURL(for: id)
-        guard fileManager.fileExists(at: url) else { return false }
+        guard
+            fileURL.deletingLastPathComponent().standardizedFileURL
+                == layout.notesDirectory.standardizedFileURL
+        else {
+            throw RepositoryError.invalidNotePath
+        }
+        guard fileManager.fileExists(at: fileURL) else {
+            throw RepositoryError.notFound(
+                UUID(uuidString: fileURL.deletingPathExtension().lastPathComponent) ?? UUID())
+        }
         do {
             try layout.createIfNeeded()
-            let trashURL = layout.trashDirectory
-                .appendingPathComponent("\(id.uuidString)-\(Int(Date().timeIntervalSince1970)).md", isDirectory: false)
-            try FileManager.default.moveItem(at: url, to: trashURL)
-            return true
+            let stem = fileURL.deletingPathExtension().lastPathComponent
+            let trashURL = layout.trashDirectory.appendingPathComponent(
+                "\(stem)-\(UUID().uuidString).md",
+                isDirectory: false
+            )
+            try FileManager.default.moveItem(at: fileURL, to: trashURL)
+            return TrashedNoteFile(originalURL: fileURL, trashURL: trashURL)
+        } catch let error as RepositoryError {
+            throw error
         } catch {
-            return false
+            throw RepositoryError.saveFailed(underlying: String(describing: error))
         }
+    }
+
+    /// Restores a previously trashed note. Existing source files are never overwritten.
+    @discardableResult
+    public func restore(_ trashed: TrashedNoteFile) throws -> FileRecord {
+        lock.lock()
+        defer { lock.unlock() }
+        guard
+            trashed.originalURL.deletingLastPathComponent().standardizedFileURL
+                == layout.notesDirectory.standardizedFileURL,
+            trashed.trashURL.deletingLastPathComponent().standardizedFileURL
+                == layout.trashDirectory.standardizedFileURL
+        else {
+            throw RepositoryError.invalidNotePath
+        }
+        guard fileManager.fileExists(at: trashed.trashURL) else {
+            throw RepositoryError.unavailable(underlying: "trash entry is missing")
+        }
+        guard !fileManager.fileExists(at: trashed.originalURL) else {
+            throw RepositoryError.conflict(
+                UUID(uuidString: trashed.originalURL.deletingPathExtension().lastPathComponent) ?? UUID()
+            )
+        }
+        do {
+            try FileManager.default.moveItem(at: trashed.trashURL, to: trashed.originalURL)
+        } catch {
+            throw RepositoryError.saveFailed(underlying: String(describing: error))
+        }
+        guard let record = fileManager.fileRecord(at: trashed.originalURL) else {
+            throw RepositoryError.unavailable(underlying: "restored file could not be read")
+        }
+        return record
+    }
+
+    /// Moves a note into the library's hidden Trash so accidental deletion is recoverable.
+    public func delete(id: UUID) -> Bool {
+        let url = layout.noteURL(for: id)
+        return (try? moveToTrash(fileURL: url)) != nil
     }
 
     public func fileExists(id: UUID) -> Bool {

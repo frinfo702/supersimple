@@ -10,6 +10,14 @@ struct EditorView: View {
     @Bindable var model: AppModel
     @Environment(ThemeManager.self) private var themeManager
     @Environment(\.colorScheme) private var colorScheme
+    @State private var isWikiLinkActive = false
+    @State private var pendingInlineReplacement: InlineReplacementRequest?
+    @State private var activeWikiSelection: WikiLinkSelection?
+    @State private var wikiPickerRect: CGRect = .zero
+    @State private var wikiPickerIndex = 0
+    @State private var backlinksExpanded = false
+    @State private var hoveredBacklinkID: UUID?
+    @State private var backlinksHovering = false
 
     private var palette: PaletteColors {
         themeManager.paletteColors(isDark: themeManager.isDark(matching: colorScheme))
@@ -36,6 +44,37 @@ struct EditorView: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
+        .overlay {
+            GeometryReader { proxy in
+                if activeWikiSelection != nil {
+                    let pickerWidth: CGFloat = 280
+                    let pickerX = min(
+                        max(20, wikiPickerRect.minX),
+                        max(20, proxy.size.width - pickerWidth - 16)
+                    )
+                    let pickerY =
+                        wikiPickerRect.maxY < proxy.size.height * 0.62
+                        ? max(20, wikiPickerRect.maxY + 6)
+                        : max(20, wikiPickerRect.minY - 285)
+                    WikiLinkPicker(
+                        notes: wikiSuggestions,
+                        query: wikiQuery,
+                        selectedIndex: wikiPickerIndex,
+                        canCreate: canCreateWikiTarget,
+                        palette: palette,
+                        onSelect: { index in commitWikiSelection(at: index, openAfter: false) }
+                    )
+                    .frame(width: pickerWidth)
+                    .offset(x: pickerX, y: pickerY)
+                    .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .topLeading)))
+                }
+            }
+        }
+        .overlay(alignment: .bottomLeading) {
+            backlinkControl
+                .padding(.leading, 16)
+                .padding(.bottom, 10)
+        }
         .animation(.easeOut(duration: 0.13), value: model.noteFindPresented)
         .onReceive(NotificationCenter.default.publisher(for: EditorFindNotifications.results)) {
             notification in
@@ -55,9 +94,12 @@ struct EditorView: View {
     private func liveEditor(for note: Note) -> some View {
         NativeTextViewWrapper(
             text: binding(for: note),
+            isWikiLinkActive: $isWikiLinkActive,
+            pendingInlineReplacement: $pendingInlineReplacement,
             configuration: EditorConfiguration.build(
                 imageStore: model.imageStore,
                 faviconService: model.faviconService,
+                notes: model.notes,
                 palette: palette
             ),
             fontName: themeManager.editorFont.postScriptName,
@@ -65,9 +107,181 @@ struct EditorView: View {
             styleRevision: themeManager.styleRevision,
             documentId: note.id.uuidString,
             isEditable: true,
-            onPasteImage: model.pasteImageHandler
+            onPasteImage: model.pasteImageHandler,
+            onLinkClick: { model.openLinkedNote(identifier: $0) },
+            onCaretRectChange: { wikiPickerRect = $0 },
+            onInlineSelectionChange: { state in
+                guard let state else {
+                    activeWikiSelection = nil
+                    wikiPickerIndex = 0
+                    return
+                }
+                switch state.kind {
+                case .wikiLink:
+                    activeWikiSelection = state.selection
+                    wikiPickerIndex = 0
+                case .imageEmbed:
+                    activeWikiSelection = nil
+                }
+            },
+            onInlinePreviewKey: handleWikiPreviewKey,
+            isCursorExcluded: { _ in backlinksHovering }
         )
         .background(palette.editor)
+    }
+
+    private var wikiQuery: String {
+        guard let placeholder = activeWikiSelection?.placeholder else { return "" }
+        var value = placeholder
+        if value.hasPrefix("[[") { value.removeFirst(2) }
+        if value.hasSuffix("]]") { value.removeLast(2) }
+        return value.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var wikiSuggestions: [Note] {
+        let query = wikiQuery
+        return model.notes
+            .filter { note in
+                note.id != model.currentNoteID
+                    && (query.isEmpty || note.title.localizedCaseInsensitiveContains(query))
+            }
+            .sorted { lhs, rhs in
+                let lhsPrefix =
+                    lhs.title.range(
+                        of: query, options: [.anchored, .caseInsensitive, .diacriticInsensitive]) != nil
+                let rhsPrefix =
+                    rhs.title.range(
+                        of: query, options: [.anchored, .caseInsensitive, .diacriticInsensitive]) != nil
+                if lhsPrefix != rhsPrefix { return lhsPrefix }
+                return lhs.updatedAt > rhs.updatedAt
+            }
+            .prefix(7)
+            .map { $0 }
+    }
+
+    private var canCreateWikiTarget: Bool {
+        let query = wikiQuery
+        guard !query.isEmpty, !query.contains("|"), !query.contains("]") else { return false }
+        return !model.notes.contains {
+            $0.title.compare(query, options: [.caseInsensitive, .diacriticInsensitive]) == .orderedSame
+        }
+    }
+
+    private var wikiPickerCount: Int {
+        wikiSuggestions.count + (canCreateWikiTarget ? 1 : 0)
+    }
+
+    private func handleWikiPreviewKey(_ key: InlinePreviewKey) -> Bool {
+        guard activeWikiSelection != nil else { return false }
+        switch key {
+        case .moveUp:
+            guard wikiPickerCount > 0 else { return true }
+            wikiPickerIndex = (wikiPickerIndex - 1 + wikiPickerCount) % wikiPickerCount
+        case .moveDown:
+            guard wikiPickerCount > 0 else { return true }
+            wikiPickerIndex = (wikiPickerIndex + 1) % wikiPickerCount
+        case .confirm:
+            commitWikiSelection(at: wikiPickerIndex, openAfter: false)
+        case .confirmAndOpen:
+            commitWikiSelection(at: wikiPickerIndex, openAfter: true)
+        case .cancel:
+            activeWikiSelection = nil
+            isWikiLinkActive = false
+        }
+        return true
+    }
+
+    private func commitWikiSelection(at index: Int, openAfter: Bool) {
+        guard let selection = activeWikiSelection,
+            let documentID = model.currentNoteID?.uuidString
+        else { return }
+        let target: Note?
+        if wikiSuggestions.indices.contains(index) {
+            target = wikiSuggestions[index]
+        } else if canCreateWikiTarget, index == wikiSuggestions.count {
+            target = model.createLinkedNote(named: wikiQuery)
+        } else {
+            target = nil
+        }
+        guard let target else { return }
+        pendingInlineReplacement = InlineReplacementRequest(
+            documentId: documentID,
+            selection: selection,
+            storageFragment: "[[\(target.title)|\(target.id.uuidString)]]",
+            isImageEmbedMode: false
+        )
+        activeWikiSelection = nil
+        isWikiLinkActive = false
+        if openAfter {
+            Task { @MainActor in
+                try? await Task.sleep(for: .milliseconds(80))
+                model.open(target)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var backlinkControl: some View {
+        if let note = model.currentNote() {
+            let backlinks = model.backlinks(to: note)
+            if !backlinks.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    if backlinksExpanded {
+                        VStack(alignment: .leading, spacing: 2) {
+                            ForEach(backlinks) { backlink in
+                                Button {
+                                    model.open(backlink)
+                                    backlinksExpanded = false
+                                } label: {
+                                    HStack(spacing: 7) {
+                                        Image(systemName: "arrow.turn.down.right")
+                                            .font(.system(size: 10, weight: .semibold))
+                                        Text(backlink.title)
+                                            .lineLimit(1)
+                                    }
+                                    .font(.system(size: 12, weight: .medium))
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 7)
+                                    .background(
+                                        RoundedRectangle(
+                                            cornerRadius: AppTheme.Metric.controlRadius,
+                                            style: .continuous
+                                        )
+                                        .fill(hoveredBacklinkID == backlink.id ? palette.hover : .clear)
+                                    )
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                .onHover { hovering in
+                                    hoveredBacklinkID = hovering ? backlink.id : nil
+                                }
+                            }
+                        }
+                        .frame(width: 250)
+                        .padding(6)
+                        .background(.regularMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                        .shadow(color: .black.opacity(0.18), radius: 14, y: 7)
+                    }
+                    Button {
+                        backlinksExpanded.toggle()
+                    } label: {
+                        Label("Linked from \(backlinks.count)", systemImage: "link")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(palette.muted)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Show notes that link here")
+                }
+                .onHover { hovering in
+                    backlinksHovering = hovering
+                    if hovering {
+                        NSCursor.arrow.set()
+                    }
+                }
+            }
+        }
     }
 
     private func binding(for note: Note) -> Binding<String> {
@@ -95,11 +309,89 @@ struct EditorView: View {
     }
 }
 
+private struct WikiLinkPicker: View {
+    let notes: [Note]
+    let query: String
+    let selectedIndex: Int
+    let canCreate: Bool
+    let palette: PaletteColors
+    let onSelect: (Int) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 2) {
+            if notes.isEmpty, !canCreate {
+                Text("No matching notes")
+                    .font(.system(size: 12))
+                    .foregroundStyle(palette.muted)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 9)
+            } else {
+                ForEach(Array(notes.enumerated()), id: \.element.id) { index, note in
+                    pickerRow(
+                        title: note.title,
+                        icon: "doc.text",
+                        selected: index == selectedIndex
+                    ) {
+                        onSelect(index)
+                    }
+                }
+                if canCreate {
+                    pickerRow(
+                        title: "Create “\(query)”",
+                        icon: "plus",
+                        selected: selectedIndex == notes.count
+                    ) {
+                        onSelect(notes.count)
+                    }
+                }
+            }
+        }
+        .padding(6)
+        .background(.regularMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .strokeBorder(palette.hairline, lineWidth: AppTheme.Metric.hairlineWidth)
+        }
+        .shadow(color: .black.opacity(0.22), radius: 16, y: 8)
+        .accessibilityIdentifier("wiki-link-picker")
+    }
+
+    private func pickerRow(
+        title: String,
+        icon: String,
+        selected: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(selected ? palette.accent : palette.muted)
+                    .frame(width: 15)
+                Text(title)
+                    .font(.system(size: 12, weight: selected ? .semibold : .regular))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 7)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(selected ? palette.selection : Color.clear)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 /// Concentrates engine configuration (theme + services + typography).
 enum EditorConfiguration {
     static func build(
         imageStore: ImageStore,
         faviconService: FaviconService,
+        notes: [Note],
         palette: PaletteColors
     ) -> MarkdownEditorConfiguration {
         var config = MarkdownEditorConfiguration.default
@@ -116,6 +408,7 @@ enum EditorConfiguration {
         config.theme = theme
 
         config.services = MarkdownEditorServices(
+            wikiLinks: NoteWikiLinkResolver(notes: notes),
             images: imageStore,
             syntaxHighlighter: NativeCodeHighlighter(),
             latex: SwiftMathBridge(),

@@ -217,6 +217,101 @@ struct DownloadIcon: View {
     }
 }
 
+/// start.svg: outlined favorite star supplied for the library UI (24×24 viewBox).
+struct FavoriteIcon: View {
+    var lineWidth: CGFloat = 1.5
+
+    var body: some View {
+        StarPath()
+            .stroke(style: .init(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+    }
+
+    struct StarPath: Shape {
+        func path(in rect: CGRect) -> Path {
+            let m = IconMetrics(rect: rect)
+            func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+                m.point(x * 16 / 24, y * 16 / 24)
+            }
+            var p = Path()
+            p.move(to: pt(11.525, 2.295))
+            p.addCurve(to: pt(12, 2.0001), control1: pt(11.6144, 2.1144), control2: pt(11.7985, 2.0001))
+            p.addCurve(to: pt(12.475, 2.295), control1: pt(12.2015, 2.0001), control2: pt(12.3856, 2.1144))
+            p.addLine(to: pt(14.785, 6.974))
+            p.addCurve(to: pt(16.38, 8.134), control1: pt(15.0939, 7.5991), control2: pt(15.6901, 8.0327))
+            p.addLine(to: pt(21.546, 8.89))
+            p.addCurve(to: pt(21.974, 9.2506), control1: pt(21.7457, 8.9189), control2: pt(21.9116, 9.0587))
+            p.addCurve(to: pt(21.84, 9.794), control1: pt(22.0364, 9.4425), control2: pt(21.9845, 9.6531))
+            p.addLine(to: pt(18.104, 13.432))
+            p.addCurve(to: pt(17.493, 15.31), control1: pt(17.6038, 13.9194), control2: pt(17.3754, 14.6216))
+            p.addLine(to: pt(18.375, 20.45))
+            p.addCurve(to: pt(18.1645, 20.971), control1: pt(18.4103, 20.6496), control2: pt(18.3286, 20.8519))
+            p.addCurve(to: pt(17.604, 21.01), control1: pt(18.0005, 21.0901), control2: pt(17.7829, 21.1053))
+            p.addLine(to: pt(12.986, 18.582))
+            p.addCurve(to: pt(11.013, 18.582), control1: pt(12.3683, 18.2577), control2: pt(11.6307, 18.2577))
+            p.addLine(to: pt(6.396, 21.01))
+            p.addCurve(to: pt(5.8363, 20.9702), control1: pt(6.2171, 21.1047), control2: pt(6, 21.0893))
+            p.addCurve(to: pt(5.626, 20.45), control1: pt(5.6726, 20.8512), control2: pt(5.591, 20.6493))
+            p.addLine(to: pt(6.507, 15.311))
+            p.addCurve(to: pt(5.896, 13.432), control1: pt(6.6251, 14.6223), control2: pt(6.3966, 13.9195))
+            p.addLine(to: pt(2.16, 9.795))
+            p.addCurve(to: pt(2.0241, 9.2502), control1: pt(2.0143, 9.6543), control2: pt(1.9616, 9.4428))
+            p.addCurve(to: pt(2.454, 8.889), control1: pt(2.0866, 9.0575), control2: pt(2.2534, 8.9174))
+            p.addLine(to: pt(7.619, 8.134))
+            p.addCurve(to: pt(9.216, 6.974), control1: pt(8.3097, 8.0335), control2: pt(8.9068, 7.5998))
+            p.addCurve(to: pt(11.525, 2.295), control1: pt(9.9857, 5.4143), control2: pt(10.7553, 3.8547))
+            p.closeSubpath()
+            return p
+        }
+    }
+}
+
+/// morphicons trash SVG supplied for delete and library Trash affordances (24×24 viewBox).
+struct TrashIcon: View {
+    var lineWidth: CGFloat = 1.5
+
+    var body: some View {
+        TrashPath()
+            .stroke(style: .init(lineWidth: lineWidth, lineCap: .round, lineJoin: .round))
+    }
+
+    struct TrashPath: Shape {
+        func path(in rect: CGRect) -> Path {
+            let m = IconMetrics(rect: rect)
+            func pt(_ x: CGFloat, _ y: CGFloat) -> CGPoint {
+                m.point(x * 16 / 24, y * 16 / 24)
+            }
+            var p = Path()
+            p.move(to: pt(14.74, 9))
+            p.addCurve(to: pt(14.394, 18), control1: pt(14.6247, 12), control2: pt(14.5093, 15))
+            p.move(to: pt(9.606, 18))
+            p.addCurve(to: pt(9.26, 9), control1: pt(9.4907, 15), control2: pt(9.3753, 12))
+            p.move(to: pt(19.228, 5.79))
+            p.addCurve(to: pt(20.25, 5.956), control1: pt(19.57, 5.842), control2: pt(19.91, 5.897))
+            p.move(to: pt(19.228, 5.791))
+            p.addCurve(to: pt(18.16, 19.673), control1: pt(18.872, 10.4183), control2: pt(18.516, 15.0457))
+            p.addCurve(to: pt(15.916, 21.75), control1: pt(18.0696, 20.8453), control2: pt(17.0918, 21.7503))
+            p.addLine(to: pt(8.084, 21.75))
+            p.addCurve(to: pt(5.84, 19.673), control1: pt(6.9082, 21.7503), control2: pt(5.9304, 20.8453))
+            p.addLine(to: pt(4.772, 5.79))
+            p.move(to: pt(19.228, 5.79))
+            p.addCurve(to: pt(15.75, 5.393), control1: pt(18.0739, 5.6155), control2: pt(16.9138, 5.4831))
+            p.move(to: pt(3.75, 5.955))
+            p.addCurve(to: pt(4.772, 5.79), control1: pt(4.09, 5.896), control2: pt(4.43, 5.841))
+            p.move(to: pt(4.772, 5.79))
+            p.addCurve(to: pt(8.25, 5.393), control1: pt(5.9261, 5.6155), control2: pt(7.0862, 5.4831))
+            p.move(to: pt(15.75, 5.393))
+            p.addLine(to: pt(15.75, 4.477))
+            p.addCurve(to: pt(13.66, 2.276), control1: pt(15.75, 3.297), control2: pt(14.84, 2.313))
+            p.addCurve(to: pt(10.34, 2.276), control1: pt(12.5536, 2.2406), control2: pt(11.4464, 2.2406))
+            p.addCurve(to: pt(8.25, 4.477), control1: pt(9.16, 2.313), control2: pt(8.25, 3.298))
+            p.addLine(to: pt(8.25, 5.393))
+            p.move(to: pt(15.75, 5.393))
+            p.addCurve(to: pt(8.25, 5.393), control1: pt(13.2537, 5.2001), control2: pt(10.7463, 5.2001))
+            return p
+        }
+    }
+}
+
 /// Maps 16×16 viewBox coordinates into `rect`, preserving aspect.
 private struct IconMetrics {
     let origin: CGPoint

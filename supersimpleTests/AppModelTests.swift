@@ -176,6 +176,145 @@ struct AppModelTests {
         #expect(model.currentNote() == nil)
     }
 
+    @Test("Deleted notes move to Trash and can be restored with Undo")
+    func deleteAndRestoreNote() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+        let id = try #require(model.currentNoteID)
+        model.noteBodyEdited("# Recoverable\nKeep this.", for: id)
+        #expect(model.flushNow())
+
+        let note = try #require(model.currentNote())
+        model.deleteNote(note)
+        #expect(model.notes.isEmpty)
+        #expect(model.deletedNoteUndoTitle == "Recoverable")
+        #expect(!LibraryLayout(root: dir).fileExists(id: id))
+        #expect(
+            try FileManager.default.contentsOfDirectory(
+                at: LibraryLayout(root: dir).trashDirectory, includingPropertiesForKeys: nil
+            ).count == 1)
+
+        model.restoreLastDeletedNote()
+        #expect(model.notes.count == 1)
+        #expect(model.currentNoteID == id)
+        #expect(LibraryLayout(root: dir).fileExists(id: id))
+        #expect(model.deletedNoteUndoTitle == nil)
+    }
+
+    @Test("Pins notes above the regular recency groups")
+    func pinning() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+        let first = try #require(model.currentNote())
+        model.noteBodyEdited("# Pinned", for: first.id)
+        #expect(model.flushNow())
+        model.createNote()
+        let newest = try #require(model.currentNote())
+        model.noteBodyEdited("# Newest", for: newest.id)
+        #expect(model.flushNow())
+
+        model.togglePin(first)
+        #expect(model.isPinned(first))
+        #expect(model.visibleNotes.first?.id == first.id)
+        #expect(model.pinnedVisibleNotes.map(\.id) == [first.id])
+        #expect(model.groupedVisibleNotes.flatMap(\.notes).allSatisfy { $0.id != first.id })
+    }
+
+    @Test("Finds backlinks by stable id and opens linked notes")
+    func linkedNotesAndBacklinks() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+        let targetID = try #require(model.currentNoteID)
+        model.noteBodyEdited("# Target", for: targetID)
+        #expect(model.flushNow())
+        model.createNote()
+        let sourceID = try #require(model.currentNoteID)
+        model.noteBodyEdited("# Source\n[[Old target title|\(targetID.uuidString)]]", for: sourceID)
+        #expect(model.flushNow())
+
+        let target = try #require(model.notes.first { $0.id == targetID })
+        #expect(model.backlinks(to: target).map(\.id) == [sourceID])
+        model.openLinkedNote(identifier: targetID.uuidString)
+        #expect(model.currentNoteID == targetID)
+    }
+
+    @Test("Reloads a clean note changed outside the app")
+    func externalEditReload() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+        let id = try #require(model.currentNoteID)
+        model.noteBodyEdited("# Before", for: id)
+        #expect(model.flushNow())
+
+        try writeExternalBody("# After\nChanged elsewhere.", id: id, root: dir)
+        let deadline = ContinuousClock.now.advanced(by: .seconds(2))
+        while !model.currentBody.contains("Changed elsewhere."), ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+
+        #expect(model.currentBody.contains("Changed elsewhere."))
+        #expect(model.externalNoteConflict == nil)
+        #expect(model.externalChangeMessage != nil)
+    }
+
+    @Test("Prompts before replacing a dirty note changed outside the app")
+    func externalEditConflict() async throws {
+        let dir = try makeTempDir()
+        let (model, cleanup) = try makeModel(in: dir)
+        defer {
+            cleanup()
+            try? FileManager.default.removeItem(at: dir)
+        }
+        await model.bootstrap()
+        let id = try #require(model.currentNoteID)
+        model.noteBodyEdited("# Base", for: id)
+        #expect(model.flushNow())
+        model.noteBodyEdited("# Mine\nUnsaved local edit.", for: id)
+        try writeExternalBody("# Theirs\nExternal edit.", id: id, root: dir)
+
+        await model.refreshExternalChanges()
+        #expect(model.externalNoteConflict?.noteID == id)
+        #expect(model.currentBody.contains("Unsaved local edit."))
+        #expect(model.externalChangeMessage == nil)
+
+        // A second watcher event for the same disk contents must stay silent.
+        await model.refreshExternalChanges()
+        #expect(model.externalChangeMessage == nil)
+
+        model.loadExternalVersionAfterConflict()
+        #expect(model.externalNoteConflict == nil)
+        #expect(model.currentBody.contains("External edit."))
+    }
+
+    private func writeExternalBody(_ body: String, id: UUID, root: URL) throws {
+        let url = LibraryLayout(root: root).noteURL(for: id)
+        let text = try String(contentsOf: url, encoding: .utf8)
+        var document = try FrontmatterCodec.decode(text)
+        document.body = body
+        document.metadata.updatedAt = Date().addingTimeInterval(1)
+        try document.fullText.write(to: url, atomically: true, encoding: .utf8)
+    }
+
     @Test("Loading two files with the same frontmatter id deduplicates instead of crashing")
     func duplicateNoteIDsDoNotCrashSearch() async throws {
         let dir = try makeTempDir()
