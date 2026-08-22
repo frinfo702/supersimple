@@ -16,6 +16,7 @@ struct EditorView: View {
     @State private var wikiPickerRect: CGRect = .zero
     @State private var wikiPickerIndex = 0
     @State private var backlinksExpanded = false
+    @State private var hoveredBacklinkID: UUID?
 
     private var palette: PaletteColors {
         themeManager.paletteColors(isDark: themeManager.isDark(matching: colorScheme))
@@ -240,8 +241,19 @@ struct EditorView: View {
                                     .frame(maxWidth: .infinity, alignment: .leading)
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 7)
+                                    .background(
+                                        RoundedRectangle(
+                                            cornerRadius: AppTheme.Metric.controlRadius,
+                                            style: .continuous
+                                        )
+                                        .fill(hoveredBacklinkID == backlink.id ? palette.hover : .clear)
+                                    )
+                                    .contentShape(Rectangle())
                                 }
                                 .buttonStyle(.plain)
+                                .onHover { hovering in
+                                    hoveredBacklinkID = hovering ? backlink.id : nil
+                                }
                             }
                         }
                         .frame(width: 250)

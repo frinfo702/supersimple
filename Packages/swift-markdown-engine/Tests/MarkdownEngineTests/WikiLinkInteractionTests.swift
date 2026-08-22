@@ -1,4 +1,5 @@
 import AppKit
+import SwiftUI
 import Testing
 
 @testable import MarkdownEngine
@@ -35,5 +36,40 @@ struct WikiLinkInteractionTests {
                 modifierFlags: []
             )
         )
+    }
+
+    @MainActor
+    @Test("Explicit Command-click activation opens the wiki target")
+    func commandClickActivation() async {
+        var text = "[[Target]]"
+        var wikiActive = false
+        var openedTarget: String?
+        let coordinator = NativeTextViewCoordinator(
+            text: Binding(get: { text }, set: { text = $0 }),
+            fontName: "Helvetica",
+            fontSize: 16,
+            isWikiLinkActive: Binding(get: { wikiActive }, set: { wikiActive = $0 }),
+            onLinkClick: { openedTarget = $0 },
+            onInlineSelectionChange: nil
+        )
+        let textView = NSTextView(usingTextLayoutManager: true)
+        textView.string = text
+        textView.isEditable = true
+        textView.textStorage?.addAttribute(
+            .wikiLinkID,
+            value: "note-id",
+            range: NSRange(location: 2, length: 6)
+        )
+
+        #expect(
+            coordinator.handleLinkClick(
+                textView,
+                link: "note-id",
+                at: 3,
+                modifierFlags: [.command]
+            )
+        )
+        await Task.yield()
+        #expect(openedTarget == "note-id")
     }
 }

@@ -31,8 +31,9 @@ extension NativeTextView {
             NSCursor.arrow.set()
         } else {
             super.mouseMoved(with: event)
-            applyReadOnlyCursor(for: event)
-            applyInvertedIBeamIfNeeded(for: event)
+            if !applyLinkCursor(for: event) {
+                applyInvertedIBeamIfNeeded(for: event)
+            }
         }
     }
 
@@ -45,8 +46,21 @@ extension NativeTextView {
             NSCursor.arrow.set()
         } else {
             super.mouseEntered(with: event)
-            applyReadOnlyCursor(for: event)
-            applyInvertedIBeamIfNeeded(for: event)
+            if !applyLinkCursor(for: event) {
+                applyInvertedIBeamIfNeeded(for: event)
+            }
+        }
+    }
+
+    override func flagsChanged(with event: NSEvent) {
+        super.flagsChanged(with: event)
+        guard isEditable, let window else { return }
+        let viewPoint = convert(window.mouseLocationOutsideOfEventStream, from: nil)
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if modifiers.contains(.command), isOverLink(at: viewPoint) {
+            NSCursor.pointingHand.set()
+        } else {
+            NSCursor.iBeam.set()
         }
     }
 
@@ -74,16 +88,25 @@ extension NativeTextView {
         return excluded(event.locationInWindow)
     }
 
-    /// In read-only mode, override NSTextView's I-beam: pointing hand over a
-    /// `.link` range, arrow everywhere else.
-    private func applyReadOnlyCursor(for event: NSEvent) {
-        guard isSelectable, !isEditable else { return }      // edit mode: keep I-beam
+    /// Shows a pointing hand for navigable links: always in read-only mode, and
+    /// while Command is held in editable mode. Returns whether it set the cursor.
+    @discardableResult
+    private func applyLinkCursor(for event: NSEvent) -> Bool {
         let viewPoint = convert(event.locationInWindow, from: nil)
-        if isOverLink(at: viewPoint) {
-            NSCursor.pointingHand.set()
-        } else {
-            NSCursor.arrow.set()
+        if isSelectable, !isEditable {
+            if isOverLink(at: viewPoint) {
+                NSCursor.pointingHand.set()
+            } else {
+                NSCursor.arrow.set()
+            }
+            return true
         }
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if isEditable, modifiers.contains(.command), isOverLink(at: viewPoint) {
+            NSCursor.pointingHand.set()
+            return true
+        }
+        return false
     }
 
     /// True when the pointer is over a drawn task-checkbox square (edit mode
@@ -91,13 +114,15 @@ extension NativeTextView {
     /// read-only mode already shows the arrow via `applyReadOnlyCursor`).
     private func isOverTaskCheckboxBox(_ event: NSEvent) -> Bool {
         let viewPoint = convert(event.locationInWindow, from: nil)
-        let containerPoint = CGPoint(x: viewPoint.x - textContainerOrigin.x,
-                                     y: viewPoint.y - textContainerOrigin.y)
+        let containerPoint = CGPoint(
+            x: viewPoint.x - textContainerOrigin.x,
+            y: viewPoint.y - textContainerOrigin.y)
         // Bound the attribute scan to the hovered line's fragment — a full-
         // document scan per mouse-move would be O(doc).
         guard let tlm = textLayoutManager,
-              let tcs = tlm.textContentManager as? NSTextContentStorage,
-              let fragment = tlm.textLayoutFragment(for: containerPoint) else { return false }
+            let tcs = tlm.textContentManager as? NSTextContentStorage,
+            let fragment = tlm.textLayoutFragment(for: containerPoint)
+        else { return false }
         let start = tcs.offset(from: tcs.documentRange.location, to: fragment.rangeInElement.location)
         let end = tcs.offset(from: tcs.documentRange.location, to: fragment.rangeInElement.endLocation)
         guard start != NSNotFound, end > start else { return false }
@@ -109,28 +134,47 @@ extension NativeTextView {
     /// (view coordinates). `.link` is what drives `clickedOnLink`, so this
     /// matches exactly what is clickable.
     private func isOverLink(at viewPoint: CGPoint) -> Bool {
-        attributes(at: viewPoint)?[.link] != nil
+        linkHit(at: viewPoint) != nil
+    }
+
+    /// Link value and a best-effort document index at the drawn glyph under a point.
+    /// TextKit's insertion index can land on a hidden wiki marker, so the rendered
+    /// line attributes are authoritative for hit-testing.
+    func linkHit(at viewPoint: CGPoint) -> (value: Any, characterIndex: Int)? {
+        guard let attrs = attributes(at: viewPoint), let value = attrs[.wikiLinkID] ?? attrs[.link] else {
+            return nil
+        }
+        let length = textStorage?.length ?? 0
+        guard length > 0 else { return nil }
+        let insertionIndex = characterIndexForInsertion(at: viewPoint)
+        return (value, min(max(insertionIndex, 0), length - 1))
     }
 
     /// Attributes of the character under `viewPoint`, or nil when the point is
     /// past the end of a line / outside any fragment.
     private func attributes(at viewPoint: CGPoint) -> [NSAttributedString.Key: Any]? {
         guard let tlm = textLayoutManager,
-              let textStorage = textStorage, textStorage.length > 0 else { return nil }
+            let textStorage = textStorage, textStorage.length > 0
+        else { return nil }
 
-        let containerPoint = CGPoint(x: viewPoint.x - textContainerOrigin.x,
-                                     y: viewPoint.y - textContainerOrigin.y)
+        let containerPoint = CGPoint(
+            x: viewPoint.x - textContainerOrigin.x,
+            y: viewPoint.y - textContainerOrigin.y)
         guard let fragment = tlm.textLayoutFragment(for: containerPoint) else { return nil }
 
         let fragFrame = fragment.layoutFragmentFrame
-        let pInFrag = CGPoint(x: containerPoint.x - fragFrame.minX,
-                              y: containerPoint.y - fragFrame.minY)
+        let pInFrag = CGPoint(
+            x: containerPoint.x - fragFrame.minX,
+            y: containerPoint.y - fragFrame.minY)
         // Only accept a line fragment that actually contains the point — guards
         // against clicks in trailing padding / past the end of a line.
-        guard let line = fragment.textLineFragments.first(where: { $0.typographicBounds.contains(pInFrag) }) else { return nil }
+        guard let line = fragment.textLineFragments.first(where: { $0.typographicBounds.contains(pInFrag) }) else {
+            return nil
+        }
 
-        let pInLine = CGPoint(x: pInFrag.x - line.typographicBounds.minX,
-                              y: pInFrag.y - line.typographicBounds.minY)
+        let pInLine = CGPoint(
+            x: pInFrag.x - line.typographicBounds.minX,
+            y: pInFrag.y - line.typographicBounds.minY)
         let idx = line.characterIndex(for: pInLine)
         let lineString = line.attributedString
         guard idx >= 0, idx < lineString.length else { return nil }
@@ -146,16 +190,18 @@ extension NativeTextView {
         guard configuration.cursorFollowsSpanInk else { return nil }
         let attrs = attributes(at: convert(event.locationInWindow, from: nil))
         guard let attrs,
-              let block = attrs[.backgroundColor] as? NSColor,
-              let ink = attrs[.foregroundColor] as? NSColor else { return nil }
+            let block = attrs[.backgroundColor] as? NSColor,
+            let ink = attrs[.foregroundColor] as? NSColor
+        else { return nil }
         // Resolve inside the view's appearance: these are dynamic colors, and
         // `NSAppearance.current` during a mouse event is not necessarily ours —
         // a dark editor would otherwise get the light-mode pair.
         var resolved: (ink: NSColor, block: NSColor, body: NSColor)?
         effectiveAppearance.performAsCurrentDrawingAppearance {
             guard let ink = ink.usingColorSpace(.deviceRGB),
-                  let block = block.usingColorSpace(.deviceRGB),
-                  let body = configuration.theme.bodyText.usingColorSpace(.deviceRGB) else { return }
+                let block = block.usingColorSpace(.deviceRGB),
+                let body = configuration.theme.bodyText.usingColorSpace(.deviceRGB)
+            else { return }
             resolved = (ink, block, body)
         }
         guard let resolved else { return nil }
@@ -171,8 +217,8 @@ extension NativeTextView {
     /// span's own ink; anywhere else `super` keeps the system cursor.
     func applyInvertedIBeamIfNeeded(for event: NSEvent) {
         guard isEditable,
-              let colors = invertedRunColors(at: event),
-              let cursor = InvertedIBeamCursor.cursor(ink: colors.ink, block: colors.block)
+            let colors = invertedRunColors(at: event),
+            let cursor = InvertedIBeamCursor.cursor(ink: colors.ink, block: colors.block)
         else { return }
         cursor.set()
     }

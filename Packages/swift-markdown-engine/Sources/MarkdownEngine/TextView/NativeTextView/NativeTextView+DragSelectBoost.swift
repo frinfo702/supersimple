@@ -12,6 +12,8 @@ import AppKit
 
 extension NativeTextView {
     override func mouseDown(with event: NSEvent) {
+        if handleCommandLinkClick(event) { return }
+
         // Was the click point on a link? Captured before super.mouseDown, which
         // may park the caret elsewhere. Used to rescue a dropped link click.
         let clickPointOnLink: Bool = {
@@ -76,6 +78,33 @@ extension NativeTextView {
             let len = min(preClickSelection.length, max(0, docLen - loc))
             setSelectedRange(NSRange(location: loc, length: len))
         }
+    }
+
+    /// AppKit does not consistently call `clickedOnLink` for custom `.link` values
+    /// in an editable text view. Route Command-click directly from mouseDown so wiki
+    /// links behave like editable URL links and never depend on that delegate quirk.
+    private func handleCommandLinkClick(_ event: NSEvent) -> Bool {
+        let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        guard event.clickCount == 1, modifiers.contains(.command) else { return false }
+        let viewPoint = convert(event.locationInWindow, from: nil)
+        guard let hit = linkHit(at: viewPoint), let coordinator = delegate as? NativeTextViewCoordinator else {
+            return false
+        }
+
+        linkClickDidFire = true
+        linkClickDidNavigate = false
+        if !coordinator.handleLinkClick(
+            self,
+            link: hit.value,
+            at: hit.characterIndex,
+            modifierFlags: modifiers
+        ),
+            let url = (hit.value as? URL) ?? (hit.value as? String).flatMap(URL.init(string:)),
+            url.scheme != nil
+        {
+            NSWorkspace.shared.open(url)
+        }
+        return true
     }
 
     func performDragBoostTick() {

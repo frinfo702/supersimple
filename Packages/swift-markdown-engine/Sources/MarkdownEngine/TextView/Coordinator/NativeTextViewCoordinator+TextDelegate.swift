@@ -925,10 +925,23 @@ extension NativeTextViewCoordinator {
     }
 
     public func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
+        handleLinkClick(
+            textView,
+            link: link,
+            at: charIndex,
+            modifierFlags: NSApp.currentEvent?.modifierFlags ?? []
+        )
+    }
+
+    func handleLinkClick(
+        _ textView: NSTextView,
+        link: Any,
+        at charIndex: Int,
+        modifierFlags: NSEvent.ModifierFlags
+    ) -> Bool {
         // Record that the delegate ran this press, so mouseDown's fallback knows
         // AppKit didn't drop the dispatch.
         (textView as? NativeTextView)?.linkClickDidFire = true
-        let modifierFlags = NSApp.currentEvent?.modifierFlags ?? []
         let commandClick =
             modifierFlags
             .intersection(.deviceIndependentFlagsMask)
